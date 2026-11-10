@@ -108,7 +108,7 @@ Responses to routine plays do not list the battlefield or the hand; `get_state` 
 
 ### In MCP terms
 
-A response is a single text content item. `ERROR` responses set the MCP result's error flag; `OK`, `REJECTED` and `CHOICE` do not, because a rejection is an ordinary, expected outcome the agent acts on. Arguments that fail the tool's schema are answered in the same text format as an `ERROR`, not as a protocol-level fault, so the agent always reads one format. Such a response sets the error flag, carries the status line when the call named an existing game, and is saved as a call record like any other call. To make this possible the tools declare permissive schemas to the MCP layer and validate arguments themselves.
+A response is a single text content item. `ERROR` responses set the MCP result's error flag; `OK`, `REJECTED` and `CHOICE` do not, because a rejection is an ordinary, expected outcome the agent acts on. Arguments that fail the tool's schema are answered in the same text format as an `ERROR`, not as a protocol-level fault, so the agent always reads one format. Such a response sets the error flag, carries the status line when the call named an existing game, and is saved as a call record like any other call. To make this possible the tools are served by the SDK's low-level server, which validates nothing: the schemas the tools declare describe each parameter's JSON type and which are required, to guide the agent, and the adapter shapes the arguments itself. Every object or list parameter is also accepted as a JSON string. A parameter name the tool does not have is a malformed argument. A call naming a tool that does not exist is answered as a protocol error, since there is no tool to record it under.
 
 ## Player Brief
 
@@ -142,6 +142,8 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | Transport | Streamable HTTP, stateless | stdio; stateful sessions | One process for all agents; stateless calls suit game ids that already carry all context, and suit hosting later. |
 | Where playing instructions live | Server instructions and tool descriptions, plus a subagent definition | Only a subagent definition | Instructions that travel with the server work for any client; the subagent definition is the convenience for Claude Code. |
 | Schema failures | Answered as `ERROR` text | Protocol error | One format for the agent to read. |
+| MCP server class | The SDK's low-level server with schemas the adapter declares | The SDK's high-level server built from function signatures | The high-level server rejects calls that fail a signature before the adapter sees them, so they could not be answered as `ERROR` text or recorded. |
+| Unknown parameter names | Malformed argument | Ignored | A misspelled `override` or `after` silently ignored would change what the call does without the agent knowing. |
 
 ## Open Questions & Future Decisions
 
