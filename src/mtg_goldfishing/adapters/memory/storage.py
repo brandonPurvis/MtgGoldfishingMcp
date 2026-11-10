@@ -10,7 +10,14 @@ import copy
 from dataclasses import dataclass, field, replace
 from typing import Protocol
 
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    DeckRepository,
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    StoredGame,
+    UnitOfWork,
+)
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
@@ -25,7 +32,7 @@ class _Checkpointed(Protocol):
 
 
 # @spec APP-013
-class InMemoryGameRepository:
+class InMemoryGameRepository(GameRepository):
     """Games by id, each with the version counter it was stored at."""
 
     def __init__(self) -> None:
@@ -56,7 +63,7 @@ class InMemoryGameRepository:
 
 
 # @spec APP-013
-class InMemoryDeckRepository:
+class InMemoryDeckRepository(DeckRepository):
     """Loaded decks by id. A deck once added is never replaced."""
 
     def __init__(self) -> None:
@@ -90,7 +97,7 @@ def _after(number: int | None, since: int | None) -> bool:
 
 
 # @spec APP-013
-class InMemoryRecordStore:
+class InMemoryRecordStore(RecordStore):
     """Log entries and turn snapshots per game, and every call record, numbered as added."""
 
     def __init__(self) -> None:
@@ -141,7 +148,7 @@ class InMemoryRecordStore:
 
 
 # @spec APP-013
-class InMemoryUnitOfWork:
+class InMemoryUnitOfWork(UnitOfWork):
     """Sets aside the contents of its stores on `begin` and puts them back on `rollback`."""
 
     def __init__(self, *stores: _Checkpointed) -> None:

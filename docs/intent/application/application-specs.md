@@ -40,9 +40,9 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-012**: Every adapter implementing a port shall pass that port's contract test suite, including the in-memory adapters.
 - [x] **APP-013**: The in-memory adapters shall be working implementations that keep their data in memory, with a card catalog loaded from recorded card data, an id source that yields a fixed sequence, and a clock set by the test.
 - [ ] **APP-041**: The application shall define the port `GameChanges`, with one operation that announces that a game has changed and one that waits until a game changes after a given change number or a timeout passes.
-- [ ] **APP-042**: Each port shall be an abstract base class defined in `application/ports.py`.
-- [ ] **APP-043**: Every implementation of a port, in-memory adapters included, shall be a concrete class that inherits from the port it implements.
-- [ ] **APP-044**: If a class inheriting from a port does not implement every operation of that port, then constructing an object of that class shall fail.
+- [x] **APP-042**: Each port shall be an abstract base class defined in `application/ports.py`.
+- [x] **APP-043**: Every implementation of a port, in-memory adapters included, shall be a concrete class that inherits from the port it implements.
+- [x] **APP-044**: If a class inheriting from a port does not implement every operation of that port, then constructing an object of that class shall fail.
 - [ ] **APP-045**: `GameRepository` shall offer an operation that finds the game and seat number a seat id names, answering for a game id with that game and its tested seat's number, and reporting when the id names none.
 - [ ] **APP-046**: `RecordStore` shall offer an operation that gives a seat's digest baseline for a game: the change number on that seat's most recent call record for a tool other than `get_log`, reporting when the seat has no such call record.
 - [ ] **APP-092**: If `RecordStore` is asked to add a snapshot for a game and table turn that already has one, then it shall raise an exception and leave the stored snapshot as it was, a second snapshot for a table turn being a defect and never a replacement.
@@ -51,10 +51,10 @@ Design: `application-design.md`. Prefix: `APP`.
 
 ## Dependency injection
 
-- [ ] **APP-049**: `Service` shall receive every port as a keyword argument of its constructor and hand each use case the ports it needs.
-- [ ] **APP-050**: No module under `mtg_goldfishing.application` shall construct or look up an implementation of a port.
+- [x] **APP-049**: `Service` shall receive every port as a keyword argument of its constructor and hand each use case the ports it needs.
+- [x] **APP-050**: No module under `mtg_goldfishing.application` shall construct or look up an implementation of a port.
 - [ ] **APP-051**: Port implementations shall be chosen in exactly two hand-written composition roots: `bootstrap.py`, which builds the running service from the SQLite stores, the Scryfall catalog, the system id source, clock, game locks and game changes, and the text renderer; and the test composition root in `tests/support`, which builds the same service from the in-memory adapters, the recorded card catalog and a set clock and id source.
-- [ ] **APP-052**: The service shall use no dependency-injection container library.
+- [x] **APP-052**: The service shall use no dependency-injection container library.
 
 ## Use cases
 

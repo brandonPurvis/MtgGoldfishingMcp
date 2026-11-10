@@ -7,6 +7,8 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 
+from mtg_goldfishing.application.ports import GameLocks
+
 
 @dataclass
 class _GameLock:
@@ -15,7 +17,7 @@ class _GameLock:
 
 
 # @spec APP-014, APP-015, APP-016
-class InProcessGameLocks:
+class InProcessGameLocks(GameLocks):
     """One lock per game id. Calls for different games never wait on each other.
 
     A game's lock exists while some call holds or waits for it, and is dropped after, so

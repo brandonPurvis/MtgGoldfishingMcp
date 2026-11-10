@@ -10,7 +10,13 @@ from contextlib import AbstractContextManager, contextmanager
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application.outcome import Answer, Status
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    GameLocks,
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    StoredGame,
+)
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from tests.support.builders import a_game
@@ -36,7 +42,7 @@ class Journal:
         return JournaledRecords(self, inner)
 
 
-class JournaledLocks:
+class JournaledLocks(GameLocks):
     def __init__(self, journal: Journal) -> None:
         self._journal = journal
         self._inner = InProcessGameLocks()
@@ -54,7 +60,7 @@ class JournaledLocks:
         return self._hold(game_id)
 
 
-class JournaledGames:
+class JournaledGames(GameRepository):
     def __init__(self, journal: Journal, inner: InMemoryGameRepository) -> None:
         self._journal = journal
         self._inner = inner
@@ -71,7 +77,7 @@ class JournaledGames:
         return self._inner.save(game, version=version)
 
 
-class JournaledRecords:
+class JournaledRecords(RecordStore):
     def __init__(self, journal: Journal, inner: InMemoryRecordStore) -> None:
         self._journal = journal
         self._inner = inner
@@ -91,7 +97,7 @@ class JournaledRecords:
         return self._inner.read(game_id, since=since)
 
 
-class SlowToLoad:
+class SlowToLoad(GameRepository):
     """A game repository that takes a moment to load, widening any race between two calls."""
 
     def __init__(self, inner: InMemoryGameRepository) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
+from mtg_goldfishing.application.ports import CardCache, CardCatalog
 from mtg_goldfishing.domain.cards import Card, CardLookup, LookupStatus, same_name
 
 
@@ -16,7 +17,7 @@ def _sort_key(card: Card) -> tuple[str, str]:
 
 
 # @spec CARD-006, CARD-007, CARD-017
-class InMemoryCardCache:
+class InMemoryCardCache(CardCache):
     """A card cache in a dictionary: one entry per card, keyed by its full name."""
 
     def __init__(self) -> None:
@@ -34,7 +35,7 @@ class InMemoryCardCache:
 
 
 # @spec CARD-006, CARD-007, APP-013
-class InMemoryCardCatalog:
+class InMemoryCardCatalog(CardCatalog):
     """A card catalog over a fixed set of cards, where some names can be made unavailable."""
 
     def __init__(self, cards: Iterable[Card], unavailable: Iterable[str] = ()) -> None:

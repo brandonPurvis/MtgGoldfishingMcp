@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.application.outcome import Status
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    StoredGame,
+)
 from mtg_goldfishing.domain.events import ErrorKind, Refused
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
@@ -13,7 +18,7 @@ from tests.support.builders import a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
 
 
-class ChangedByAnotherWriter:
+class ChangedByAnotherWriter(GameRepository):
     """A game repository where another writer saves each game just after it is loaded."""
 
     def __init__(self, inner: InMemoryGameRepository) -> None:
@@ -32,7 +37,7 @@ class ChangedByAnotherWriter:
         return self._inner.save(game, version=version)
 
 
-class SnapshotsCannotBeWritten:
+class SnapshotsCannotBeWritten(RecordStore):
     """A record store whose disk fills up whenever a turn snapshot is added."""
 
     def __init__(self, inner: InMemoryRecordStore) -> None:
@@ -51,7 +56,7 @@ class SnapshotsCannotBeWritten:
         return self._inner.read(game_id, since=since)
 
 
-class CallRecordsCannotBeAdded:
+class CallRecordsCannotBeAdded(RecordStore):
     """A record store whose disk fills up whenever a call record is added."""
 
     def __init__(self, inner: InMemoryRecordStore) -> None:

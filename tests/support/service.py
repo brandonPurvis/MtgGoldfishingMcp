@@ -92,6 +92,7 @@ class ServiceHarness:
         return self.service.new_game({"deck_id": self.loaded_deck_id(), **arguments})
 
 
+# @spec APP-051
 def a_service(
     *,
     games: Callable[[InMemoryGameRepository], GameRepository] | None = None,

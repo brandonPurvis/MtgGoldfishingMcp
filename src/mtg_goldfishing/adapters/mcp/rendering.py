@@ -18,7 +18,7 @@ from typing import assert_never
 from mtg_goldfishing.adapters.mcp.listing_lines import report_lines, state_lines
 from mtg_goldfishing.adapters.mcp.refusal_lines import check_text, refusal_lines
 from mtg_goldfishing.application.outcome import Outcome, Status
-from mtg_goldfishing.application.ports import Rendered
+from mtg_goldfishing.application.ports import Rendered, Renderer
 from mtg_goldfishing.domain.events import (
     AdvanceStopped,
     AlreadyApplied,
@@ -78,7 +78,7 @@ from mtg_goldfishing.domain.steps import Step
 GET_LOG = "get_log"
 
 
-class TextRenderer:
+class TextRenderer(Renderer):
     """Implements the `Renderer` port with the plain-text response format."""
 
     # @spec TOOL-014, TOOL-015, TOOL-016, TOOL-022, TOOL-024, TOOL-025, TOOL-026, REC-018, REC-024

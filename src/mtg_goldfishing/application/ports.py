@@ -1,15 +1,19 @@
 """The ports: interfaces the application reaches the outside world through.
 
-Ports speak in domain types. Adapters implement them.
+Ports speak in domain types. Each is an abstract base class; an adapter implements a port by
+inheriting from it, so a class that leaves out an operation cannot be constructed.
 """
+
+# @spec APP-042, APP-043, APP-044
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from mtg_goldfishing.domain.cards import Card, CardLookup
 from mtg_goldfishing.domain.deck.model import LoadedDeck
@@ -35,91 +39,110 @@ class GameRecords:
     calls: tuple[CallRecord, ...]
 
 
-class GameRepository(Protocol):
+class GameRepository(ABC):
     """Loads and saves games."""
 
+    @abstractmethod
     def get(self, game_id: str) -> StoredGame | None: ...
 
+    @abstractmethod
     def add(self, game: Game) -> None:
         """Store a new game at version 1."""
         ...
 
+    @abstractmethod
     def save(self, game: Game, *, version: int) -> bool:
         """Save a game loaded at `version`; False, writing nothing, if it has changed since."""
         ...
 
 
-class DeckRepository(Protocol):
+class DeckRepository(ABC):
     """Keeps loaded decks. A loaded deck never changes once added."""
 
+    @abstractmethod
     def get(self, deck_id: str) -> LoadedDeck | None: ...
 
+    @abstractmethod
     def add(self, deck: LoadedDeck) -> LoadedDeck:
         """Add a deck, leaving an existing deck with the same id in place; return the stored one."""
         ...
 
 
-class RecordStore(Protocol):
+class RecordStore(ABC):
     """Keeps a game's log entries, turn snapshots and call records."""
 
+    @abstractmethod
     def append_entry(self, game_id: str, entry: LogEntry) -> None: ...
 
+    @abstractmethod
     def add_snapshot(self, game_id: str, snapshot: TurnSnapshot) -> None: ...
 
+    @abstractmethod
     def add_call(self, record: CallRecord) -> None: ...
 
+    @abstractmethod
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         """Entries with seq > since, calls with change > since, snapshots written after since."""
         ...
 
 
-class CardCatalog(Protocol):
+class CardCatalog(ABC):
     """Supplies card data by exact name."""
 
+    @abstractmethod
     def look_up(self, names: Iterable[str], *, refresh: bool = False) -> Mapping[str, CardLookup]:
         """For each requested name, as given: the card, not found, or unavailable."""
         ...
 
 
-class CardCache(Protocol):
+class CardCache(ABC):
     """Keeps fetched card data so no card is fetched twice."""
 
+    @abstractmethod
     def get(self, name: str) -> Card | None:
         """The cached card whose full name or a face name matches, ignoring case."""
         ...
 
+    @abstractmethod
     def put(self, card: Card) -> None:
         """Store a card, replacing any cached card with the same full name."""
         ...
 
 
-class UnitOfWork(Protocol):
+class UnitOfWork(ABC):
     """Makes one call's saves atomic across `GameRepository`, `DeckRepository` and `RecordStore`."""
 
+    @abstractmethod
     def begin(self) -> None: ...
 
+    @abstractmethod
     def commit(self) -> None: ...
 
+    @abstractmethod
     def rollback(self) -> None: ...
 
 
-class GameLocks(Protocol):
+class GameLocks(ABC):
     """Applies one game's calls one at a time."""
 
+    @abstractmethod
     def hold(self, game_id: str) -> AbstractContextManager[None]: ...
 
 
-class IdSource(Protocol):
+class IdSource(ABC):
     """Supplies what must be random."""
 
+    @abstractmethod
     def new_game_id(self) -> str:
         """Ten random characters for a game id."""
         ...
 
+    @abstractmethod
     def new_seed(self) -> int: ...
 
 
-class Clock(Protocol):
+class Clock(ABC):
+    @abstractmethod
     def now(self) -> datetime: ...
 
 
@@ -131,7 +154,8 @@ class Rendered:
     record: str
 
 
-class Renderer(Protocol):
+class Renderer(ABC):
     """Turns an outcome into response text. Implemented by the MCP adapter."""
 
+    @abstractmethod
     def render(self, tool: str, outcome: Outcome) -> Rendered: ...

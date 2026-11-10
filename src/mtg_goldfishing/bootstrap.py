@@ -89,6 +89,7 @@ class Composition:
         self.stores.database.close()
 
 
+# @spec APP-051, APP-052
 def compose(settings: Settings, *, catalog: CardCatalog | None = None) -> Composition:
     """The service over SQLite at the configured path.
 

@@ -6,6 +6,8 @@ import itertools
 import re
 from collections.abc import Iterable, Iterator
 
+from mtg_goldfishing.application.ports import IdSource
+
 GAME_ID_PATTERN = re.compile(r"^[a-z0-9]{10}$")
 """Ten lower-case letters or digits: what `IdSource.new_game_id` gives."""
 
@@ -16,7 +18,7 @@ def _counting_game_ids() -> Iterator[str]:
 
 
 # @spec APP-013
-class FixedIdSource:
+class FixedIdSource(IdSource):
     """Yields the game ids and seeds it was given, in order.
 
     Without game ids it counts `0000000001`, `0000000002`, ...; without seeds, 1, 2, ....
