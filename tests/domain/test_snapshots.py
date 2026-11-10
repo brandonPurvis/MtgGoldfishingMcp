@@ -160,3 +160,12 @@ def test_mana_spent_counts_a_generic_symbol_as_its_number() -> None:
     assert isinstance(result, Applied), result
     situation.game = result.game
     assert snapshot_at_cleanup(situation).mana_spent == 5
+
+
+# @spec REC-014
+def test_payable_pays_phyrexian_symbols_with_mana_not_life() -> None:
+    situation = (
+        a_game().in_step(Step.MAIN2).with_battlefield("Forest").with_hand("Dismember").build()
+    )
+    snapshot = snapshot_at_cleanup(situation)
+    assert snapshot.hand == (HandCard("Dismember", payable=False),)
