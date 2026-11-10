@@ -85,10 +85,10 @@ pay: { with?: [name | { source: name, mana: ManaString }], cost?: ManaString, li
 ```
 
 - **`with`** names sources to use. They are used first — tapped, and sacrificed if their ability says so — and their mana is added to the pool; the auto payment system then pays any remainder. Naming a sacrifice source here is how a Treasure pays for a spell. An entry may state the mana the source makes this time (`{ "source": "Mana Vault", "mana": "{C}{C}{C}" }`); the stated mana is used as given, which is how the agent picks a color from a multi-color source and how it uses a permanent the service has not read as a mana source. For a named source that offers a choice and has no stated mana, the service picks the option that best serves the cost by the rules above. A named permanent that has no mana reading and no stated mana is an error asking for the mana; a named permanent that is already tapped is an error. A named creature that is summoning-sick is a rule check.
-- **`cost`** replaces the whole cost the service computed, including commander tax, X and extra costs. It exists for cost reducers and alternative costs. Because the service cannot verify it, giving `cost` is a rule check: the call must carry an `override` reason.
+- **`cost`** on `play` replaces the whole cost the service computed, including commander tax, X and extra costs. It exists for cost reducers and alternative costs. Because the service cannot verify it, giving `cost` to `play` is a rule check: the call must carry an `override` reason. On `effect`, which has no computed cost, `cost` is simply the cost of the ability being recorded and is not a rule check.
 - **`life`** pays that much life as part of the cost, for costs the service cannot read from the mana cost.
 
-`pay` omitted entirely means: pay the computed cost automatically.
+`pay` omitted entirely means, for `play`: pay the computed cost automatically; for `effect`: pay nothing.
 
 ## What the Response Shows
 

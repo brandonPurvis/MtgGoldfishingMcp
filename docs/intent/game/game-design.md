@@ -24,7 +24,7 @@ Game {
   turn: int                  // 0 during mulligans
   step: Step | null          // null during mulligans
   change: int                // the change number: accepted changing calls so far
-  last_change: { tool, arguments, response } | null   // the most recent accepted changing call
+  last_change: { tool, arguments, summary, events } | null   // the most recent accepted changing call and what it reported
   life: int                  // starts at 40
   land_drops_used: int
   turn_stats: {              // reset on entering untap
@@ -78,7 +78,7 @@ If `seed` is not given to `new_game`, the service generates one and returns it, 
 Every accepted call that changes a game increases the game's change number by one, and every response about the game shows it. Any changing tool accepts an optional `after` argument: the change number the agent last saw.
 
 - `after` equal to the game's change number: the call is applied.
-- `after` one less than the game's change number, and the call's tool and arguments are the same as the game's most recent accepted change: the call is a resend. It is not applied again; the original response is returned with a line saying it was already applied.
+- `after` one less than the game's change number, and the call's tool and arguments (other than `after`) are the same as the game's most recent accepted change: the call is a resend. It is not applied again; the original summary and events are reported again with a statement that the call was already applied. Since nothing has changed since, they render to the original response.
 - any other `after`: an error saying the game is now at a different change number, so the agent knows its picture is stale.
 - `after` omitted: the call is applied with no check.
 

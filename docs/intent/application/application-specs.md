@@ -23,7 +23,7 @@ Design: `application-design.md`. Prefix: `APP`.
 
 ## Ports
 
-- [ ] **APP-011**: The application shall define the ports `GameRepository`, `DeckRepository`, `RecordStore`, `CardCatalog`, `UnitOfWork`, `GameLocks`, `IdSource` and `Clock`, each expressed in domain types.
+- [ ] **APP-011**: The application shall define the ports `GameRepository`, `DeckRepository`, `RecordStore`, `CardCatalog`, `UnitOfWork`, `GameLocks`, `IdSource`, `Clock` and `Renderer`, each expressed in domain types.
 - [ ] **APP-012**: Every adapter implementing a port shall pass that port's contract test suite, including the in-memory adapters.
 - [ ] **APP-013**: The in-memory adapters shall be working implementations that keep their data in memory, with a card catalog loaded from recorded card data, an id source that yields a fixed sequence, and a clock set by the test.
 
@@ -35,6 +35,9 @@ Design: `application-design.md`. Prefix: `APP`.
 - [ ] **APP-017**: When a domain operation returns an applied result, the use case shall save the game, the log entry and any snapshot in one unit of work.
 - [ ] **APP-018**: When a domain operation returns a refusal, the use case shall save nothing about the game.
 - [ ] **APP-019**: When a use case finishes, whatever the outcome, the use case shall have added a call record for the call.
+- [ ] **APP-026**: When a use case adds a call record, the record's response shall be the text `Renderer` produced for the call's outcome.
+- [ ] **APP-027**: When the MCP adapter cannot shape a call's arguments, the application shall return an `ERROR` outcome, carrying the game summary when the call names an existing game, and add a call record for the call.
+- [ ] **APP-028**: When the domain reads a structured argument (`delta`, `choices`, `pay`, `expect`, `selections`, `definitions`) that is malformed, the domain shall return an error rather than raise an exception.
 - [ ] **APP-020**: If a use case fails unexpectedly, then the use case shall roll back its unit of work, add a call record, and return an `ERROR` outcome stating that the failure was inside the service and not caused by the call.
 - [ ] **APP-021**: If saving a game fails because the stored game changed since it was loaded, then the use case shall save nothing and return an `ERROR` outcome asking for the call to be sent again.
 - [ ] **APP-022**: When a `play` call brings a card from outside the game, the use case shall resolve that card's data through `CardCatalog` before calling the domain.

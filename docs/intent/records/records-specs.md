@@ -11,7 +11,7 @@ Design: `records-design.md`. Prefix: `REC`.
 - [ ] **REC-005**: A log entry shall record the agent's `reason` verbatim.
 - [ ] **REC-006**: A log entry shall record any `override` reason, the rule checks it overrode, any `expect` mismatches, any assumptions the service made, the cards drawn, the steps entered, the reminders issued and the notices first raised by the call.
 - [ ] **REC-007**: A log entry's `outcome` shall record what the tool produced that no other field carries: for `new_game` the opening hand; for `mulligan` the new hand and cards bottomed; for `choose` where each revealed card went; for `attack` the attackers, blocked attackers and targets; for the call that enters `combat_damage` the damage per attacker; for `advance` the cards discarded; for `end_game` the result and notes.
-- [ ] **REC-008**: The records domain shall build each log entry from the use case's outcome and not from response text.
+- [ ] **REC-008**: The records domain shall build each log entry from the call's events and the game before and after the call, and not from response text.
 
 ## Reminders
 
