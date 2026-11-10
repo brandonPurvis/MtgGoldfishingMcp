@@ -177,7 +177,7 @@ A wrong `choice_id` or a name that was not revealed is an error. Selecting nothi
 
 `play` and `effect` may include `expect`: values the agent believes will be true once the call has been applied. The service compares each with the real state and adds a warning line for each mismatch. The call is applied either way; a mismatch is never a refusal.
 
-Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax`, `damage_dealt`, `step`. `tax` is the tax on the next cast of the commander (the higher, with two commanders). `pool` is compared as a set of mana symbols, ignoring their order and any spending restriction. Any other key is an error that lists the allowed keys. For a call that creates a pending choice, `expect` is evaluated when the choice is created.
+Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax`, `damage_dealt`, `step`. `tax` is the tax on the next cast of the commander (the higher, with two commanders). `pool` is compared as a multiset of mana symbols, ignoring their order and any spending restriction. Any other key is an error that lists the allowed keys. For a call that creates a pending choice, `expect` is evaluated when the choice is created.
 
 ## Decisions & Alternatives
 

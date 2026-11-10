@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from mtg_goldfishing.domain.cards import type_words
@@ -199,14 +200,36 @@ def usable_on_its_own(source: Source) -> bool:
     return not source.sacrifices and source.other_cost is None and bool(source.options)
 
 
-# @spec PAY-012, PAY-013, PAY-014
+def by_permanent(sources: Iterable[Source]) -> list[tuple[Source, ...]]:
+    """The sources grouped by permanent: the abilities through which each may pay, in order."""
+    found: dict[str, list[Source]] = {}
+    for source in sources:
+        found.setdefault(source.instance_id, []).append(source)
+    return [tuple(abilities) for abilities in found.values()]
+
+
+def most_mana_of(sources: Iterable[Source]) -> int:
+    """The most mana these sources could make, each permanent through one of its abilities."""
+    return sum(max(s.most_mana for s in abilities) for abilities in by_permanent(sources))
+
+
+def most_of_color(sources: Iterable[Source], color: str) -> int:
+    """The most mana of one color these sources could make, one ability per permanent."""
+    return sum(
+        max((s.most_mana for s in abilities if color in s.colors), default=0)
+        for abilities in by_permanent(sources)
+    )
+
+
+# @spec PAY-012, PAY-013, PAY-014, PAY-041
 def available_sources(
     game: Game, deck: LoadedDeck, *, paying_for: str | None, ignore_tapped: bool = False
 ) -> list[Source]:
     """Sources the auto payment system may use for a payment, best kind and lowest id first.
 
-    `paying_for` is the type line of the card being paid for, or None for an effect.
-    A source with a restriction is used only when the card qualifies.
+    Every usable mana ability of a permanent is a source of its own; a payment uses at
+    most one of them. `paying_for` is the type line of the card being paid for, or None
+    for an effect. A source with a restriction is used only when the card qualifies.
     """
     found: list[Source] = []
     for card in game.battlefield:
@@ -220,5 +243,4 @@ def available_sources(
             if source.restriction is not None and not source.restriction.allows(paying_for):
                 continue
             found.append(source)
-            break
     return sorted(found, key=lambda s: (s.rank, s.number))

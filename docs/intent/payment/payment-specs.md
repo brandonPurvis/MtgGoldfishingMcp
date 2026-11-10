@@ -15,6 +15,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-006**: When a payment is made, the game shall spend suitable mana already in the mana pool before tapping any mana source.
 - [x] **PAY-007**: When a mana source makes more mana than a payment needs, the game shall add the surplus to the mana pool and the outcome shall state it.
 - [x] **PAY-008**: While mana in the mana pool carries a spending restriction, the game shall spend it only on a card whose type line includes one of the restriction's card types, and never on the cost of an `effect`.
+- [x] **PAY-042**: When a mana source adds mana to the mana pool, that mana shall carry the source's spending restriction.
 - [x] **PAY-009**: When the mana pool is written as text, it shall be a mana string, `{}` when empty, with each restricted symbol followed by `*`.
 
 ## Mana sources
@@ -33,7 +34,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-018**: When `play` or an `effect` with `pay` gives no `with`, `cost` or `life`, the auto payment system shall pay the computed cost from the mana pool and available mana sources.
 - [x] **PAY-019**: The auto payment system shall decide exactly whether a cost can be paid from the mana pool and available mana sources.
 - [x] **PAY-020**: If the auto payment system finds no valid payment, then the cost shall be reported as not payable, stating the cost, the amount of mana available and any color requirement that cannot be met.
-- [x] **PAY-021**: When choosing among valid payments, the auto payment system shall pay each Phyrexian symbol with 2 life whenever the agent's life would remain 1 or more, and with mana otherwise.
+- [x] **PAY-021**: When choosing among valid payments, the auto payment system shall pay each Phyrexian symbol with 2 life whenever the agent's life would remain 1 or more and a valid payment remains, and with mana otherwise.
 - [x] **PAY-022**: When choosing among valid payments that are equal on Phyrexian symbols, the auto payment system shall choose the payment after which the greatest number of other cards could each be cast on their own from the remaining untapped available mana sources and mana pool.
 - [x] **PAY-023**: When counting other cards that could still be cast, the auto payment system shall count every non-land card in hand other than the card being played and every commander in the command zone at its current commander tax, each at its mana cost with X as 0, and shall count a multi-face card if any face of it that has a mana cost could be cast.
 - [x] **PAY-024**: When valid payments are equal on other cards still castable, the auto payment system shall choose the payment that leaves the greatest number of distinct colors of mana available.
@@ -42,6 +43,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-027**: When valid payments are equal on every other rule, the auto payment system shall choose the payment using the mana sources with the lowest instance ids.
 - [x] **PAY-028**: The auto payment system shall produce the same payment for the same game state and cost on every run and every machine.
 - [x] **PAY-029**: The auto payment system shall examine at most 20,000 valid payments in a fixed order when choosing among them, and shall use the best payment examined when that limit is reached.
+- [x] **PAY-041**: When a permanent has more than one mana ability the auto payment system may use, the auto payment system shall consider paying with any one of them, and shall use at most one ability of a permanent in a payment.
 
 ## Agent-directed payment
 
@@ -53,7 +55,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-035**: If a `pay.with` entry names a creature that entered the battlefield this turn and has no haste, then the call shall fail a rule check.
 - [x] **PAY-036**: When `pay.cost` is given to `play`, the game shall pay that cost in place of the whole computed cost, including commander tax, X and extra costs.
 - [x] **PAY-037**: If `pay.cost` is given to `play` and the call carries no `override`, then the call shall fail a rule check.
-- [x] **PAY-040**: When `pay.cost` is given to `effect`, the game shall pay that cost without a rule check on account of it.
+- [x] **PAY-040**: When `pay.cost` is given to `effect`, the game shall pay that cost, with X replaced by `choices.x` and `choices.extra_cost` added, without a rule check on account of it.
 - [x] **PAY-038**: When `pay.life` is given, the game shall reduce the agent's life by that amount as part of the payment.
 
 ## Reporting

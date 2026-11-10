@@ -16,6 +16,7 @@ from mtg_goldfishing.domain.events import (
     AdvanceStopped,
     CardsDiscarded,
     CheckKind,
+    ChecksOverridden,
     EnteredStep,
     Error,
     ErrorKind,
@@ -126,15 +127,18 @@ def _discard_list(value: object) -> list[str] | Error | None:
 
 def _cleanup_discard(
     game: Game, deck: LoadedDeck, names: list[str], override: str | None
-) -> list[CardInstance] | Refusal:
+) -> tuple[list[CardInstance], FailedCheck | None] | Refusal:
+    """The cards to discard, and the discard-count check an `override` overrode, if any."""
     excess = max(0, len(game.hand) - MAXIMUM_HAND)
     found = resolve(game, deck, names, [Zone.HAND])
     if isinstance(found, Error):
         return Refusal.error(Error(ErrorKind.DISCARD_NOT_IN_HAND, subject=found.subject))
-    if not override and len(found[0]) != excess:
-        check = FailedCheck(CheckKind.DISCARD_COUNT, number=len(found[0]), expected=excess)
+    if len(found[0]) == excess:
+        return found[0], None
+    check = FailedCheck(CheckKind.DISCARD_COUNT, number=len(found[0]), expected=excess)
+    if not override:
         return Refusal(checks=(check,))
-    return found[0]
+    return found[0], check
 
 
 # @spec TURN-001, TURN-006, TURN-007, TURN-008, TURN-009, TURN-010, TURN-012, TURN-013
@@ -165,18 +169,25 @@ def advance(
         to_discard: list[CardInstance] = []
         if upcoming is Step.CLEANUP:
             excess = len(moved.hand) - MAXIMUM_HAND
-            if names is None and not override and excess > 0:
-                if not walk.entered:
-                    check = FailedCheck(CheckKind.HAND_TOO_BIG, number=excess)
+            if names is None and excess > 0:
+                check = FailedCheck(CheckKind.HAND_TOO_BIG, number=excess)
+                if override:
+                    walk.events.append(ChecksOverridden((check,), override))
+                elif not walk.entered:
                     return Refusal(checks=(check,))
-                stopped_in = moved.step or Step.END
-                walk.events.append(AdvanceStopped(StopReason.DISCARD, stopped_in, target, excess))
-                break
+                else:
+                    stopped_in = moved.step or Step.END
+                    walk.events.append(
+                        AdvanceStopped(StopReason.DISCARD, stopped_in, target, excess)
+                    )
+                    break
             if names is not None:
                 chosen = _cleanup_discard(moved, deck, names, override)
                 if isinstance(chosen, Refusal):
                     return chosen
-                to_discard = chosen
+                to_discard, overridden = chosen
+                if overridden is not None and override:
+                    walk.events.append(ChecksOverridden((overridden,), override))
             entered_cleanup = True
         enter_step(moved, deck, upcoming, walk, to_discard)
         if target is None or moved.step is target:
