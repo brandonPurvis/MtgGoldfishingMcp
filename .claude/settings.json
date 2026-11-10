@@ -2,5 +2,20 @@
   "enabledPlugins": {
     "linked-intent-dev@jszmajda-lid": true,
     "arrow-maintenance@jszmajda-lid": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_and_test.py\"",
+            "timeout": 180,
+            "statusMessage": "Format, lint, type check and unit tests..."
+          }
+        ]
+      }
+    ]
   }
 }
