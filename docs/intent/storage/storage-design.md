@@ -21,7 +21,7 @@ The adapter is deliberately plain. It turns domain objects into rows and back; i
 | `games` | game | game id | The tested seat's deck id, seed, status, result, current state as one JSON document, a version counter, created and updated times. |
 | `seats` | seat of a game | seat id | Game id, seat number, deck id, whether it is the tested seat. Written once when the game is created; the tested seat's row has the game id as its seat id. |
 | `log_entries` | accepted state-changing call | game id + sequence | Entry as JSON. |
-| `snapshots` | completed turn | game id + turn | Snapshot as JSON. |
+| `snapshots` | completed turn | game id + table turn | Snapshot as JSON. In a goldfish game the table turn is the turn. |
 | `calls` | tool call | auto-increment | Game id the supplied id names, or the id as supplied when it names none (nullable); the calling seat's number (nullable); tool, arguments, status, response text, whether it carried an override, the game's change number after the call (nullable), time. |
 | `schema_version` | — | — | Single row. |
 
@@ -31,7 +31,7 @@ Loaded decks are never updated once written. Writing a deck whose id already exi
 
 The `seats` table exists so that a call made with any seat id finds its game with one indexed lookup; it is a copy of what the game's document holds, written in the same transaction as the new game. A goldfish game has one row in it.
 
-The most recent call record of a seat (for its digest, see `application`) is found from `calls` by game id and seat number; an index on those columns keeps that lookup cheap.
+A seat's digest baseline (see `application`) is the change number on its most recent call record for a tool other than `get_log`, found from `calls` by game id and seat number; an index on those columns keeps that lookup cheap.
 
 ## Transactions
 
@@ -63,6 +63,7 @@ The `schema_version` row records the layout. The migration that adds seats creat
 | Call records on failure | Saved even when the call's other writes are not | Lost with the rollback | Refused and errored calls are exactly what a later study of the tool surface needs. |
 | Retention | Keep everything | Expire old games | Local volumes are small; analysis may want any past game. |
 | Finding a game from a seat id | A `seats` table written with the game | Scanning game documents; encoding the game id in the seat id | A scan grows with the number of games; an encoded game id would let one seat's id reveal another's. |
+| Key of a snapshot | Game id and table turn | Game id and the active seat's own turn number | In a contested game several seats each have a turn 3; the table turn is unique in a game and equals the turn in a goldfish game. |
 | Shape of a contested game's state | The same one JSON document, grown to hold seats and the stack | A row per seat | The reasons for one document hold unchanged: every call loads and saves the whole game. |
 
 ## Open Questions & Future Decisions

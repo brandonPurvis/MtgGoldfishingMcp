@@ -245,5 +245,5 @@ The state of a game at the end of a turn, kept for analysis.
 _Avoid_: Checkpoint, save
 
 **Call record**:
-The record of one tool call exactly as it was made and answered, refused or not.
+The record of one tool call as it was made and answered, refused or not, with any opposing seat's seat id left out.
 _Avoid_: Request log, audit entry

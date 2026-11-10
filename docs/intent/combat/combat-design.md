@@ -31,17 +31,18 @@ Names follow the usual rules (see `game`): a name given twice means two differen
 
 ### When it may be called
 
-Only the active seat attacks, when it is the seat to act; in a contested game the stack must be empty and no window open (see `stack`).
+Only the active seat attacks, when it is the seat to act; in a contested game the stack must be empty and no window open (see `stack`), and an `attack` at any other moment is an error.
 
 | Game is in | `attack` |
 |---|---|
 | `main1`, `begin_combat` | Moves the game to `declare_attackers`, doing what `advance` would on the way, and declares. Reminders for `begin_combat` are listed in the response; the attack is declared regardless. |
-| `declare_attackers`, or `declare_blockers` with no attack declared | Declares, staying in the current step. |
-| `declare_attackers` or `declare_blockers`, with an attack already declared | Replaces the declaration. Attackers tapped by the earlier declaration stay tapped and are not refused for being tapped. |
+| `declare_attackers` | Declares, staying in the current step. |
+| `declare_blockers` with no attack declared | Goldfish games: declares, staying in the current step. Contested games: an error; the `blocks` choices are created on entering the step, so an attack declared after that would go unblocked. |
+| `declare_attackers` or `declare_blockers`, with an attack already declared | Goldfish games: replaces the declaration. Attackers tapped by the earlier declaration stay tapped and are not refused for being tapped. Contested games: an error; an attack is declared once for each combat. |
 | `untap`, `upkeep`, `draw` | Rule check: combat this early skips the first main step. With an override, proceeds as from `main1`. |
 | `combat_damage` or later | Rule check: combat is over for this turn. With an override this is an additional combat: the game returns to `declare_attackers` of the current turn (see `turn`) and declares. Creatures tapped by an earlier declaration this turn are not refused for being tapped. |
 
-An empty `attackers` list is accepted: it moves the game and is checked for timing as any attack is, declares no attack, and clears an earlier declaration.
+An empty `attackers` list is accepted: it moves the game and is checked for timing as any attack is, and declares no attack. In a goldfish game it clears an earlier declaration. In a contested game it opens no response window and leaves the seat free to declare an attack afterwards.
 
 A refused `attack` changes nothing, including the step.
 
@@ -74,9 +75,10 @@ The attacking seat states what happens to the creatures — which die, which sur
 Errors:
 
 - an attacker that is not on the battlefield, naming the zone it is in when it is elsewhere;
+- an attacker the attacking seat does not control;
 - an entry in `blocked`, `damage`, `vigilance`, `haste` or `targets` that is not among the attackers;
 - a `commander_target` outside 0–2, or a `commander_target` map naming something that is not an attacking commander;
-- in a contested game: `blocked` or `commander_target` given; a target that is the attacking seat itself, not a seat number in the game, or an eliminated seat; an attacker with no target when the game has more than one opponent;
+- in a contested game: an `attack` when an attack has already been declared for the current combat; `blocked` or `commander_target` given; a target that is the attacking seat itself, not a seat number in the game, or an eliminated seat; an attacker with no target when the game has more than one opponent;
 - in a goldfish game: `targets` given.
 
 Rule checks, overridable:
@@ -120,7 +122,9 @@ The response for the call that enters `combat_damage` shows each attacker's dama
 | Summoning sickness on attackers | Rule check | Not checked | It is a frequent agent error that inflates results, and card data is enough to catch it. |
 | Target of ordinary damage in a goldfish game | Pooled, no target | Per-attacker opponent | See `game`: only commander damage needs a target. |
 | Target in a contested game | A seat per attacker, defaulting to the only opponent | One seat per attack | Attacking several opponents at once is ordinary in multiplayer Commander. |
-| Re-declaring | A later `attack` before damage replaces the earlier | Error on a second call | Lets the agent correct a declaration without an override. |
+| Re-declaring in a goldfish game | A later `attack` before damage replaces the earlier | Error on a second call | Lets the agent correct a declaration without an override. |
+| Re-declaring in a contested game | Error: one declaration for each combat | Replace the earlier declaration, as in a goldfish game | The first declaration opened the attack window and other seats have answered it, with removal or with a pass; replacing it would undo what they answered. An additional combat is a new combat and takes its own declaration. |
+| Attacking with another seat's creature | Error | Rule check | Whose creature it is is structure, not an approximation from card data; a seat that has taken control of a creature says so with `control` first. |
 | Attacking before the first main step | Rule check | Allowed silently; error | Almost always a mistake that would skip the agent's land drop and spells; overridable for the rare deliberate case. |
 | Extra combats | An overridden `attack` after combat returns to `declare_attackers` | A separate tool | Rare enough not to earn its own tool. |
 

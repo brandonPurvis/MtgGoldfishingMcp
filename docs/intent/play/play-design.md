@@ -185,7 +185,8 @@ PendingChoice {
   revealed: [{ id, name }]   // look, search, hand
   rest: Destination | "library" | "hand"
   from: "top" | "bottom"     // the end a look revealed from
-  asked_by: seat number      // ask, hand
+  asked_by: seat number      // ask: the seat whose effect asks; hand: the looking seat
+  hand_of: seat number       // hand: the seat whose hand is shown
   text: string               // ask: what is required
 }
 ```
@@ -207,14 +208,15 @@ Each kind is answered with its own argument; any other argument given is an erro
 
 | Kind | Answered with |
 |---|---|
-| `look`, `search`, `hand` | `selections`, and for `look` optionally `rest_order` |
+| `look`, `search` | `selections`, and for `look` optionally `rest_order` |
+| `hand` | `selections`, and optionally `delta` holding only `control` |
 | `ask` | `delta`: the answering seat's own delta, applied at once; it may not create a pending choice |
 | `resolve` | `restate`, or nothing (see `stack`) |
 | `blocks` | `blocks` (see `combat`) |
 
 `selections` maps destinations to revealed card names. For a `look`, every revealed card not selected goes to the `rest` destination: in `rest_order` if given, listed top to bottom; otherwise cards returned to the end of the library they were looked at from keep their order there, and cards sent anywhere else go in the order revealed. For a `search`, unselected cards stay in the library and the library is shuffled before any selected cards are put on its top or bottom. Cards selected to `library_top` end up with the first-named card on top, above any `rest` cards that also go to the top.
 
-For a `hand` choice, revealed cards not selected stay in the revealed seat's hand, and selected cards go to their owner's zones.
+For a `hand` choice, revealed cards not selected stay in the hand they were shown from, and a selected card goes to its owner's zones: its owner's graveyard, exile, library or hand. Selected to the battlefield, it enters under its owner's control, unless the answer's `delta` gives it to another seat with `control`, as when the looking seat puts the card onto the battlefield under its own control. That `delta` may hold `control` alone, naming only cards selected to the battlefield; anything else in it is an error.
 
 The service does not judge an `ask` answer against its `text`; the answering seat is trusted, as every seat is.
 
@@ -245,6 +247,7 @@ Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax
 | Reaching other seats' hidden zones | Only through `ask` and `look_at_hand` | Any delta may move cards from another seat's hand or library | The acting seat cannot know another seat's hidden cards, and choosing them is that seat's decision. |
 | Decisions another seat owes | `ask`, answered by that seat's own delta | Structured kinds per effect (sacrifice, discard, draw) | One shape covers every such effect; the service would only be checking what it does not understand. |
 | Where moved cards go | Their owner's zones | The acting seat's zones | A card always goes to its owner's graveyard, hand, library or exile in Magic, and records follow the owner. |
+| A card taken from another seat's hand to the battlefield | Enters under its owner's control unless the answer's `control` says otherwise | Enters under the looking seat's control | Most effects that take a card from a hand discard or exile it, and one that puts it onto the battlefield does not always give it to the looking seat; the owner is the default every other move uses, and one key states the exception. |
 | `damage` in a contested game | A map from seat number | A single number split by the service | There is no pool to split: each seat's life is its own, and splitting would be a decision. |
 | Timing check across turns | Sorcery speed means the caster's own main step with an empty stack | Any main step | In a contested game it is often another seat's main step; casting a sorcery then is the error the check exists to catch. |
 

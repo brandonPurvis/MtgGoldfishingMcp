@@ -43,7 +43,7 @@ Game {                         // the table
 
 Seat {
   number: int                  // place in turn order, from 1
-  seat_id: string              // the tested seat's is the game id
+  seat_id: string              // the tested seat's is the game id; an opposing seat's has the same format
   deck_id: string
   tested: bool
   shuffle_key: string          // "" for the tested seat; "o1", "o2", "o3" for opposing seats
@@ -90,7 +90,7 @@ Instance ids are assigned at game creation seat by seat: the tested seat first, 
 
 ### Seat ids and seat numbers
 
-A seat has two names. Its **seat id** is random and unguessable, and a call made with it acts as that seat; the tested seat's seat id is the game id. Its **seat number** is its place in turn order, by which calls and responses name seats to one another (`S2`). A goldfish game has one seat, number 1, whose seat id is the game id, so its calls are made exactly as they always were.
+A seat has two names. Its **seat id** is random and unguessable, and a call made with it acts as that seat; the tested seat's seat id is the game id. An opposing seat's seat id has the same format as a game id — `g` and ten random characters — and comes from the same id source, so an id's form does not tell which seat it names. Its **seat number** is its place in turn order, by which calls and responses name seats to one another (`S2`). A goldfish game has one seat, number 1, whose seat id is the game id, so its calls are made exactly as they always were.
 
 ## Turn Order
 
@@ -177,20 +177,21 @@ What each seat may call:
 | `mulligan` | A seat to act during mulligans. |
 | `choose` | The seat a waiting pending choice is addressed to. |
 | `play`, `effect`, `pass` | The seat to act, when it is asked in a window or answering a reminder. |
-| `play`, `effect`, `attack`, `advance` | The active seat when it is the seat to act. |
+| `play`, `effect` | The active seat when it is the seat to act. |
+| `attack`, `advance` | The active seat when it is the seat to act, no response window is open and the stack is empty. |
 
-A call from any other seat is an error naming the seat to act and what it is being asked. A call from an eliminated seat is an error, except `get_state`, `get_log` and `wait`.
+A call from any other seat is an error naming the seat to act and what it is being asked. While a response window is open or the stack is not empty, `advance` and `attack` are errors, not rule checks, from every seat, the active seat included. A call from an eliminated seat is an error, except `get_state`, `get_log` and `wait`, and `end_game` from the tested seat.
 
 In a goldfish game the only seat is always the seat to act, and what it may call depends on the game's status alone:
 
 | Status | Accepted tools |
 |---|---|
-| `mulligan` | `mulligan`, `get_state`, `get_log`, `end_game` |
-| `active` | everything except `mulligan` and `choose` |
-| `pending_choice` | `choose`, `get_state`, `get_log`, `end_game` |
-| `ended` | `get_state`, `get_log` |
+| `mulligan` | `mulligan`, `get_state`, `get_log`, `wait`, `end_game` |
+| `active` | everything except `mulligan`, `choose` and `pass` |
+| `pending_choice` | `choose`, `get_state`, `get_log`, `wait`, `end_game` |
+| `ended` | `get_state`, `get_log`, `wait` |
 
-`wait`, `pass` and the stack exist only in contested games; in a goldfish game `wait` returns at once and `pass` is an error.
+`wait`, `pass` and the stack serve contested games. In a goldfish game `wait` is accepted in every status and returns at once (see `application`), and `pass` is an error in every status (see `stack`).
 
 A resend of the calling seat's most recent change is answered as such whatever the game's state.
 
@@ -230,9 +231,9 @@ On elimination:
 
 - every card the seat owns leaves the game: it is removed from every zone, including permanents another seat controls and its spells on the stack;
 - every permanent it controls but does not own returns to its owner's control;
-- every stack item it controls is removed (see `stack`), and every pending choice addressed to it is discarded;
+- every stack item it controls, and every stack item whose card it owns, is removed (see `stack`), and every pending choice addressed to it is discarded;
 - it takes no more turns and is never asked in a window;
-- if it was the active seat, its turn ends at once and the next seat in turn order begins its turn (see `turn`).
+- if it was the active seat, its turn ends: other seats' items still on the stack resolve first, and then the next seat in turn order begins its turn (see `turn`).
 
 The response to the call that caused an elimination says which seat was eliminated and why. Eliminations are applied in turn order when several happen at once.
 
@@ -277,6 +278,8 @@ From an opposing seat, `end_game` concedes: the seat is eliminated, its `notes` 
 | Who acts | One rule, the seat to act, with a fixed precedence | Each tool checks its own conditions | One place answers "whose call is it?", which `wait`, the status line and every refusal need. |
 | Calls from the wrong seat | Error | Rule check | The game's order is structural: a call out of turn has no meaning to apply. |
 | Elimination | Applied by the service | Declared by an agent | No agent should declare another seat's loss; the bookkeeping is already the service's. |
+| An opposing seat's seat id | The same format as a game id, from the same id source | A distinct prefix for seat ids | An id that showed it named an opposing seat would tell whoever saw it something about the table for no gain; one format also keeps one id source and one lookup. |
+| The stack when the active seat is eliminated | Other seats' items resolve before its turn ends | The turn ends at once and the stack is discarded | Those items were made by seats still in the game and may matter to them; discarding them would undo plays no one countered. |
 | Conceding | `end_game` from an opposing seat | A separate tool | One tool for "I am done", whose effect depends on whose verdict the game is. |
 | Empty library in a contested game | Notice only | Elimination | Drawing from an empty library is rare and its rules have exceptions; the seat may concede. |
 | What `new_game` shows in a contested game | Seat ids and turn order, no hand | The tested seat's hand | Its caller may be an orchestrator, not the tested seat's agent. |
