@@ -12,14 +12,14 @@ from mtg_goldfishing.domain.events import (
     HandKept,
     MulliganTaken,
 )
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import OPENING_HAND, Destination, Game, GameStatus, Zone
 from mtg_goldfishing.domain.game.movement import draw
 from mtg_goldfishing.domain.game.naming import resolve
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.shuffling import shuffle_library
-from mtg_goldfishing.domain.steps import Step
-from mtg_goldfishing.domain.turn import Walk, walk_to
+from mtg_goldfishing.domain.turn import Walk, begin_turn
 
 
 def cards_to_bottom(mulligans: int) -> int:
@@ -40,18 +40,19 @@ def _take_mulligan(game: Game, seat: SeatNumber) -> Applied:
     return Applied(game, MulliganTaken(taking.mulligans, hand))
 
 
-def _start(game: Game, deck: LoadedDeck) -> Walk:
+def _start(game: Game, decks: Decks) -> Walk:
     """Start a game every seat has kept: the first seat in turn order still in the game
-    takes the first turn, through its untap, upkeep and draw steps to its first main step."""
+    takes the first turn, through its untap, upkeep and draw steps to its first main step,
+    as an advance to `main1` would; in a contested game it stops where a reminder stops it."""
     game.status = GameStatus.ACTIVE
     game.active = next(seat.number for seat in game.seats if seat.in_game)
     walk = Walk()
-    walk_to(game, deck, Step.MAIN1, walk)
+    begin_turn(game, decks, walk, stopping=game.contested)
     return walk
 
 
 # @spec GAME-021, GAME-022, GAME-023, GAME-024, GAME-025, GAME-026, GAME-027, GAME-028
-# @spec GAME-103, GAME-105, APP-031
+# @spec GAME-103, GAME-105, APP-031, GAME-102, GAME-106
 def mulligan(
     game: Game,
     deck: LoadedDeck,
@@ -60,7 +61,11 @@ def mulligan(
     keep: object,
     bottom: object = None,
     override: str | None = None,
+    decks: Decks | None = None,
 ) -> Result:
+    """Take a mulligan or keep, as the calling seat. When the last seat still in the game
+    keeps, the game starts. `decks` gives each seat's deck; omitted, every seat plays `deck`.
+    """
     if not isinstance(keep, bool):
         return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="keep"))
     if bottom is not None and not (
@@ -92,7 +97,7 @@ def mulligan(
     )
     if not all(other.kept for other in changed.seats if other.in_game):
         return Applied(changed, summary, (judged,) if judged is not None else ())
-    walk = _start(changed, deck)
+    walk = _start(changed, decks or Decks.everyone_playing(changed, deck))
     events: list[Event] = [walk.summary]
     if judged is not None:
         events.append(judged)

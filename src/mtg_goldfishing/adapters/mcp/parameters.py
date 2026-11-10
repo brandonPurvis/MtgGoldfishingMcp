@@ -25,6 +25,7 @@ class Kind(Enum):
     LIST = "list"
     TEXT_OR_LIST = "text or list"
     WHOLE_NUMBER_OR_OBJECT = "whole number or object"
+    WHOLE_NUMBER_OR_LIST = "whole number or list"
 
     @property
     def json_types(self) -> tuple[str, ...]:
@@ -40,6 +41,7 @@ _JSON_TYPES: dict[Kind, tuple[str, ...]] = {
     Kind.LIST: ("array", "string"),
     Kind.TEXT_OR_LIST: ("string", "array"),
     Kind.WHOLE_NUMBER_OR_OBJECT: ("integer", "object", "string"),
+    Kind.WHOLE_NUMBER_OR_LIST: ("integer", "array", "string"),
 }
 
 
@@ -135,6 +137,8 @@ def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
             return _Fitted(decoded) if isinstance(decoded, list) else None
         return _Fitted(value) if isinstance(value, str | list) else None
     decoded = _decoded(value)
+    if kind is Kind.WHOLE_NUMBER_OR_LIST:
+        return _Fitted(decoded) if _is_whole_number(decoded) or isinstance(decoded, list) else None
     return _Fitted(decoded) if _is_whole_number(decoded) or isinstance(decoded, dict) else None
 
 

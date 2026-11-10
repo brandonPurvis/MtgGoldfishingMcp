@@ -234,6 +234,7 @@ def _revealed(card: CardInstance) -> RevealedCard:
     return RevealedCard(card.id, card.name)
 
 
+# @spec GAME-120
 def _pend(
     game: Game,
     seat: SeatNumber,

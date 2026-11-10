@@ -148,6 +148,8 @@ def snapshot_to_data(snapshot: TurnSnapshot) -> dict[str, object]:
 
 
 def call_record_to_data(call: CallRecord) -> dict[str, object]:
+    """A call record as data; the calling seat's number only when the record names one."""
+    seat: dict[str, object] = {} if call.seat is None else {"seat": call.seat.value}
     return {
         "id": call.id,
         "time": call.time.isoformat(),
@@ -158,4 +160,5 @@ def call_record_to_data(call: CallRecord) -> dict[str, object]:
         "response": call.response,
         "is_override": call.is_override,
         "change": call.change,
+        **seat,
     }

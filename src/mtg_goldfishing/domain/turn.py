@@ -1,8 +1,10 @@
-"""Moving through the steps of a turn: `advance`.
+"""Moving through the steps of a turn, and from one seat's turn to the next: `advance`.
 
 Every step is a step of the active seat's turn. Entering a step performs its automatic
 action. Leaving any step empties every seat's mana pool. An advance stops short of its
 target when a step it enters has a reminder, or before cleanup when cards must be discarded.
+In a contested game an advance ends when the active seat leaves cleanup, and the next seat's
+turn then proceeds within the same call to its first main step.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from mtg_goldfishing.domain.events import (
     StopReason,
 )
 from mtg_goldfishing.domain.game.cards_in_play import face_name, reading_of
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import (
     MAXIMUM_HAND,
     CardInstance,
@@ -62,9 +65,10 @@ class Walk:
         return StepsEntered(tuple(self.entered))
 
 
-def _remind(game: Game, deck: LoadedDeck, step: Step) -> ReminderIssued | None:
+def _remind(game: Game, decks: Decks, step: Step) -> ReminderIssued | None:
     """Remind the active seat of the step triggers of the permanents it controls."""
     active = game.active_seat
+    deck = decks.of(active.number)
     counts: dict[str, int] = {}
     for card in game.battlefield_of(active.number):
         if step in reading_of(deck, card).step_triggers:
@@ -73,7 +77,8 @@ def _remind(game: Game, deck: LoadedDeck, step: Step) -> ReminderIssued | None:
             active.reminders.append(Reminder(card.id, name, step, card_name=card.name))
     if not counts:
         return None
-    return ReminderIssued(step, tuple(counts.items()))
+    seat = active.number if game.contested else None
+    return ReminderIssued(step, tuple(counts.items()), seat)
 
 
 # @spec TURN-032, TURN-034
@@ -97,23 +102,33 @@ def _begin_turn(game: Game, previous: SeatNumber | None) -> None:
     game.tapped_by_attacks = []
 
 
-# @spec TURN-002, TURN-003, TURN-004, TURN-005, TURN-011, TURN-014
+# @spec TURN-002, TURN-003, TURN-004, TURN-005, TURN-011, TURN-014, TURN-027, TURN-028
 def enter_step(
     game: Game,
-    deck: LoadedDeck,
+    decks: Decks,
     step: Step,
     walk: Walk,
     discard: Sequence[CardInstance] = (),
+    *,
+    previous: SeatNumber | None = None,
 ) -> None:
     """Leave the current step (emptying every pool) and enter `step` of the active seat's
-    turn, doing its automatic action."""
+    turn, doing its automatic action with the active seat's deck.
+
+    Entering untap begins a turn; `previous` is the seat whose turn just ended, when that
+    is not the active seat itself.
+    """
     for seat in game.seats:
         seat.mana_pool = ManaPool()
     game.step = step
     active = game.active_seat
+    deck = decks.of(active.number)
     if step is Step.UNTAP:
-        _begin_turn(game, game.active if game.turn > 0 else None)
-    walk.entered.append(EnteredStep(game.turn, step))
+        _begin_turn(game, previous or (game.active if game.turn > 0 else None))
+    if game.contested:
+        walk.entered.append(EnteredStep(active.turns, step, active.number))
+    else:
+        walk.entered.append(EnteredStep(game.turn, step))
     if step is Step.UNTAP:
         walk.events.extend(examine_turn_limit(game))
     elif step is Step.DRAW and not (game.turn == 1 and not game.draw_first_turn):
@@ -130,7 +145,7 @@ def enter_step(
         snapshot = take_snapshot(game, deck)
         if snapshot is not None:
             walk.snapshots.append(snapshot)
-    reminder = _remind(game, deck, step)
+    reminder = _remind(game, decks, step)
     if reminder is not None:
         walk.events.append(reminder)
         walk.reminded = True
@@ -164,7 +179,7 @@ def _cleanup_discard(
 
 # @spec TURN-001, TURN-006, TURN-007, TURN-008, TURN-009, TURN-010, TURN-012, TURN-013
 # @spec TURN-015, TURN-016, TURN-017, TURN-018, TURN-019, TURN-020, TURN-021, TURN-022
-# @spec TURN-023, TURN-024, TURN-025, APP-031
+# @spec TURN-023, TURN-024, TURN-025, APP-031, TURN-039, TURN-060
 def advance(
     game: Game,
     deck: LoadedDeck,
@@ -173,11 +188,16 @@ def advance(
     to: object = None,
     discard: object = None,
     override: str | None = None,
+    decks: Decks | None = None,
 ) -> Result:
     """Move to the next step, or forward through every step to the next occurrence of `to`.
 
-    The calling seat is the active seat, whose hand is checked before cleanup.
+    The calling seat is the active seat, whose hand alone is checked before cleanup. In a
+    contested game the advance never goes past the end of the calling seat's turn: leaving
+    cleanup ends it, and the next seat's turn begins. `decks` gives each seat's deck;
+    omitted, every seat plays `deck`.
     """
+    every = decks or Decks.everyone_playing(game, deck)
     target: Step | None = None
     if to is not None:
         target = Step.named(to) if isinstance(to, str) else None
@@ -189,8 +209,12 @@ def advance(
     moved = game.copy()
     walk = Walk()
     entered_cleanup = False
+    turn_ends = False
     while True:
         upcoming = Step.UNTAP if moved.step is None else moved.step.next
+        if moved.contested and moved.step is Step.CLEANUP:
+            turn_ends = True
+            break
         to_discard: list[CardInstance] = []
         if upcoming is Step.CLEANUP:
             excess = len(moved.hand_of(seat)) - MAXIMUM_HAND
@@ -214,7 +238,7 @@ def advance(
                 if overridden is not None and override:
                     walk.events.append(ChecksOverridden((overridden,), override))
             entered_cleanup = True
-        enter_step(moved, deck, upcoming, walk, to_discard)
+        enter_step(moved, every, upcoming, walk, to_discard)
         if target is None or moved.step is target:
             break
         if walk.reminded:
@@ -222,14 +246,51 @@ def advance(
             break
     if names is not None and not entered_cleanup:
         return Refusal.error(Error(ErrorKind.DISCARD_WITHOUT_CLEANUP))
+    if turn_ends:
+        pass_the_turn(moved, every, walk)
     return Applied(moved, walk.summary, tuple(walk.events), tuple(walk.snapshots))
 
 
+# @spec TURN-031, TURN-033, TURN-040, TURN-041
+def pass_the_turn(game: Game, decks: Decks, walk: Walk) -> None:
+    """End the active seat's turn: the next seat in turn order still in the game becomes the
+    active seat and its turn proceeds to its first main step, stopping where a reminder
+    stops it. When no other seat is left in the game, the same seat takes the next turn."""
+    previous = game.active_seat
+    following = next((seat for seat in game.others_from(previous.number) if seat.in_game), None)
+    if following is None:
+        if not previous.in_game:
+            game.active = None
+            return
+        following = previous
+    game.active = following.number
+    begin_turn(game, decks, walk, previous=previous.number, stopping=True)
+
+
+def begin_turn(
+    game: Game,
+    decks: Decks,
+    walk: Walk,
+    *,
+    previous: SeatNumber | None = None,
+    stopping: bool,
+) -> None:
+    """The active seat begins a turn: through untap, upkeep and draw to its first main step,
+    as an advance to `main1` would, stopping in a step with a reminder when `stopping`."""
+    walk.reminded = False
+    enter_step(game, decks, Step.UNTAP, walk, previous=previous)
+    while game.step is not Step.MAIN1 and not (stopping and walk.reminded):
+        assert game.step is not None
+        enter_step(game, decks, game.step.next, walk)
+
+
 def walk_to(game: Game, deck: LoadedDeck, target: Step, walk: Walk) -> None:
-    """Move a game (in place) forward to the next occurrence of a step, stopping for nothing."""
+    """Move a game (in place) forward to the next occurrence of a step of the active seat's
+    turn, played with `deck`, stopping for nothing."""
+    decks = Decks.everyone_playing(game, deck)
     while True:
         upcoming = Step.UNTAP if game.step is None else game.step.next
-        enter_step(game, deck, upcoming, walk)
+        enter_step(game, decks, upcoming, walk)
         if game.step is target:
             return
 
@@ -237,4 +298,4 @@ def walk_to(game: Game, deck: LoadedDeck, target: Step, walk: Walk) -> None:
 # @spec TURN-026
 def return_to_declare_attackers(game: Game, deck: LoadedDeck, walk: Walk) -> None:
     """An additional combat: back to declare attackers in the same turn."""
-    enter_step(game, deck, Step.DECLARE_ATTACKERS, walk)
+    enter_step(game, Decks.everyone_playing(game, deck), Step.DECLARE_ATTACKERS, walk)

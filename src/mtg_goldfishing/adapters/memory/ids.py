@@ -19,7 +19,8 @@ def _counting_game_ids() -> Iterator[str]:
 
 # @spec APP-013
 class FixedIdSource(IdSource):
-    """Yields the game ids and seeds it was given, in order.
+    """Yields the game ids and seeds it was given, in order; seat ids come from the same
+    sequence as game ids.
 
     Without game ids it counts `0000000001`, `0000000002`, ...; without seeds, 1, 2, ....
     Asking past the end of a given sequence is a defect in the test and raises.
@@ -45,6 +46,10 @@ class FixedIdSource(IdSource):
             self._seeds = iter(given_seeds)
 
     def new_game_id(self) -> str:
+        return next(self._game_ids)
+
+    def new_seat_id(self) -> str:
+        """The next id of the one sequence game ids come from."""
         return next(self._game_ids)
 
     def new_seed(self) -> int:

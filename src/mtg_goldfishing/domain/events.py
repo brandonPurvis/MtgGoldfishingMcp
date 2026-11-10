@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
     EntersTappedReport,
@@ -29,6 +30,13 @@ class ErrorKind(Enum):
     UNKNOWN_DECK = "unknown_deck"
     BAD_TURN_LIMIT = "bad_turn_limit"
     BAD_RESULT = "bad_result"
+    TOO_MANY_OPPONENTS = "too_many_opponents"
+    BAD_STARTING_LIFE = "bad_starting_life"
+    BAD_POSITION = "bad_position"
+    # the seat to act
+    NOT_YOUR_CALL = "not_your_call"
+    NOT_ACCEPTED_NOW = "not_accepted_now"
+    SEAT_ELIMINATED = "seat_eliminated"
     # naming cards
     CARD_NOT_IN_ZONE = "card_not_in_zone"
     TOO_FEW_MATCHING = "too_few_matching"
@@ -99,13 +107,33 @@ class CheckKind(Enum):
     COMMANDER_ELIGIBILITY = "commander_eligibility"
 
 
+class AskedKind(Enum):
+    """Why a seat is a seat to act: what the game is waiting for it to do."""
+
+    KEEP = "keep"
+    CHOICE = "choice"
+    TURN = "turn"
+
+
+@dataclass(frozen=True)
+class Asked:
+    """The seats a game is waiting on, in ascending seat number, and what they are asked.
+
+    `choice` is the kind of the pending choice the seat must answer (`look`, `search`).
+    """
+
+    seats: tuple[SeatNumber, ...]
+    kind: AskedKind
+    choice: str | None = None
+
+
 @dataclass(frozen=True)
 class Error:
     """One error, with the facts its kind needs.
 
     `subject` is the card, argument or line concerned; `zone` and `found_in` are zone
     names; `names` lists several subjects or the accepted alternatives; `number` and
-    `expected` carry counts.
+    `expected` carry counts; `asked` is what the seats to act are asked.
     """
 
     kind: ErrorKind
@@ -115,6 +143,7 @@ class Error:
     names: tuple[str, ...] = ()
     number: int | None = None
     expected: int | None = None
+    asked: Asked | None = None
 
 
 @dataclass(frozen=True)
@@ -147,8 +176,12 @@ class NoticeKind(Enum):
 
 @dataclass(frozen=True)
 class EnteredStep:
+    """A step entered. In a contested game `seat` names the active seat and `turn` is that
+    seat's own turn count; in a goldfish game `seat` is None and `turn` the turn number."""
+
     turn: int
     step: Step
+    seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -193,6 +226,26 @@ class GameStarted:
     game_id: str
     seed: int
     hand: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SeatStarted:
+    """One seat of a new contested game, as whoever started the game is told of it."""
+
+    number: SeatNumber
+    seat_id: str
+    deck_id: str
+    life: int
+    tested: bool
+
+
+@dataclass(frozen=True)
+class ContestedGameStarted:
+    """A new contested game: its seats in turn order, and no seat's hand."""
+
+    game_id: str
+    seed: int
+    seats: tuple[SeatStarted, ...]
 
 
 @dataclass(frozen=True)
@@ -249,7 +302,18 @@ class TokensCreated:
 
 @dataclass(frozen=True)
 class CardsDrawn:
+    """Cards drawn, named. In a contested game `seat` names the seat that drew them."""
+
     cards: tuple[str, ...]
+    seat: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class HiddenCardsDrawn:
+    """The public form of a draw: which seat drew, and how many cards, not which."""
+
+    seat: SeatNumber
+    count: int
 
 
 @dataclass(frozen=True)
@@ -387,8 +451,11 @@ class AssumptionMade:
 
 @dataclass(frozen=True)
 class ReminderIssued:
+    """Reminders of a step. In a contested game `seat` names the seat reminded."""
+
     step: Step
     cards: tuple[tuple[str, int], ...]
+    seat: SeatNumber | None = None
 
 
 class StopReason(Enum):
@@ -468,6 +535,7 @@ Event = (
     StepsEntered
     | DeckLoaded
     | GameStarted
+    | ContestedGameStarted
     | MulliganTaken
     | HandKept
     | CardPlayed
@@ -476,6 +544,7 @@ Event = (
     | CardMoved
     | TokensCreated
     | CardsDrawn
+    | HiddenCardsDrawn
     | CardsDiscarded
     | Tapped
     | Untapped

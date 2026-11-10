@@ -242,12 +242,19 @@ class Seat:
     turn_stats: TurnStats = field(default_factory=TurnStats)
     mana_pool: ManaPool = field(default_factory=ManaPool)
     commander_casts: dict[str, int] = field(default_factory=dict)
+    commander_damage: dict[str, dict[str, int]] = field(default_factory=dict)
+    """Combat damage each of this seat's commanders (by instance id) has dealt to each other
+    seat (by seat number, as text) of a contested game."""
     library: list[str] = field(default_factory=list)
     last_change: LastChange | None = None
     reminders: list[Reminder] = field(default_factory=list)
 
     def commander_tax(self, commander: CardInstance) -> int:
         return COMMANDER_TAX * self.commander_casts.get(commander.id, 0)
+
+    def commander_damage_to(self, commander: CardInstance, seat: SeatNumber) -> int:
+        """The combat damage one of this seat's commanders has dealt to another seat."""
+        return self.commander_damage.get(commander.id, {}).get(str(seat.value), 0)
 
     @property
     def in_game(self) -> bool:
@@ -295,6 +302,11 @@ class Game:
 
     def copy(self) -> Game:
         return copy.deepcopy(self)
+
+    @property
+    def contested(self) -> bool:
+        """Whether the game has opposing seats; a goldfish game has imaginary opponents."""
+        return self.imaginary is None
 
     # ------------------------------------------------------------------ seats
 

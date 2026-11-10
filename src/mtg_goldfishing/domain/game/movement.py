@@ -78,7 +78,11 @@ def move(
 
 
 def draw(game: Game, seat: SeatNumber, count: int) -> list[Event]:
-    """A seat draws from the top of its library; too few cards raises the empty library notice."""
+    """A seat draws from the top of its library; too few cards raises the empty library notice.
+
+    In a contested game the draw names the seat that drew, so that the cards can be shown
+    to that seat alone.
+    """
     library = game.seat(seat).library
     drawn: list[str] = []
     events: list[Event] = []
@@ -88,7 +92,7 @@ def draw(game: Game, seat: SeatNumber, count: int) -> list[Event]:
         card = game.instance(library.pop(0))
         card.zone = Zone.HAND
         drawn.append(card.name)
-    events.append(CardsDrawn(tuple(drawn)))
+    events.append(CardsDrawn(tuple(drawn), seat if game.contested else None))
     if len(drawn) < count:
         events.extend(raise_notice(game, NoticeKind.EMPTY_LIBRARY))
     return events

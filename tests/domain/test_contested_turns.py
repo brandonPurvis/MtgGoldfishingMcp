@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.events import NoticeKind, StepsEntered
 from mtg_goldfishing.domain.game import acting
 from mtg_goldfishing.domain.game.results import Applied
@@ -16,7 +14,6 @@ from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import Situation, a_game
 
-M3A = "M3a: turns passing between seats are not built"
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
 
 
@@ -65,7 +62,6 @@ def two_seats_in_the_second_seat_s(step: Step) -> Situation:
 
 
 # @spec TURN-031
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_leaving_cleanup_makes_the_next_seat_in_turn_order_the_active_seat() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     advanced(situation, S1)
@@ -75,7 +71,6 @@ def test_leaving_cleanup_makes_the_next_seat_in_turn_order_the_active_seat() -> 
 
 
 # @spec TURN-031
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_passes_over_an_eliminated_seat() -> None:
     builder: Any = a_game().in_step(Step.CLEANUP).with_library("Island")
     builder = builder.and_an_opposing_seat().eliminated().with_library("Swamp")
@@ -86,7 +81,6 @@ def test_the_turn_passes_over_an_eliminated_seat() -> None:
 
 
 # @spec TURN-033
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_passing_to_a_later_seat_stays_in_the_round() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     advanced(situation, S1)
@@ -94,7 +88,6 @@ def test_the_turn_passing_to_a_later_seat_stays_in_the_round() -> None:
 
 
 # @spec TURN-033
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_passing_back_to_an_earlier_seat_begins_a_new_round() -> None:
     situation = two_seats_in_the_second_seat_s(Step.CLEANUP)
     advanced(situation, S2)
@@ -111,7 +104,6 @@ def test_the_turn_passing_to_the_only_seat_left_begins_a_new_round() -> None:
 
 
 # @spec TURN-039
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_advance_to_a_step_of_a_later_turn_ends_with_its_own_seat_s_turn() -> None:
     situation = two_seats_in_the_first_seat_s(Step.MAIN2)
     advanced(situation, S1, to="main2")
@@ -120,10 +112,9 @@ def test_an_advance_to_a_step_of_a_later_turn_ends_with_its_own_seat_s_turn() ->
 
 
 # @spec TURN-040
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_next_seat_s_turn_goes_on_to_its_first_main_step_within_the_call() -> None:
     situation = two_seats_in_the_first_seat_s(Step.END)
-    result = advanced(situation, S1)
+    result = advanced(situation, S1, to="main1")
     assert situation.game.step is Step.MAIN1
     assert isinstance(result.summary, StepsEntered)
     assert [entered.step for entered in result.summary.steps] == [
@@ -136,7 +127,6 @@ def test_the_next_seat_s_turn_goes_on_to_its_first_main_step_within_the_call() -
 
 
 # @spec TURN-040
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_next_seat_draws_for_its_turn_within_the_call() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     advanced(situation, S1)
@@ -144,7 +134,6 @@ def test_the_next_seat_draws_for_its_turn_within_the_call() -> None:
 
 
 # @spec TURN-040
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_next_seat_s_turn_stops_where_its_reminder_stops_it() -> None:
     builder: Any = a_game().in_step(Step.CLEANUP).with_library("Island")
     situation = (
@@ -160,7 +149,6 @@ def test_the_next_seat_s_turn_stops_where_its_reminder_stops_it() -> None:
 
 
 # @spec TURN-041
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_seat_whose_turn_begins_is_then_the_seat_to_act() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     advanced(situation, S1)
@@ -169,7 +157,6 @@ def test_the_seat_whose_turn_begins_is_then_the_seat_to_act() -> None:
 
 
 # @spec TURN-042
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_shows_the_turn_passing_to_the_new_active_seat() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     result = advanced(situation, S1)
@@ -179,7 +166,6 @@ def test_the_outcome_shows_the_turn_passing_to_the_new_active_seat() -> None:
 
 
 # @spec TURN-042
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_card_the_new_active_seat_drew_is_named_only_to_that_seat() -> None:
     situation = two_seats_in_the_first_seat_s(Step.CLEANUP)
     result = advanced(situation, S1)
@@ -192,7 +178,6 @@ def test_the_card_the_new_active_seat_drew_is_named_only_to_that_seat() -> None:
 
 
 # @spec TURN-027
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_s_untap_leaves_the_other_seats_permanents_land_drops_and_statistics() -> None:
     builder: Any = (
         a_game()
@@ -219,7 +204,6 @@ def test_a_seat_s_untap_leaves_the_other_seats_permanents_land_drops_and_statist
 
 
 # @spec TURN-028
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_draws_on_its_first_turn_after_the_table_s_first_when_the_first_draw_is_off() -> (
     None
 ):
@@ -232,7 +216,6 @@ def test_a_seat_draws_on_its_first_turn_after_the_table_s_first_when_the_first_d
 
 
 # @spec TURN-060
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_only_the_active_seat_s_hand_is_held_to_seven_at_cleanup() -> None:
     builder: Any = a_game().in_step(Step.END).with_hand("Forest").with_library("Island")
     situation = (
@@ -260,7 +243,6 @@ def with_a_turn_limit_of_two() -> Situation:
 
 
 # @spec GAME-144
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_limit_is_not_reached_by_the_second_turn_of_the_first_round() -> None:
     situation = with_a_turn_limit_of_two()
     advanced(situation, S1)
@@ -269,7 +251,6 @@ def test_the_turn_limit_is_not_reached_by_the_second_turn_of_the_first_round() -
 
 
 # @spec GAME-144
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_limit_is_reached_on_entering_the_first_turn_of_its_round() -> None:
     situation = with_a_turn_limit_of_two()
     advanced(situation, S1)

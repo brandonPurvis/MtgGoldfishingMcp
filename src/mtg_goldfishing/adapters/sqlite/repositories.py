@@ -163,14 +163,17 @@ class SqliteRecordStore(RecordStore):
                 (game_id, snapshot.turn, snapshot.written_by, encode(snapshot, TurnSnapshot)),
             )
 
+    # @spec STOR-021
     def add_call(self, record: CallRecord) -> None:
-        """Store a call record; it is given the next id, which it carries when read."""
+        """Store a call record, with the seat number it names, or null; it is given the next
+        id, which it carries when read."""
         with self._database.writing() as connection:
             connection.execute(
-                "INSERT INTO calls (game_id, tool, arguments, status, response, is_override,"
-                " change, time, record) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO calls (game_id, seat, tool, arguments, status, response,"
+                " is_override, change, time, record) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     record.game_id,
+                    None if record.seat is None else record.seat.value,
                     record.tool,
                     encode(record.arguments, dict[str, object]),
                     record.status,

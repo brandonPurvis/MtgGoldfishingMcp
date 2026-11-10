@@ -7,7 +7,15 @@ from __future__ import annotations
 
 from typing import assert_never
 
-from mtg_goldfishing.domain.events import CheckKind, Error, ErrorKind, FailedCheck, Refused
+from mtg_goldfishing.domain.events import (
+    Asked,
+    AskedKind,
+    CheckKind,
+    Error,
+    ErrorKind,
+    FailedCheck,
+    Refused,
+)
 from mtg_goldfishing.domain.game.model import MAXIMUM_HAND, Destination
 from mtg_goldfishing.domain.steps import STEPS
 
@@ -24,7 +32,38 @@ def _mana_symbols(colors: tuple[str, ...]) -> str:
     return "".join("{" + color + "}" for color in colors)
 
 
-# @spec TOOL-026
+def asked_to(asked: Asked, *, yourself: bool) -> str:
+    """What the seats to act are asked, as the end of `... asked to <this>`: to the seat
+    itself (`take your turn`) or about another (`take its turn`)."""
+    match asked.kind:
+        case AskedKind.KEEP:
+            return "keep or mulligan"
+        case AskedKind.CHOICE:
+            return f"answer the {asked.choice} choice"
+        case AskedKind.TURN:
+            return "take your turn" if yourself else "take its turn"
+        case _:
+            assert_never(asked.kind)
+
+
+def _seats(asked: Asked) -> str:
+    """The seats to act by seat number, with the verb: `S3 is`, `S2 and S3 are`."""
+    named = [str(seat) for seat in asked.seats]
+    if len(named) == 1:
+        return f"{named[0]} is"
+    return f"{', '.join(named[:-1])} and {named[-1]} are"
+
+
+def _not_your_call(asked: Asked | None) -> str:
+    if asked is None or not asked.seats:
+        return "Not your seat's call: the game is waiting on no seat."
+    return (
+        f"Not your seat's call: {_seats(asked)} asked to {asked_to(asked, yourself=False)}."
+        " Call wait to be told when it is yours."
+    )
+
+
+# @spec TOOL-026, TOOL-050
 def error_text(error: Error) -> str:
     """The one wording of an error's kind, filled with its facts."""
     subject = error.subject or ""
@@ -47,6 +86,40 @@ def error_text(error: Error) -> str:
             return f"turn_limit must be a positive whole number, not {subject}."
         case ErrorKind.BAD_RESULT:
             return f"result must be one of {names}, not {subject}."
+        case ErrorKind.TOO_MANY_OPPONENTS:
+            return (
+                f"{error.number} opponents given; a contested game has one to"
+                f" {error.expected} opposing seats."
+            )
+        case ErrorKind.BAD_STARTING_LIFE:
+            if error.number == 1:
+                return (
+                    "starting_life must be one whole number from 1 in a goldfish game,"
+                    f" not {subject}."
+                )
+            return (
+                "starting_life must be a whole number from 1 for every seat, or a list of"
+                f" {error.number} such numbers, the tested seat's first; not {subject}."
+            )
+        case ErrorKind.BAD_POSITION:
+            if error.expected == 1:
+                return (
+                    "position is given only for a contested game: a goldfish game's seat is first."
+                )
+            return (
+                f"position must be from 1 to {error.expected}, the number of seats; not {subject}."
+            )
+        case ErrorKind.NOT_YOUR_CALL:
+            return _not_your_call(error.asked)
+        case ErrorKind.NOT_ACCEPTED_NOW:
+            asked = error.asked
+            doing = f": you are asked to {asked_to(asked, yourself=True)}" if asked else ""
+            return f"{subject} is not accepted now{doing}."
+        case ErrorKind.SEAT_ELIMINATED:
+            return (
+                f"Your seat has been eliminated, so it may not call {subject};"
+                " get_state and get_log still answer."
+            )
         case ErrorKind.CARD_NOT_IN_ZONE:
             elsewhere = f"; it is in the {error.found_in}" if error.found_in else ""
             return f"No {subject} in {error.zone or 'the expected zone'}{elsewhere}."

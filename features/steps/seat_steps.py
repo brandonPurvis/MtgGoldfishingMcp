@@ -75,6 +75,11 @@ def _game(context: Any) -> Game:
     return game
 
 
+def _hand_line(response: ToolResponse) -> str:
+    """The hand line of a state listing."""
+    return next(line for line in response.text.splitlines() if line.startswith("Hand ("))
+
+
 def _hand_of(context: Any, number: int) -> list[str]:
     game = _game(context)
     seat = next(seat for seat in game.seats if seat.number.value == number)
@@ -223,7 +228,7 @@ def step_impl(context: Any) -> None:
         hands = []
         for table in (first, second):
             response = context.agent.call("get_state", game_id=table.seat_id(number))
-            hands.append(response.text.splitlines()[1])
+            hands.append(_hand_line(response))
         assert hands[0] == hands[1], hands
         assert hands[0].startswith("Hand (7): "), hands
 
@@ -234,7 +239,7 @@ def step_impl(context: Any) -> None:
     goldfish = started.split("Hand: ", 1)[1].splitlines()[0].rstrip(".")
     table = context.table_of_seats
     response = context.agent.call("get_state", game_id=table.seat_id(table.tested))
-    assert response.text.splitlines()[1] == f"Hand (7): {goldfish}", (goldfish, response.text)
+    assert _hand_line(response) == f"Hand (7): {goldfish}", (goldfish, response.text)
 
 
 @then("the response lists the tested seat as S{number:d}")

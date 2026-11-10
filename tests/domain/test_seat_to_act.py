@@ -15,7 +15,6 @@ from mtg_goldfishing.domain.play.playing import effect
 from mtg_goldfishing.domain.steps import Step
 from tests.support.builders import Situation, a_game
 
-M3A = "M3a: the seat to act is not built"
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
 CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance")
 
@@ -62,14 +61,12 @@ def accepted(situation: Situation, seat: SeatNumber, tool: str) -> bool:
 
 
 # @spec GAME-108
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_during_mulligans_every_seat_that_has_not_kept_is_a_seat_to_act() -> None:
     waiting = asked(mulligans_of_three(kept=(False, True, False)))
     assert (waiting.seats, waiting.kind.value) == ((S1, S3), "keep")
 
 
 # @spec GAME-108
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_eliminated_seat_is_not_waited_on_for_its_mulligan() -> None:
     builder: Any = a_game().in_mulligan().with_hand("Forest")
     situation = builder.and_an_opposing_seat().with_hand("Island").eliminated().build()
@@ -77,7 +74,6 @@ def test_an_eliminated_seat_is_not_waited_on_for_its_mulligan() -> None:
 
 
 # @spec GAME-113
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("seat", [1, 2])
 def test_with_nothing_else_waiting_the_active_seat_is_the_seat_to_act(seat: int) -> None:
     waiting = asked(two_seats_in_turn_of(seat))
@@ -85,7 +81,6 @@ def test_with_nothing_else_waiting_the_active_seat_is_the_seat_to_act(seat: int)
 
 
 # @spec GAME-109
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_waiting_pending_choice_makes_the_seat_it_is_addressed_to_the_seat_to_act() -> None:
     situation = with_a_look_pending(two_seats_in_turn_of(2), S2)
     waiting = asked(situation)
@@ -102,7 +97,6 @@ def test_a_contested_game_waiting_on_a_pending_choice_has_status_pending_choice(
 
 
 # @spec GAME-102
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_every_seat_that_has_not_kept_may_take_its_mulligan() -> None:
     situation = mulligans_of_three(kept=(False, True, False))
     assert accepted(situation, S1, "mulligan")
@@ -110,7 +104,6 @@ def test_every_seat_that_has_not_kept_may_take_its_mulligan() -> None:
 
 
 # @spec GAME-104, GAME-118
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_that_has_kept_may_not_take_a_mulligan() -> None:
     error = refusal(mulligans_of_three(kept=(False, True, False)), S2, "mulligan")
     assert error.kind.value == "not_your_call"
@@ -118,7 +111,6 @@ def test_a_seat_that_has_kept_may_not_take_a_mulligan() -> None:
 
 
 # @spec GAME-118, TURN-043
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", CHANGING)
 def test_a_seat_that_is_not_the_seat_to_act_may_make_no_changing_call(tool: str) -> None:
     error = refusal(two_seats_in_turn_of(1), S2, tool)
@@ -127,7 +119,6 @@ def test_a_seat_that_is_not_the_seat_to_act_may_make_no_changing_call(tool: str)
 
 
 # @spec GAME-118
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["play", "advance", "choose"])
 def test_a_seat_still_to_keep_may_only_take_its_mulligan(tool: str) -> None:
     error = refusal(mulligans_of_three(kept=(False, True, False)), S1, tool)
@@ -136,7 +127,6 @@ def test_a_seat_still_to_keep_may_only_take_its_mulligan(tool: str) -> None:
 
 
 # @spec GAME-114
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["get_state", "get_log"])
 def test_any_seat_may_read_the_game_whatever_it_waits_on(tool: str) -> None:
     for situation in (mulligans_of_three(kept=(True, True, False)), two_seats_in_turn_of(1)):
@@ -144,7 +134,6 @@ def test_any_seat_may_read_the_game_whatever_it_waits_on(tool: str) -> None:
 
 
 # @spec GAME-114
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_eliminated_seat_may_read_the_game() -> None:
     builder: Any = a_game().with_library("Forest")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -153,7 +142,6 @@ def test_an_eliminated_seat_may_read_the_game() -> None:
 
 
 # @spec GAME-115
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_only_the_seat_a_pending_choice_is_addressed_to_may_answer_it() -> None:
     situation = with_a_look_pending(two_seats_in_turn_of(1), S1)
     assert accepted(situation, S1, "choose")
@@ -163,21 +151,18 @@ def test_only_the_seat_a_pending_choice_is_addressed_to_may_answer_it() -> None:
 
 
 # @spec GAME-116
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["play", "effect"])
 def test_a_seat_other_than_the_active_seat_may_not_play_while_nothing_asks_it(tool: str) -> None:
     assert refusal(two_seats_in_turn_of(2), S1, tool).kind.value == "not_your_call"
 
 
 # @spec GAME-117
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["play", "effect", "attack", "advance"])
 def test_the_active_seat_may_take_its_turn_while_it_is_the_seat_to_act(tool: str) -> None:
     assert accepted(two_seats_in_turn_of(2), S2, tool)
 
 
 # @spec GAME-117
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["play", "effect", "attack", "advance"])
 def test_the_active_seat_answers_its_pending_choice_before_anything_else(tool: str) -> None:
     situation = with_a_look_pending(two_seats_in_turn_of(2), S2)
@@ -187,7 +172,6 @@ def test_the_active_seat_answers_its_pending_choice_before_anything_else(tool: s
 
 
 # @spec GAME-119
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", ["mulligan", "play", "advance", "end_game"])
 def test_an_eliminated_opposing_seat_may_make_no_changing_call(tool: str) -> None:
     builder: Any = a_game().with_library("Forest")
@@ -196,7 +180,6 @@ def test_an_eliminated_opposing_seat_may_make_no_changing_call(tool: str) -> Non
 
 
 # @spec GAME-119, GAME-149
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_eliminated_tested_seat_may_still_end_the_game() -> None:
     builder: Any = a_game().eliminated().in_turn_of(2).with_library("Forest")
     situation = builder.and_an_opposing_seat().build()
@@ -205,7 +188,6 @@ def test_an_eliminated_tested_seat_may_still_end_the_game() -> None:
 
 
 # @spec GAME-148
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_tested_seat_may_end_the_game_whatever_the_game_waits_on() -> None:
     for situation in (
         mulligans_of_three(kept=(True, False, False)),
@@ -216,7 +198,6 @@ def test_the_tested_seat_may_end_the_game_whatever_the_game_waits_on() -> None:
 
 
 # @spec GAME-150
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("tool", [*CHANGING, "end_game"])
 def test_an_ended_game_accepts_no_changing_call_from_any_seat(tool: str) -> None:
     situation = two_seats_in_turn_of(1)
@@ -226,7 +207,6 @@ def test_an_ended_game_accepts_no_changing_call_from_any_seat(tool: str) -> None
 
 
 # @spec GAME-150
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_ended_game_is_still_read_by_every_seat() -> None:
     situation = two_seats_in_turn_of(1)
     situation.game.status = GameStatus.ENDED
@@ -235,7 +215,6 @@ def test_an_ended_game_is_still_read_by_every_seat() -> None:
 
 
 # @spec GAME-170
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_ended_game_is_the_first_reason_given_for_a_refused_call() -> None:
     builder: Any = a_game().with_library("Forest")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -244,7 +223,6 @@ def test_an_ended_game_is_the_first_reason_given_for_a_refused_call() -> None:
 
 
 # @spec GAME-170
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_eliminated_seat_comes_before_not_being_the_seat_to_act() -> None:
     builder: Any = a_game().with_library("Forest")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -255,7 +233,6 @@ def test_an_eliminated_seat_comes_before_not_being_the_seat_to_act() -> None:
 
 
 # @spec GAME-048, GAME-049, GAME-050, GAME-051
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize(
     ("status", "tool", "is_accepted"),
     [

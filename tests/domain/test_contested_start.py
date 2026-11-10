@@ -20,7 +20,6 @@ from mtg_goldfishing.domain.game.shuffling import shuffled
 from mtg_goldfishing.domain.steps import Step
 from tests.support.library import LIBRARY
 
-M3A = "M3a: contested games are not built"
 ATRAXA = "Atraxa, Praetors' Voice"
 KENRITH = "Kenrith, the Returned King"
 GAME_ID = "gabcdefghij"
@@ -118,7 +117,6 @@ def test_a_game_asked_for_with_an_empty_list_of_opponents_is_a_goldfish_game() -
 
 
 # @spec GAME-056
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("count", [1, 2, 3])
 def test_a_game_with_opponents_has_one_opposing_seat_for_each(count: int) -> None:
     game = a_contested_game(*[OPPOSING_DECK] * count)
@@ -130,13 +128,11 @@ def test_a_game_with_opponents_has_one_opposing_seat_for_each(count: int) -> Non
 
 
 # @spec GAME-056
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_contested_game_has_no_imaginary_opponents() -> None:
     assert a_contested_game(OPPOSING_DECK).imaginary is None
 
 
 # @spec GAME-056
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_tested_seat_plays_the_deck_id_and_each_opposing_seat_its_opponent_deck() -> None:
     game = a_contested_game(OPPOSING_DECK)
     assert game.tested.deck_id == "dtested"
@@ -144,21 +140,18 @@ def test_the_tested_seat_plays_the_deck_id_and_each_opposing_seat_its_opponent_d
 
 
 # @spec GAME-057
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_opposing_seat_may_play_the_tested_seat_s_own_deck() -> None:
     game = a_contested_game(TESTED_DECK)
     assert [seat.deck_id for seat in game.seats] == ["dtested", "dtested"]
 
 
 # @spec GAME-057
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_several_opposing_seats_may_play_the_same_deck() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK)
     assert sorted(seat.deck_id for seat in game.seats) == ["dopposing", "dopposing", "dtested"]
 
 
 # @spec GAME-058
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_more_than_three_opponents_is_an_error() -> None:
     four = [OpposingDeck("dopposing", OPPOSING_DECK, f"gseat{n:07d}") for n in range(4)]
     result = creation.new_game(
@@ -168,7 +161,6 @@ def test_more_than_three_opponents_is_an_error() -> None:
 
 
 # @spec GAME-059
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_opponent_that_names_no_loaded_deck_is_an_error() -> None:
     result = created(OPPOSING_DECK, None)
     assert refused_kinds(result) == ["unknown_deck"]
@@ -177,7 +169,6 @@ def test_an_opponent_that_names_no_loaded_deck_is_an_error() -> None:
 
 
 # @spec GAME-060
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_new_contested_game_waits_for_mulligans_with_no_turn_round_step_or_active_seat() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK)
     assert (game.status, game.turn, game.round, game.step, game.active) == (
@@ -190,7 +181,6 @@ def test_a_new_contested_game_waits_for_mulligans_with_no_turn_round_step_or_act
 
 
 # @spec GAME-060
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_each_seat_holds_its_own_commander_in_its_command_zone_and_its_deck_in_its_library() -> (
     None
 ):
@@ -203,7 +193,6 @@ def test_each_seat_holds_its_own_commander_in_its_command_zone_and_its_deck_in_i
 
 
 # @spec GAME-062
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_instance_ids_go_seat_by_seat_tested_seat_first_then_opponents_in_their_order() -> None:
     game = a_contested_game(OPPOSING_DECK, TESTED_DECK)
     by_key = {seat.shuffle_key: seat.number for seat in game.seats}
@@ -219,7 +208,6 @@ def test_instance_ids_go_seat_by_seat_tested_seat_first_then_opponents_in_their_
 
 
 # @spec GAME-063
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_tested_seat_s_cards_have_the_same_ids_as_in_a_goldfish_game() -> None:
     goldfish, contested = a_goldfish_game(), a_contested_game(OPPOSING_DECK)
     tested = contested.tested.number
@@ -229,7 +217,6 @@ def test_the_tested_seat_s_cards_have_the_same_ids_as_in_a_goldfish_game() -> No
 
 
 # @spec GAME-065
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_every_seat_is_dealt_seven_cards_from_its_own_shuffled_library() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK)
     for seat in game.seats:
@@ -240,7 +227,6 @@ def test_every_seat_is_dealt_seven_cards_from_its_own_shuffled_library() -> None
 
 
 # @spec GAME-083
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_opposing_seat_s_library_is_shuffled_on_its_own_keyed_stream() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK, seed=21)
     for key, first in (("o1", 42), ("o2", 83)):
@@ -251,7 +237,6 @@ def test_an_opposing_seat_s_library_is_shuffled_on_its_own_keyed_stream() -> Non
 
 
 # @spec GAME-086
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_tested_seat_s_hand_and_library_are_the_same_as_in_a_goldfish_game() -> None:
     goldfish = a_goldfish_game(seed=5)
     contested = a_contested_game(OPPOSING_DECK, OPPOSING_DECK, OPPOSING_DECK, seed=5)
@@ -265,20 +250,17 @@ def test_the_tested_seat_s_hand_and_library_are_the_same_as_in_a_goldfish_game()
 
 
 # @spec GAME-066
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_single_starting_life_is_every_seat_s_life() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK, starting_life=30)
     assert [seat.life for seat in game.seats] == [30, 30, 30]
 
 
 # @spec GAME-066
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_single_starting_life_is_the_goldfish_seat_s_life() -> None:
     assert a_goldfish_game(starting_life=20).tested.life == 20
 
 
 # @spec GAME-067
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_list_of_starting_lives_goes_tested_seat_first_then_opponents_in_order() -> None:
     game = a_contested_game(OPPOSING_DECK, TESTED_DECK, starting_life=[40, 30, 20])
     life_by_key = {seat.shuffle_key: seat.life for seat in game.seats}
@@ -286,28 +268,24 @@ def test_a_list_of_starting_lives_goes_tested_seat_first_then_opponents_in_order
 
 
 # @spec GAME-068
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_every_seat_starts_at_forty_life_when_none_is_given() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK)
     assert [seat.life for seat in game.seats] == [40, 40, 40]
 
 
 # @spec GAME-069
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("lives", [[40], [40, 30, 20]])
 def test_a_list_of_starting_lives_must_have_one_per_seat(lives: list[int]) -> None:
     assert refused_kinds(created(OPPOSING_DECK, starting_life=lives)) == ["bad_starting_life"]
 
 
 # @spec GAME-070
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("life", [0, -5, [40, 0]])
 def test_a_starting_life_below_one_is_an_error(life: object) -> None:
     assert refused_kinds(created(OPPOSING_DECK, starting_life=life)) == ["bad_starting_life"]
 
 
 # @spec GAME-071
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_list_of_starting_lives_for_a_goldfish_game_is_an_error() -> None:
     result = creation.new_game(
         TESTED_DECK, deck_id="dtested", game_id=GAME_ID, seed=11, starting_life=[40]
@@ -319,21 +297,18 @@ def test_a_list_of_starting_lives_for_a_goldfish_game_is_an_error() -> None:
 
 
 # @spec GAME-072
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_position_for_a_goldfish_game_is_an_error() -> None:
     result = creation.new_game(TESTED_DECK, deck_id="dtested", game_id=GAME_ID, seed=11, position=1)
     assert refused_kinds(result) == ["bad_position"]
 
 
 # @spec GAME-073
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("position", [0, 3, -1])
 def test_a_position_outside_the_seats_is_an_error(position: int) -> None:
     assert refused_kinds(created(OPPOSING_DECK, position=position)) == ["bad_position"]
 
 
 # @spec GAME-079, GAME-080
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("seed", [1, 2, 3, 99])
 def test_turn_order_is_drawn_from_the_seed_and_numbers_the_seats_from_one(seed: int) -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK, OPPOSING_DECK, seed=seed)
@@ -342,7 +317,6 @@ def test_turn_order_is_drawn_from_the_seed_and_numbers_the_seats_from_one(seed: 
 
 
 # @spec GAME-081
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("position", [1, 2, 3])
 def test_a_position_places_the_tested_seat_and_the_seed_orders_the_others(position: int) -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK, seed=4, position=position)
@@ -352,7 +326,6 @@ def test_a_position_places_the_tested_seat_and_the_seed_orders_the_others(positi
 
 
 # @spec GAME-082
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_same_decks_position_and_seed_give_the_same_turn_order_and_opening_hands() -> None:
     first = a_contested_game(OPPOSING_DECK, TESTED_DECK, seed=8, position=2)
     second = a_contested_game(OPPOSING_DECK, TESTED_DECK, seed=8, position=2)
@@ -367,7 +340,6 @@ def test_the_same_decks_position_and_seed_give_the_same_turn_order_and_opening_h
 
 
 # @spec GAME-074
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_lists_each_seat_in_turn_order_with_its_id_deck_life_and_testedness() -> None:
     result = created(OPPOSING_DECK, seed=3, starting_life=[40, 25])
     assert isinstance(result, Applied), result
@@ -384,7 +356,6 @@ def test_the_outcome_lists_each_seat_in_turn_order_with_its_id_deck_life_and_tes
 
 
 # @spec GAME-075
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_of_a_new_contested_game_shows_no_seat_s_hand() -> None:
     result = created(OPPOSING_DECK)
     assert isinstance(result, Applied), result
@@ -394,7 +365,6 @@ def test_the_outcome_of_a_new_contested_game_shows_no_seat_s_hand() -> None:
 
 
 # @spec GAME-077
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_each_opposing_seat_has_the_seat_id_it_was_given_and_the_tested_seat_the_game_id() -> None:
     game = a_contested_game(OPPOSING_DECK, OPPOSING_DECK)
     ids = {seat.shuffle_key: seat.seat_id.value for seat in game.seats}
@@ -405,12 +375,13 @@ def test_each_opposing_seat_has_the_seat_id_it_was_given_and_the_tested_seat_the
 
 
 def _mulligan_everyone(game: Game, decks: dict[str, LoadedDeck]) -> Game:
-    """Every seat takes one mulligan, then keeps with one card bottomed, in turn order."""
+    """Every seat takes two mulligans, then keeps with one card bottomed, in turn order."""
     for seat in list(game.seats):
         deck = decks[seat.deck_id]
-        result = mulligan(game, deck, seat.number, keep=False)
-        assert isinstance(result, Applied), result
-        game = result.game
+        for _ in range(2):
+            result = mulligan(game, deck, seat.number, keep=False)
+            assert isinstance(result, Applied), result
+            game = result.game
     for seat in list(game.seats):
         deck = decks[seat.deck_id]
         bottom = [game.hand_of(seat.number)[0].id]
@@ -421,7 +392,6 @@ def _mulligan_everyone(game: Game, decks: dict[str, LoadedDeck]) -> Game:
 
 
 # @spec GAME-087
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_same_decks_and_seed_with_the_same_calls_give_the_same_game() -> None:
     decks = {"dtested": TESTED_DECK, "dopposing": OPPOSING_DECK}
     first = _mulligan_everyone(a_contested_game(OPPOSING_DECK, seed=6), decks)
@@ -447,7 +417,6 @@ def keep(game: Game, seat: SeatNumber) -> Applied:
 
 
 # @spec GAME-102
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_seats_take_their_mulligans_in_any_order() -> None:
     game = a_mulligan_of_two_seats()
     second = mulligan(game, OPPOSING_DECK, SeatNumber(2), keep=False)
@@ -458,7 +427,6 @@ def test_seats_take_their_mulligans_in_any_order() -> None:
 
 
 # @spec GAME-106
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_when_the_last_seat_keeps_the_first_seat_in_turn_order_takes_turn_one() -> None:
     game = keep(a_mulligan_of_two_seats(), SeatNumber(1)).game
     started = keep(game, SeatNumber(2)).game
@@ -472,7 +440,6 @@ def test_when_the_last_seat_keeps_the_first_seat_in_turn_order_takes_turn_one() 
 
 
 # @spec GAME-106
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_first_seat_draws_on_the_first_turn_when_the_last_seat_to_keep_is_another() -> None:
     game = keep(a_mulligan_of_two_seats(), SeatNumber(1)).game
     started = keep(game, SeatNumber(2)).game
@@ -480,7 +447,6 @@ def test_the_first_seat_draws_on_the_first_turn_when_the_last_seat_to_keep_is_an
 
 
 # @spec GAME-106
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_first_turn_skips_the_first_seat_s_draw_when_draw_first_turn_is_false() -> None:
     game = keep(a_contested_game(OPPOSING_DECK, position=1, draw_first_turn=False), SeatNumber(2))
     started = keep(game.game, SeatNumber(1)).game
@@ -488,11 +454,10 @@ def test_the_first_turn_skips_the_first_seat_s_draw_when_draw_first_turn_is_fals
 
 
 # @spec GAME-107
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_card_the_first_seat_drew_is_named_only_to_that_seat() -> None:
     game = keep(a_mulligan_of_two_seats(), SeatNumber(1)).game
+    drawn = game.instance(game.seat(SeatNumber(1)).library[0]).name
     result = keep(game, SeatNumber(2))
-    drawn = result.game.hand_of(SeatNumber(1))[-1].name
     to_the_drawer = repr(as_seen_by(result.events, SeatNumber(1)))
     to_the_keeper = repr(as_seen_by(result.events, SeatNumber(2)))
     assert f"'{drawn}'" in to_the_drawer

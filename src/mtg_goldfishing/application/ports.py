@@ -148,12 +148,19 @@ class GameLocks(ABC):
     def hold(self, game_id: str) -> AbstractContextManager[None]: ...
 
 
+# @spec APP-047
 class IdSource(ABC):
-    """Supplies what must be random."""
+    """Supplies what must be random: game ids, seat ids and seeds."""
 
     @abstractmethod
     def new_game_id(self) -> str:
         """Ten random characters for a game id."""
+        ...
+
+    @abstractmethod
+    def new_seat_id(self) -> str:
+        """Ten random characters for an opposing seat's seat id, of the same form as a game
+        id and drawn from the same source."""
         ...
 
     @abstractmethod

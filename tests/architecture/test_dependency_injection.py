@@ -71,7 +71,7 @@ OPERATIONS: dict[type, set[str]] = {
     ports.CardCache: {"get", "put"},
     ports.UnitOfWork: {"begin", "commit", "rollback"},
     ports.GameLocks: {"hold"},
-    ports.IdSource: {"new_game_id", "new_seed"},
+    ports.IdSource: {"new_game_id", "new_seat_id", "new_seed"},
     ports.Clock: {"now"},
     ports.Renderer: {"render"},
 }

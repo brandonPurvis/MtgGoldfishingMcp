@@ -28,6 +28,7 @@ from mtg_goldfishing.domain.events import (
     ChecksOverridden,
     ChoiceResolved,
     CombatDamageDealt,
+    ContestedGameStarted,
     CostPaid,
     CountersChanged,
     DamageAdded,
@@ -43,6 +44,7 @@ from mtg_goldfishing.domain.events import (
     GameEnded,
     GameStarted,
     HandKept,
+    HiddenCardsDrawn,
     InstanceChosen,
     LibraryShuffled,
     LifeChanged,
@@ -56,6 +58,7 @@ from mtg_goldfishing.domain.events import (
     Refused,
     ReminderIssued,
     RevealedCard,
+    SeatStarted,
     SnapshotWritten,
     StateListed,
     StepsEntered,
@@ -67,6 +70,7 @@ from mtg_goldfishing.domain.events import (
 from mtg_goldfishing.domain.game.calls import accept_change, follow_change
 from mtg_goldfishing.domain.game.listing import list_state
 from mtg_goldfishing.domain.game.results import Applied, Resent
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.play.playing import play
 from mtg_goldfishing.domain.reading.model import (
@@ -370,6 +374,7 @@ def sample_of_every_event() -> list[Event]:
         StepsEntered((EnteredStep(7, Step.UNTAP), EnteredStep(7, Step.UPKEEP))),
         DeckLoaded("dabc", 100, (ATRAXA,)),
         GameStarted("gabc", 42, ("Forest", "Island")),
+        ContestedGameStarted("gabc", 42, (SeatStarted(SeatNumber(1), "gabc", "dabc", 40, True),)),
         MulliganTaken(1, ("Forest",)),
         HandKept(("Island",), ("Forest",)),
         CardPlayed("Forest", "Forest", "hand", "battlefield", is_land=True),
@@ -378,6 +383,7 @@ def sample_of_every_event() -> list[Event]:
         CardMoved("Forest", "graveyard", "hand"),
         TokensCreated("Treasure", 2),
         CardsDrawn(("Island",)),
+        HiddenCardsDrawn(SeatNumber(2), 1),
         CardsDiscarded(("Island",)),
         Tapped(("Forest",)),
         Untapped(("Forest",)),

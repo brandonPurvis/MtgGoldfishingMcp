@@ -25,8 +25,8 @@ Design: `application-design.md`. Prefix: `APP`.
 
 - [x] **APP-009**: Every use case, in a goldfish game or a contested game, shall return an outcome holding a status of `OK`, `REJECTED`, `ERROR` or `CHOICE`, a summary event, a list of typed events in the order they happened, and a game summary when the call concerns an existing game.
 - [x] **APP-010**: The domain and application shall produce no response text; events shall be typed values carrying facts.
-- [ ] **APP-034**: When a use case handles a call made with a seat id of a contested game, its outcome shall hold the calling seat's seat number.
-- [ ] **APP-035**: When a use case handles a call made with a seat id of a contested game, the outcome's game summary shall be the calling seat's view of the game (its own hidden zones and every seat's public information), not another seat's.
+- [x] **APP-034**: When a use case handles a call made with a seat id of a contested game, its outcome shall hold the calling seat's seat number.
+- [x] **APP-035**: When a use case handles a call made with a seat id of a contested game, the outcome's game summary shall be the calling seat's view of the game (its own hidden zones and every seat's public information), not another seat's.
 - [ ] **APP-036**: When a use case handles a call other than `get_log` made with a seat id of a contested game, its outcome shall hold a digest: one element for each log entry of that game made by another seat with a change number greater than the calling seat's digest baseline (the change number on that seat's most recent call record for a tool other than `get_log`), oldest first, each holding that entry's seat number, change number and events as the calling seat may see them (APP-081).
 - [ ] **APP-081**: When a digest element is built from a log entry, its events shall be the list stored for the calling seat's number in that entry's `private` (the call's events as that seat may see them, such as a card it drew named) when the entry has one, and the entry's stored `public` events otherwise.
 - [ ] **APP-037**: When a use case handles a call other than `get_log` from a seat of a contested game that has no digest baseline (no earlier call record for a tool other than `get_log`), the outcome's digest shall hold every log entry of that game made by another seat since the game began.
@@ -46,7 +46,7 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-045**: `GameRepository` shall offer an operation that finds the game and seat number a seat id names, answering for a game id with that game and its tested seat's number, and reporting when the id names none.
 - [ ] **APP-046**: `RecordStore` shall offer an operation that gives a seat's digest baseline for a game: the change number on that seat's most recent call record for a tool other than `get_log`, reporting when the seat has no such call record.
 - [ ] **APP-092**: If `RecordStore` is asked to add a snapshot for a game and table turn that already has one, then it shall raise an exception and leave the stored snapshot as it was, a second snapshot for a table turn being a defect and never a replacement.
-- [ ] **APP-047**: `IdSource` shall supply seat ids as well as game ids and seeds.
+- [x] **APP-047**: `IdSource` shall supply seat ids as well as game ids and seeds.
 - [ ] **APP-048**: `GameLocks` and `GameChanges` shall each have exactly one implementation, in-process in `adapters/system`, used by both the running service and the tests.
 
 ## Dependency injection
@@ -73,19 +73,19 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-023**: Use cases shall contain no rule of play: every decision about cards, zones, mana, steps or costs shall be made by the domain.
 - [x] **APP-053**: When a use case handles a game-scoped call, it shall first find, through `GameRepository`, the game and seat number that the id given as `game_id` names, and act as that seat.
 - [x] **APP-054**: If the id given as `game_id` to a game-scoped call names no seat of any game, then the use case shall return an `ERROR` outcome with no game summary and change no game.
-- [ ] **APP-055**: When a changing call is a resend of the calling seat's most recent accepted change, the use case shall answer it as already applied before asking whether the calling seat may make the call now, so that a resend is answered even when the calling seat is no longer a seat to act.
-- [ ] **APP-056**: If, in a contested game, the domain answers that the calling seat may not make the call now (it is not a seat to act for that tool), then the use case shall return an `ERROR` outcome without calling the domain operation, saving nothing but the call record.
+- [x] **APP-055**: When a changing call is a resend of the calling seat's most recent accepted change, the use case shall answer it as already applied before asking whether the calling seat may make the call now, so that a resend is answered even when the calling seat is no longer a seat to act.
+- [x] **APP-056**: If, in a contested game, the domain answers that the calling seat may not make the call now (it is not a seat to act for that tool), then the use case shall return an `ERROR` outcome without calling the domain operation, saving nothing but the call record.
 - [x] **APP-057**: When a use case calls a domain operation for a changing call, it shall pass the calling seat's seat number as the acting seat.
 - [ ] **APP-058**: When a call other than `get_log` made with an id that names a seat of a contested game is answered, whether applied, answered as a resend, refused by the domain, refused because its arguments could not be shaped (APP-027), refused because the save lost a race (APP-021) or read-only, the use case shall assemble the calling seat's digest before rendering the outcome, so that every call record that moves a digest baseline holds a response that carried a digest.
 - [ ] **APP-082**: When a resend is answered in a contested game, the outcome shall hold the original change's summary and events with the already-applied statement, and a digest assembled at the time of the resend from the calling seat's digest baseline, not the digest of the original response.
 - [ ] **APP-083**: When a resend is answered, in a goldfish game or a contested game, the outcome's game summary shall describe the game as it stands when the resend is answered, not as it stood after the original change.
 - [ ] **APP-084**: If a use case handling a call other than `get_log` made with an id that names a seat of a contested game fails unexpectedly (APP-020), then its `ERROR` outcome shall hold the calling seat's digest, assembled after the rollback.
-- [ ] **APP-085**: If a changing call that is not a resend both may not be made by the calling seat now (APP-056) and gives an `after` that is not the game's change number, then the use case shall return the `ERROR` that the seat may not make the call, not the stale-change-number error.
-- [ ] **APP-086**: If a changing call that is not a resend may be made by the calling seat now and gives an `after` that is not the game's change number, then the use case shall return the stale-change-number error, also when the call's structured arguments (APP-028) are malformed, the error for a malformed one being returned only for a call that follows the game's change number.
+- [x] **APP-085**: If a changing call that is not a resend both may not be made by the calling seat now (APP-056) and gives an `after` that is not the game's change number, then the use case shall return the `ERROR` that the seat may not make the call, not the stale-change-number error.
+- [x] **APP-086**: If a changing call that is not a resend may be made by the calling seat now and gives an `after` that is not the game's change number, then the use case shall return the stale-change-number error, also when the call's structured arguments (APP-028) are malformed, the error for a malformed one being returned only for a call that follows the game's change number.
 - [ ] **APP-059**: When a unit of work that saved an applied change has committed, the use case shall announce through `GameChanges` that the game changed, and shall not announce it before the commit.
 - [ ] **APP-060**: When a call is refused or read-only, the use case shall make no announcement through `GameChanges`.
-- [ ] **APP-061**: When `new_game` starts a contested game, the use case shall take the game id and one seat id for each opposing seat from `IdSource`, the tested seat's seat id being the game id.
-- [ ] **APP-087**: When `new_game` takes values from `IdSource`, it shall take the game id first, then a seed when the call gave none, then, for a contested game, one seat id per opposing seat in `opponents` order, the *k*th seat id taken going to the seat of the *k*th entry of `opponents` whatever its place in turn order.
+- [x] **APP-061**: When `new_game` starts a contested game, the use case shall take the game id and one seat id for each opposing seat from `IdSource`, the tested seat's seat id being the game id.
+- [x] **APP-087**: When `new_game` takes values from `IdSource`, it shall take the game id first, then a seed when the call gave none, then, for a contested game, one seat id per opposing seat in `opponents` order, the *k*th seat id taken going to the seat of the *k*th entry of `opponents` whatever its place in turn order.
 
 ## `wait`
 
@@ -113,6 +113,6 @@ Design: `application-design.md`. Prefix: `APP`.
 
 - [x] **APP-024**: The domain tests and the in-process behave feature tests (those outside `features/http`) shall run without a database file, a network connection or a running server.
 - [x] **APP-025**: The in-process behave feature tests (those outside `features/http`) shall drive the MCP adapter's tool functions in-process over the in-memory adapters.
-- [ ] **APP-076**: The in-process behave scenarios of contested games shall drive each seat through the MCP adapter's tool functions with that seat's own seat id.
+- [x] **APP-076**: The in-process behave scenarios of contested games shall drive each seat through the MCP adapter's tool functions with that seat's own seat id.
 - [ ] **APP-077**: The behave scenarios under `features/http` shall start the real service process with a SQLite database and drive each seat of a contested game through its own MCP client over HTTP.
 - [ ] **APP-080**: The behave scenarios under `features/http` shall be run by CI and shall not be among the checks run before a commit, as the end-to-end tests under `tests/e2e` are.
