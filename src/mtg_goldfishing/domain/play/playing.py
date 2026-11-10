@@ -58,6 +58,14 @@ _FROM_ZONES = {
 _WITHOUT_FROM = (Zone.HAND, Zone.COMMAND)
 
 
+def comes_from_outside(from_zone: object) -> bool:
+    """Whether a `play` call's `from` names outside the game, as `play` reads it.
+
+    Such a card's data is resolved by name before `play` is called.
+    """
+    return isinstance(from_zone, str) and from_zone.strip().lower() == OUTSIDE
+
+
 def _x_replaced(
     cost: ManaString, choices: Choices, card: str | None
 ) -> tuple[ManaString, list[Event]]:

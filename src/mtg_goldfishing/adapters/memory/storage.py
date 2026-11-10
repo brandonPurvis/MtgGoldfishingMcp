@@ -128,6 +128,10 @@ class InMemoryRecordStore:
             )
         )
 
+    def calls(self) -> tuple[CallRecord, ...]:
+        """Every call record in the order added, whatever game it names or none."""
+        return copy.deepcopy(tuple(self._records.calls))
+
     def checkpoint(self) -> object:
         return copy.deepcopy(self._records)
 
