@@ -90,6 +90,22 @@ def test_a_call_made_with_a_seat_id_is_recorded_under_the_game_it_names() -> Non
     assert [entry.tool for entry in harness.records().entries] == ["play"]
 
 
+# @spec APP-057
+@not_built
+def test_a_changing_call_acts_as_the_seat_its_id_names() -> None:
+    harness = a_service()
+    two_seats: Any = a_game().and_an_opposing_seat()
+    harness.holding(two_seats.build())
+    opposing: Any = harness.game().seat(SeatNumber(2))
+
+    harness.service.effect(
+        {"game_id": opposing.seat_id.value, "source": "test", "delta": {"life": -3}}
+    )
+
+    game: Any = harness.game()
+    assert [seat.life for seat in game.seats] == [40, 37]
+
+
 # @spec APP-054
 @pytest.mark.parametrize("tool", ["get_state", "get_log", "advance", "end_game"])
 def test_a_call_whose_id_names_no_seat_is_an_error_with_no_game_summary(tool: str) -> None:
