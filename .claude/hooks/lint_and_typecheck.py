@@ -1,5 +1,6 @@
-"""Claude Code PostToolUse hook: format-check and lint the edited Python file, type-check
-the project, then run the unit tests.
+"""Claude Code PostToolUse hook: format-check and lint the edited Python file, then type-check
+the project. Tests are left to the pre-commit hook and CI, so red tests during test-first
+work do not block edits.
 
 Reads the hook payload from stdin. Does nothing for non-Python files. On any
 failure it writes the tool output to stderr and exits 2, which Claude Code feeds
@@ -29,7 +30,6 @@ def main() -> int:
         ("format (ruff)", ["uv", "run", "ruff", "format", "--check", "--diff", file_path]),
         ("lint (ruff)", ["uv", "run", "ruff", "check", file_path]),
         ("type check (mypy)", ["uv", "run", "mypy"]),
-        ("unit tests (pytest)", ["uv", "run", "pytest", "-m", "not e2e"]),
     ]
 
     failures = []

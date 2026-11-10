@@ -10,9 +10,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_and_test.py\"",
+            "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_and_typecheck.py\"",
             "timeout": 180,
-            "statusMessage": "Format, lint, type check and unit tests..."
+            "statusMessage": "Format, lint and type check..."
           }
         ]
       }

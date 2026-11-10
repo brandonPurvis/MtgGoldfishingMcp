@@ -85,7 +85,7 @@ Every tool except `get_log` responds with plain text:
 | `ERROR` | Structurally impossible or malformed; nothing was applied; cannot be overridden. |
 | `CHOICE` | Applied, and a choice is now pending; call `choose`. |
 
-**Event lines** appear in a fixed order when present: steps entered (`end → cleanup → T7 untap → upkeep`); payment; moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
+**Event lines** appear in a fixed order when present: a statement that the call was already applied (`Already applied as change #41; nothing was applied again.`); overridden rule checks (`Overridden (<reason>): ...`); steps entered (`end → cleanup → T7 untap → upkeep`); payment; moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
 
 Current notices appear on every response about a game, whatever its status: `OK`, `REJECTED`, `ERROR`, `CHOICE`, and `get_state`.
 
@@ -95,7 +95,7 @@ Current notices appear on every response about a game, whatever its status: `OK`
 T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>
 ```
 
-With two commanders, `Cmdr` and `Tax` show a group per commander separated by `|`, in the commanders' name order; `get_state` names them. While a choice is pending the line ends with ` · CHOICE pending`. For an ended game the line begins `Ended (<result>) · `. During mulligans the status line is `Mulligan <k> · Hand <n> · #<change>`. For responses not about an existing game (`load_deck`, an unknown game id) there is no status line.
+With two commanders, `Cmdr` and `Tax` show a group per commander separated by `|`, in the commanders' name order; `get_state` names them. While a choice is pending the line ends with ` · CHOICE pending`. For an ended game the line begins `Ended (<result>) · `. `Cmdr` shows that commander's damage to each opponent, and an empty pool reads `{}`. While a game has no step — during mulligans, or once it has ended before the hand was kept — the status line is `Mulligan <k> · Hand <n> · #<change>`, where *k* is the number of mulligans taken, so a game ended during mulligans reads `Ended (loss) · Mulligan 0 · Hand 7 · #2`. For responses not about an existing game (`load_deck`, an unknown game id) there is no status line.
 
 A `REJECTED` or `ERROR` summary says what was wrong and what to do about it:
 
@@ -108,7 +108,7 @@ Responses to routine plays do not list the battlefield or the hand; `get_state` 
 
 ### In MCP terms
 
-A response is a single text content item. `ERROR` responses set the MCP result's error flag; `OK`, `REJECTED` and `CHOICE` do not, because a rejection is an ordinary, expected outcome the agent acts on. Arguments that fail the tool's schema are answered in the same text format as an `ERROR`, not as a protocol-level fault, so the agent always reads one format. Such a response sets the error flag, carries the status line when the call named an existing game, and is saved as a call record like any other call. To make this possible the tools declare permissive schemas to the MCP layer and validate arguments themselves.
+A response is a single text content item. `ERROR` responses set the MCP result's error flag; `OK`, `REJECTED` and `CHOICE` do not, because a rejection is an ordinary, expected outcome the agent acts on. Arguments that fail the tool's schema are answered in the same text format as an `ERROR`, not as a protocol-level fault, so the agent always reads one format. Such a response sets the error flag, carries the status line when the call named an existing game, and is saved as a call record like any other call. To make this possible the tools are served by the SDK's low-level server, which validates nothing: the schemas the tools declare describe each parameter's JSON type and which are required, to guide the agent, and the adapter shapes the arguments itself. Every object or list parameter is also accepted as a JSON string. A parameter name the tool does not have is a malformed argument. A call naming a tool that does not exist is answered as a protocol error, since there is no tool to record it under.
 
 ## Player Brief
 
@@ -142,6 +142,9 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | Transport | Streamable HTTP, stateless | stdio; stateful sessions | One process for all agents; stateless calls suit game ids that already carry all context, and suit hosting later. |
 | Where playing instructions live | Server instructions and tool descriptions, plus a subagent definition | Only a subagent definition | Instructions that travel with the server work for any client; the subagent definition is the convenience for Claude Code. |
 | Schema failures | Answered as `ERROR` text | Protocol error | One format for the agent to read. |
+| MCP server class | The SDK's low-level server with schemas the adapter declares | The SDK's high-level server built from function signatures | The high-level server rejects calls that fail a signature before the adapter sees them, so they could not be answered as `ERROR` text or recorded. |
+| Unknown parameter names | Malformed argument | Ignored | A misspelled `override` or `after` silently ignored would change what the call does without the agent knowing. |
+| DNS-rebinding protection | On when bound to a loopback address, off otherwise | Always off; always on | It protects a local service from web pages in the user's browser without blocking deliberate remote binding. |
 
 ## Open Questions & Future Decisions
 

@@ -14,7 +14,7 @@ The service does not know what cards do. This component holds the deliberate exc
 3. **Haste and vigilance**: whether a permanent has either keyword itself or grants it to others.
 4. **Entering tapped**: whether a permanent enters the battlefield tapped.
 
-Every reading carries a list of `assumptions`, empty when the text matched a known form exactly.
+Every mana ability reading, keyword reading and enters-tapped reading carries a list of `assumptions`, empty when the text matched a known form exactly. Step triggers carry none.
 
 Reading follows the tenet *Best guess, shown*. When text matches a known form only partly, the reader returns its best reading together with a plain statement of what it assumed. It returns "no reading" only when it has nothing usable. It never guesses silently.
 
@@ -74,7 +74,7 @@ Any part of an ability's cost that is not `{T}`, mana symbols, a life payment, o
 
 `Count.match` is a single word compared, ignoring case, against the words of a permanent's type line (for a token, its `types`).
 
-A basic land type on the type line (`Forest`, `Island`, `Plains`, `Swamp`, `Mountain`, `Wastes`) is read as the corresponding `{T}: Add` ability even when the rules text is empty.
+A basic land type on the type line (`Forest`, `Island`, `Plains`, `Swamp`, `Mountain`) is read as the corresponding `{T}: Add` ability even when the rules text is empty.
 
 ### Best guesses
 
@@ -83,13 +83,13 @@ When an ability's text continues past a form the reader knows, or is conditioned
 - A condition on activation (`Activate only if you control an Island`) → read as always usable; assumption "ignores activation condition".
 - A conditional upgrade (`Add {G}. If you control a creature with power 5 or greater, add {G}{G} instead`) → the unconditional amount; assumption "ignores conditional bonus".
 - A restriction the reader cannot map to card types (`Spend this mana only to cast spells with flashback`) → Restriction with empty `card_types`; assumption "restriction not understood". An empty `card_types` means the auto payment system does not use the source.
-- An ability whose colors match the card's `produced_colors` but whose amount cannot be read → one mana of those colors; assumption "amount assumed to be one".
+- An ability that adds mana whose amount or colors cannot be read, on a card whose `produced_colors` are known → one mana of those colors, a choice among them when there are several; assumption "amount assumed to be one".
 - A choice of colors the reader cannot bound (`one mana of any color that a land you control could produce`, `any type a land an opponent controls could produce`) → AnyColor among any; assumption "assumes any color".
 - `in any combination of colors` → AnyColor of the stated amount; assumption "assumes one color for the whole amount".
 
 ### No reading
 
-An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it. A card with `produced_colors` but no reading for any ability is reported as **unread**.
+An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. A card with `produced_colors` but no reading for any ability is reported as **unread**.
 
 ### Reporting
 
@@ -117,10 +117,10 @@ A phrase that names only opponents (`each opponent's upkeep`) yields nothing, be
 For each of the two keywords a face gets one of:
 
 - **own**: the keyword stands as an ability of the card itself: on a line of its own or in a comma-separated keyword line.
-- **grants**: a static ability gives the keyword to creatures the controller has, in one of the forms `Creatures you control have <keyword>`, `Other creatures you control have <keyword>`, `<Subtype> creatures you control have <keyword>`, including when the keyword is one item in a longer list (`get +1/+1 and have vigilance`). A grant records whether it includes the card itself and which subtype, if any, it is limited to. Only standing grants are read: text that gives the keyword for a limited time (`gain haste until end of turn`), whether on a spell or inside an activated or triggered ability, is not a grant.
+- **grants**: a static ability gives the keyword to creatures the controller has, in one of the forms `Creatures you control have <keyword>`, `Other creatures you control have <keyword>`, `<Subtype> creatures you control have <keyword>`, `<plural subtype> you control have <keyword>`, including when the keyword is one item in a longer list (`get +1/+1 and have vigilance`). A grant records whether it includes the card itself and which subtype, if any, it is limited to. A plural subtype (`Goblins you control have haste`, `Allies you control have vigilance`) is recorded in its singular form (`Goblin`, `Ally`). Only standing grants are read: text that gives the keyword for a limited time (`gain haste until end of turn`, `gains haste this turn`), whether on a spell or inside an activated or triggered ability, is not a grant.
 - **none**.
 
-A keyword the card has only under a condition (`has haste as long as you control a Mountain`) is read as **own**, with the assumption "assumes its condition is met". A grant under a condition is read as a grant with the same assumption.
+A keyword the card has only under a condition (`has haste as long as you control a Mountain`) is read as **own**, with the assumption "assumes its condition is met". The condition may itself speak of the turn (`As long as you've cast a noncreature spell this turn, this creature has vigilance`); that is still a standing ability under a condition, not a keyword given for a limited time. A grant under a condition is read as a grant with the same assumption.
 
 Keywords conferred through attachment (`Equipped creature has haste`, `Enchanted creature has vigilance`) are not read, because the service does not track what is attached to what.
 
@@ -130,7 +130,7 @@ Flash is read the same way as an own keyword, for the timing check in `play`.
 
 A face gets one of:
 
-- **tapped**: the text says without condition that the permanent enters tapped (`This land enters tapped.`, `<Name> enters the battlefield tapped.`).
+- **tapped**: the text says without condition that the permanent enters tapped (`This land enters tapped.`, `<Name> enters the battlefield tapped.`). A rider saying it does not untap (`This land enters tapped and doesn't untap during your untap step.`) is not a condition on entering tapped.
 - **untapped, assumed**: the text says it enters tapped subject to a condition or a choice (`enters tapped unless you control two or more other lands`, `you may pay 2 life. If you don't, it enters tapped`). It is read as entering untapped, with the assumption "assumes it enters untapped: <the condition as written>".
 - **untapped**: the text says nothing about entering tapped.
 

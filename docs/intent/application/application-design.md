@@ -49,12 +49,15 @@ src/mtg_goldfishing/
     sqlite/       # persistence ports on SQLite
     scryfall/     # card catalog on the Scryfall API with a cache
     memory/       # in-memory implementations of every port
+    system/       # the real id source, clock and game locks
   bootstrap.py    # composition root: wires adapters to use cases; entry point
 tests/
   domain/         # pytest, no adapters
   application/    # pytest, in-memory adapters
   contract/       # pytest, one suite per port, run against each adapter
   architecture/   # the dependency rule
+  adapters/       # pytest, adapter-specific behaviour (SQLite, Scryfall, rendering, MCP)
+  e2e/            # the real process over HTTP; marked e2e, run by CI but not before commits
   support/        # builders and fakes shared by tests
 features/         # behave feature files and steps
 ```
@@ -98,7 +101,7 @@ Interfaces owned by the application and implemented by adapters.
 | `DeckRepository` | Keep loaded decks | get a loaded deck by id; add a loaded deck, leaving an existing one with the same id in place |
 | `RecordStore` | Keep and return records | append a log entry; add a snapshot; add a call record; read a game's entries, snapshots and call records, optionally after a change number |
 | `CardCatalog` | Supply card data by exact name | look up a set of names, returning for each: a card, not found, or unavailable; optionally refreshing |
-| `UnitOfWork` | Make one call's saves atomic | begin; commit; roll back — spanning `GameRepository` and `RecordStore` |
+| `UnitOfWork` | Make one call's saves atomic | begin; commit; roll back — spanning `GameRepository`, `DeckRepository` and `RecordStore` |
 | `GameLocks` | Apply one game's calls one at a time | hold a game's lock for the length of a call |
 | `IdSource` | Supply what must be random | a new game id; a new seed |
 | `Clock` | Supply the time | now |
@@ -116,22 +119,24 @@ For a tool that changes a game:
 
 1. Hold the game's lock.
 2. Load the game. If there is none, return an error outcome.
-3. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this).
-4. Ask the game whether the call follows its change number (see `game`): apply, answer as already applied, or refuse as stale.
-5. Call the domain operation.
-6. If applied: build the log entry and any snapshot, and save game, entry and snapshot in one unit of work.
-7. Whatever happened: render the outcome through `Renderer` and add the call record with that text, in the unit of work of step 6 or in its own if step 6 saved nothing.
-8. Return the outcome and its rendered text.
+3. Ask the game whether the call is a resend of its most recent change (see `game`). If it is, answer it as already applied, whatever the game's status.
+4. Ask the game whether its status accepts the tool. If not, return an error outcome.
+5. Ask the game whether the call follows its change number: apply, or refuse as stale.
+6. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this). A card definition given with the call does not skip the lookup: its fields replace the fetched ones it names.
+7. Call the domain operation.
+8. If applied: build the log entry and any snapshot, and save game, entry and snapshot in one unit of work.
+9. Whatever happened: render the outcome through `Renderer` and add the call record with that text, in the unit of work of step 8 or in its own if step 8 saved nothing.
+10. Return the outcome and its rendered text.
 
-Read-only use cases (`get_state`, `get_log`) do steps 1, 2, 7 and 8. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`.
+Read-only use cases (`get_state`, `get_log`) do steps 1, 2, 4, 9 and 10. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`.
 
 A call whose arguments the MCP adapter cannot shape at all (a missing parameter, a number where a list belongs) is still handed to the application, which answers it with an `ERROR` outcome — carrying the game summary when the call names an existing game — and adds its call record.
 
-If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service.
+If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service. If even the call record cannot be added, that error is still returned with its rendered text.
 
 ## In-Memory Adapters
 
-`adapters/memory` holds a working implementation of every port that keeps its data in ordinary Python objects: repositories backed by dictionaries, a card catalog loaded from a recorded card data file, an id source that hands out a fixed sequence, a clock that is set by the test. They are real implementations, not mocks: they pass the same contract tests as the SQLite and Scryfall adapters.
+`adapters/memory` holds a working implementation of every port that keeps its data in ordinary Python objects: repositories backed by dictionaries, a card catalog loaded from a recorded card data file, an id source that hands out a fixed sequence, a clock that is set by the test. They are real implementations, not mocks: they pass the same contract tests as the SQLite and Scryfall adapters. Game locks have one implementation, the in-process locks in `adapters/system`, which tests and the running service share.
 
 ## Testing
 

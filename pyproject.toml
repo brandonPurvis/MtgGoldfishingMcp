@@ -26,12 +26,14 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-q"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 markers = ["e2e: starts the real service; excluded from the pre-commit run"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py313"
 src = ["src", "tests", "features"]
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = [

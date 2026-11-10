@@ -41,7 +41,7 @@ advance(game_id, to?, discard?, override?)
 
 With no `to`, the game moves to the next step. With `to`, the game moves forward through every step up to and including the next occurrence of the named step; if the game is already in that step, the next occurrence is in the following turn. Automatic actions happen along the way. The response lists the steps entered, any card drawn, reminders and notices. An unknown step name is an error.
 
-An advance can stop short of its target for two reasons, below. A stop is not a refusal: the response is `OK`, the game has moved as far as the stop, and the response says why it stopped and what to send next. The service does not remember the target; the agent sends `advance` again with the same `to`.
+An advance can stop short of its target for two reasons, below. A stop is not a refusal: the response is `OK`, the game has moved as far as the stop, and the response says why it stopped and what to send next, with the change number to pass as `after`. The service does not remember the target; the agent sends `advance` again with the same `to`.
 
 ### Stopping for reminders
 
@@ -52,8 +52,8 @@ advance(g7, to="main1")
 
 OK end → cleanup → T7 untap → upkeep
 Reminder (upkeep): Phyrexian Arena
-Stopped at upkeep for the reminder. Send advance(to="main1") again to continue.
-T7 upkeep · Hand 4 · Lands 6 (6 untapped) · ...
+Stopped at upkeep for the reminder. Send advance(to="main1", after=42) again to continue.
+T7 upkeep · Hand 4 · Lands 6 (6 untapped) · ... · #42
 ```
 
 Reminders are found from the step-trigger readings (see `card-reading`) of the face in play of each permanent on the battlefield. One reminder is issued per permanent; several permanents with the same name are listed once with a count (`Rhystic Study ×2`). Reminders are not enforced: the agent may advance straight on.
@@ -71,7 +71,7 @@ Entering `cleanup` with more than seven cards in hand therefore needs one of:
 Refusals:
 
 - An advance that *starts* in `end` with more than seven cards in hand and gives neither `discard` nor `override` is refused as a rule check, and the game does not move. This is the same condition as the stop, met when there is nowhere earlier to stop.
-- `discard` naming a number of cards different from the excess, without `override`, is a rule check, and the game does not move.
+- `discard` naming a number of cards different from the excess — counted on entering `cleanup`, so cards drawn on the way count — without `override`, is a rule check, and the game does not move.
 - `discard` naming a card not in hand is an error.
 - `discard` given on an advance that does not enter `cleanup` — because the target is earlier, or the advance stopped for a reminder first — is an error, and the game does not move.
 

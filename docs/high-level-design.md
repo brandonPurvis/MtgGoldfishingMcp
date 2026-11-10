@@ -24,7 +24,7 @@ The service distinguishes two kinds of refusal. An **error** is a structural imp
 
 ### The service reads card text where reading it is cheap and checkable
 
-The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment and trigger reminders possible.
+The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, has **flash**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment and trigger reminders possible.
 
 ### Everything is recorded
 
@@ -134,7 +134,7 @@ Each is one leaf design under `docs/intent/`, owning the requirement prefix show
 | `payment` | Domain | `PAY` | The mana pool, the auto payment system, agent-directed payment |
 | `combat` | Domain | `CMBT` | `attack`: attackers, blocks, combat damage, commander damage |
 | `deck` | Domain | `DECK` | `load_deck`: list parsing, commander, card definitions, deck checks, the content-derived deck id |
-| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step triggers, haste and vigilance, entering tapped |
+| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step triggers, haste and vigilance, flash, entering tapped |
 | `records` | Domain | `REC` | `get_log`: the shape and meaning of log entries, turn snapshots and call records |
 | `application` | Application | `APP` | The use cases, the ports, outcomes, transactions, per-game ordering, and the rule that dependencies point inward |
 | `card-data` | Domain + adapter | `CARD` | The card model (domain) and the Scryfall adapter with its cache that supplies it |

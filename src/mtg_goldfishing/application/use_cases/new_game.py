@@ -1,0 +1,73 @@
+"""`new_game`: draw a game id and any seed, let the domain deal, keep the game."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+
+from mtg_goldfishing.application.outcome import Answer, Outcome, Status
+from mtg_goldfishing.application.use_cases.arguments import errors_in, malformed, whole_number
+from mtg_goldfishing.application.use_cases.handling import Call, Ports, refused
+from mtg_goldfishing.domain.events import Error
+from mtg_goldfishing.domain.game import creation
+from mtg_goldfishing.domain.game.calls import accept_change
+from mtg_goldfishing.domain.game.results import Refusal
+from mtg_goldfishing.domain.game.summary import summarize
+from mtg_goldfishing.domain.records.log import log_entry
+
+TOOL = "new_game"
+GAME_ID_PREFIX = "g"
+
+
+# @spec GAME-004, GAME-006, APP-017
+def new_game(ports: Ports, arguments: Mapping[str, object]) -> Answer:
+    """Start a game on a loaded deck, seeded from the id source when no seed is given.
+
+    The game id is `g` and ten characters from the id source. The new game, its first log
+    entry and the call record are saved in one unit of work.
+    """
+    call = Call(ports, TOOL, arguments, None)
+    return call.guarded(lambda: _start(call, arguments))
+
+
+def _start(call: Call, arguments: Mapping[str, object]) -> Answer:
+    deck_id = arguments.get("deck_id")
+    seed = whole_number(arguments, "seed")
+    if not isinstance(deck_id, str) or isinstance(seed, Error):
+        no_deck_id = () if isinstance(deck_id, str) else (malformed("deck_id"),)
+        return call.finish(refused(Refusal(errors=(*no_deck_id, *errors_in(seed))), None))
+    ports = call.ports
+    game_id = GAME_ID_PREFIX + ports.ids.new_game_id()
+    with ports.locks.hold(game_id):
+        deck = ports.decks.get(deck_id)
+        result = creation.new_game(
+            deck,
+            deck_id=deck_id,
+            game_id=game_id,
+            seed=ports.ids.new_seed() if seed is None else seed,
+            turn_limit=arguments.get("turn_limit"),
+            draw_first_turn=arguments.get("draw_first_turn"),
+        )
+        if isinstance(result, Refusal):
+            return call.finish(refused(result, None))
+        assert deck is not None, "the domain refuses a game on a deck that is not loaded"
+        applied = accept_change(result, TOOL, arguments)
+        game = applied.game
+        entry = log_entry(
+            tool=TOOL,
+            arguments=arguments,
+            before=None,
+            after=game,
+            summary=applied.summary,
+            events=applied.events,
+        )
+        call.game_id = game.game_id
+        outcome = Outcome(Status.OK, applied.summary, applied.events, summarize(game, deck))
+
+        def write() -> Outcome | None:
+            ports.games.add(game)
+            ports.records.append_entry(game.game_id, entry)
+            for snapshot in applied.snapshots:
+                ports.records.add_snapshot(game.game_id, snapshot)
+            return None
+
+        return call.finish(outcome, write)

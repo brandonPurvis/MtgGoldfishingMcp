@@ -29,9 +29,9 @@ load_deck(cards, commander, definitions?, refresh?, override?)
 
 Each line is `<count> <name>`, `<count>x <name>`, or a bare `<name>` (count 1). Blank lines and lines starting with `#` or `//` are ignored. Trailing printing details, as exported by deck sites, are dropped: a set code in parentheses and anything after it (`1 Sol Ring (C21) 263 *F*` is `1 Sol Ring`). A line that fits none of these is an error naming the line.
 
-A commander that also appears in `cards` is counted once. The deck is the commander or commanders plus every other entry.
+When a commander also appears in `cards`, one listed copy of it is the commander; any further copies stay entries, and the singleton check judges them. The deck is the commander or commanders plus every other entry.
 
-A card that appears on more than one line has its counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
+A card named on more than one line — in any letter case, by its full name or by a face name — has its counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
 
 ### Card definitions
 
@@ -62,10 +62,11 @@ Readings (see `card-reading`) are made from the card data after definitions have
 `load_deck` fails with an **error**, creating nothing, when:
 
 - a line cannot be parsed;
-- no commander is given, more than two are given, or a commander name is not resolved;
+- no commander is given, more than two distinct commanders are given (names of the same card count once), or a commander name is not resolved;
 - a name is not found by Scryfall and has no definition (all such names are listed together);
 - card data is unavailable for a name that is not cached and has no definition giving a `type_line` (the names are listed, and the response says the failure is temporary);
-- a definition names a card that is not in the deck, or defines an unfound card without a `type_line`.
+- a definition names a card that is not in the deck, or defines an unfound card without a `type_line`;
+- a definition names a face the card does not have, or two definitions describe the same face of one card.
 
 ## Deck Checks
 
@@ -85,11 +86,11 @@ Pairings between two commanders (partner, background, and similar) are not check
 
 The id is `d` followed by the first ten hexadecimal characters of a SHA-256 hash over a canonical form of the deck: the commander names sorted, the other entries as `(count, name)` sorted by name using the canonical card names, the definitions sorted by name with their fields in a fixed order, and the resolved card data of every card. Formatting, line order, letter case and comments do not affect the id. Definitions and card data do.
 
-A loaded deck never changes once created. Every `load_deck` call resolves the cards, runs the deck checks and computes the id afresh; if a loaded deck with that id exists it is returned as it is, otherwise one is created. A deck that failed its checks needs its `override` on every call. With `refresh`, card data is fetched again first: if any card's data has changed, the contents hash differently and the result is a new loaded deck with a new id, and the earlier one, with any games on it, is untouched.
+A loaded deck never changes once created. Every `load_deck` call resolves the cards, runs the deck checks and computes the id afresh; if a loaded deck with that id exists it is returned as it is, otherwise one is created. A deck that failed its checks needs its `override` on every call. With `refresh`, card data is fetched again first: if any card's data has changed, the contents hash differently and the result is a new loaded deck with a new id, and the earlier one, with any games on it, is untouched. A card the catalog could not fetch again keeps its cached data: the deck is built from that data and the response names the card as not refreshed.
 
 If two different decks would ever produce the same id, the newer one's id is lengthened, two characters at a time, until it is unique.
 
-`override` reasons are recorded on the loaded deck each time one is used.
+The `override` reason given when a loaded deck is created is recorded on it. A later `load_deck` that returns the same deck needs its own `override` and leaves the deck as it is; that call's reason is kept in its call record.
 
 ## What a Loaded Deck Holds
 
@@ -100,7 +101,7 @@ If two different decks would ever produce the same id, the newer one's id is len
 
 ## Response
 
-On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
+On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
 
 ```
 OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.

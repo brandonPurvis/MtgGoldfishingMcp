@@ -69,7 +69,7 @@ Game ids are random and long enough to be unguessable, because knowing a game id
 
 ## Shuffling
 
-The library's order before the first shuffle is its instance-id order. A shuffle is a Fisher–Yates shuffle driven by a generator seeded with the integer value of the SHA-256 hash of the text `<seed>:<n>`, where *n* is the count of shuffles so far, so the *n*th shuffle of a game depends only on the seed, *n*, and the library's contents at that moment. The shuffle draws only on the generator's basic uniform float, the one output Python guarantees stable across versions.
+The library's order before the first shuffle is its instance-id order. A shuffle is a Fisher–Yates shuffle driven by a generator seeded with the integer value of the SHA-256 hash of the text `<seed>:<n>`, where *n* is the count of shuffles so far, so the *n*th shuffle of a game depends only on the seed, *n*, and the library's contents at that moment. The generator is Python's `random.Random`; the shuffle walks *i* from the last index down to 1, swapping index *i* with index ⌊`random()`·(*i*+1)⌋. It draws only on the generator's basic uniform float, the one output Python guarantees stable across versions.
 
 If `seed` is not given to `new_game`, the service generates one and returns it, so any game can be reproduced afterwards. The seed is visible to the playing agent; an agent that replays a deck and seed it has already played knows what it will draw, and whoever starts the games decides when that is acceptable.
 
@@ -93,7 +93,7 @@ Wherever a tool takes a card name, the agent may give the card's full name, the 
 
 When the matching instances differ from one another (tapped state, counters, face), the response names the instance chosen by id so the agent can see which one was used. A name that matches nothing in the expected zone is an error; when the same name exists in a different zone the error says where.
 
-A name given more than once in one list means that many different instances: `tap: ["Forest", "Forest"]` taps two Forests. If there are fewer matching instances than the name was given, that is an error. An instance id given twice in one list is an error.
+A name given more than once in one list means that many different instances: `tap: ["Forest", "Forest"]` taps two Forests. Instance ids in a list are resolved first, and each name then takes a matching instance no id or earlier name has taken, so `tap: ["Forest", "c5"]` taps c5 and another Forest. If there are fewer matching instances than the name was given, that is an error. An instance id given twice in one list is an error.
 
 Where a tool takes a map keyed by card name, an instance id is accepted as a key in the same way, which is how one of several identical permanents is singled out.
 
@@ -161,6 +161,8 @@ Ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-t
 | `ended` | `get_state`, `get_log` |
 
 A tool called in a status that does not accept it is an error that names the status and what can be done instead.
+
+A resend of the game's most recent change is answered as such whatever the status (see The Change Number).
 
 ## Decisions & Alternatives
 
