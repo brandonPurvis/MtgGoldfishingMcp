@@ -51,8 +51,9 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [ ] **PAY-033**: If a `pay.with` entry names a permanent that has no mana reading and states no mana, then the call shall return an error asking for the mana it makes.
 - [ ] **PAY-034**: If a `pay.with` entry names a permanent that is already tapped, then the call shall return an error.
 - [ ] **PAY-035**: If a `pay.with` entry names a creature that entered the battlefield this turn and has no haste, then the call shall fail a rule check.
-- [ ] **PAY-036**: When `pay.cost` is given, the game shall pay that cost in place of the whole computed cost, including commander tax, X and extra costs.
-- [ ] **PAY-037**: If `pay.cost` is given and the call carries no `override`, then the call shall fail a rule check.
+- [ ] **PAY-036**: When `pay.cost` is given to `play`, the game shall pay that cost in place of the whole computed cost, including commander tax, X and extra costs.
+- [ ] **PAY-037**: If `pay.cost` is given to `play` and the call carries no `override`, then the call shall fail a rule check.
+- [ ] **PAY-040**: When `pay.cost` is given to `effect`, the game shall pay that cost without a rule check on account of it.
 - [ ] **PAY-038**: When `pay.life` is given, the game shall reduce the agent's life by that amount as part of the payment.
 
 ## Reporting

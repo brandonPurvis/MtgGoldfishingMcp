@@ -51,10 +51,10 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 ## The change number
 
-- [ ] **GAME-033**: When a changing call is accepted, the game shall increase its change number by one and remember that call's tool, arguments and response as its most recent change.
+- [ ] **GAME-033**: When a changing call is accepted, the game shall increase its change number by one and remember that call's tool, arguments, summary and events as its most recent change.
 - [ ] **GAME-034**: When a call is refused, the game shall leave its change number unchanged.
 - [ ] **GAME-035**: When a changing call gives `after` equal to the game's change number, or gives no `after`, the game shall apply the call.
-- [ ] **GAME-036**: When a changing call gives `after` one less than the game's change number and its tool and arguments equal those of the game's most recent change, the game shall not apply the call and the outcome shall be the most recent change's original response with an added statement that it was already applied.
+- [ ] **GAME-036**: When a changing call gives `after` one less than the game's change number and its tool and arguments other than `after` equal those of the game's most recent change, the game shall not apply the call and the outcome shall carry the most recent change's summary and events with an added statement that the call was already applied.
 - [ ] **GAME-037**: If a changing call gives an `after` that neither equals the game's change number nor identifies a resend of the most recent change, then the call shall return an error stating the game's current change number and change nothing.
 
 ## Notices

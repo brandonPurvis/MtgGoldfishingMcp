@@ -24,7 +24,7 @@ The service distinguishes two kinds of refusal. An **error** is a structural imp
 
 ### The service reads card text where reading it is cheap and checkable
 
-The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step-based triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment and trigger reminders possible.
+The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment and trigger reminders possible.
 
 ### Everything is recorded
 
@@ -49,7 +49,7 @@ The game of Magic as this service sees it — games, card instances, zones, mana
 4. **Automatic payment preserves the agent's options.** When the agent does not say how to pay, the auto payment system pays in the way that leaves the most other plays available.
 5. **Short exchanges.** A typical play is one short call with a two-to-four-line response. Full state is sent only on request.
 6. **Concurrency.** Many agents run independent games at once without affecting each other.
-7. **Drift detection.** Optional `expect` assertions and step-based trigger reminders catch the agent's picture of the game diverging from the real state.
+7. **Drift detection.** Optional `expect` assertions and step trigger reminders catch the agent's picture of the game diverging from the real state.
 8. **Complete records.** Logs, turn snapshots and call records give an outside process everything it needs, and survive a restart of the service.
 9. **Usable on day one.** The service's own instructions and tool descriptions are enough for an agent to play a goldfish game, and a player brief makes it usable as a Claude Code subagent.
 10. **Code that reads as the domain.** A rule of the game as the service sees it is written once, in the domain model, in glossary terms, and can be tested without a database, a network or an MCP client.
@@ -59,7 +59,7 @@ The game of Magic as this service sees it — games, card instances, zones, mana
 - **Implementing Magic's rules.** The service does not resolve abilities, apply replacement effects, track layers, manage the stack, or validate targets and modes.
 - **Playing the game.** No built-in AI, heuristic policy or autopilot. The auto payment system chooses how to pay, never what to play.
 - **Opponents.** Games are goldfish games against three imaginary opponents who take no actions. The agent may model an opponent's action itself as an effect.
-- **Event-based triggers.** "Whenever a creature enters" and similar triggers are the agent's responsibility. Only step-based triggers get reminders.
+- **Event-based triggers.** "Whenever a creature enters" and similar triggers are the agent's responsibility. Only step triggers get reminders.
 - **Deck management.** No deck versions, deck history, or relationships between decks. A loaded deck is identified only by its contents.
 - **Statistics and analysis.** The service stores and returns records. Metrics, comparisons and findings are produced elsewhere.
 - **The deck-improvement workflow.** Building decks, analysing logs and editing decks happen outside the service.
@@ -134,7 +134,7 @@ Each is one leaf design under `docs/intent/`, owning the requirement prefix show
 | `payment` | Domain | `PAY` | The mana pool, the auto payment system, agent-directed payment |
 | `combat` | Domain | `CMBT` | `attack`: attackers, blocks, combat damage, commander damage |
 | `deck` | Domain | `DECK` | `load_deck`: list parsing, commander, card definitions, deck checks, the content-derived deck id |
-| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step-based triggers, haste and vigilance, entering tapped |
+| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step triggers, haste and vigilance, entering tapped |
 | `records` | Domain | `REC` | `get_log`: the shape and meaning of log entries, turn snapshots and call records |
 | `application` | Application | `APP` | The use cases, the ports, outcomes, transactions, per-game ordering, and the rule that dependencies point inward |
 | `card-data` | Domain + adapter | `CARD` | The card model (domain) and the Scryfall adapter with its cache that supplies it |

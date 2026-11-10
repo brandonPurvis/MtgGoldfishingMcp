@@ -29,7 +29,7 @@ Every refusal is one of two kinds.
 - the land drop for the turn is used;
 - a card that is not an instant and does not have flash is cast outside a main step;
 - a land is played outside a main step;
-- `pay` gives an explicit cost (see `payment`);
+- `pay` on `play` gives an explicit cost (see `payment`);
 - a summoning-sick creature is named as a mana source in `pay`.
 
 When a call fails several rule checks, the refusal lists all of them, and one `override` covers them all. Errors are reported before rule checks; a call with an error is never applied, override or not.

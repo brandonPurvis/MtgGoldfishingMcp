@@ -126,7 +126,7 @@ It is given a deck id (or a deck list to load), and optionally a seed and turn l
 
 ## Rendering
 
-Response text is produced in one place, by a renderer that turns an outcome's status, summary, events and game summary into the format above. Each event type has one rendering. No other code in the service builds response text, so a change of wording is a change to the renderer alone.
+Response text is produced in one place, by a renderer that turns an outcome's status, summary, events and game summary into the format above. Each event type, and each kind of error and rule check, has one rendering. No other code in the service builds response text, so a change of wording is a change to the renderer alone. The renderer implements the application's `Renderer` port, so a use case can store the exact response in the call record before it commits (see `application`).
 
 ## Code Layout
 

@@ -7,7 +7,7 @@ prefix: TURN
 
 ## Context and Design Philosophy
 
-This component moves the game through the steps of a turn. It performs the bookkeeping that needs no decision — untapping, drawing, emptying the mana pool — and it stops at the moments that do need one: when a step-based trigger would happen, and when cards must be discarded. It owns one tool, `advance`.
+This component moves the game through the steps of a turn. It performs the bookkeeping that needs no decision — untapping, drawing, emptying the mana pool — and it stops at the moments that do need one: when a step trigger would happen, and when cards must be discarded. It owns one tool, `advance`.
 
 Only the agent's own turns exist. When one turn ends the next begins; the three imaginary opponents take no turns.
 
