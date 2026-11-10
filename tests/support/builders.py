@@ -73,6 +73,7 @@ class _SeatPlan:
     kept: bool | None = None
     commander_damage: dict[str, dict[str, int]] = field(default_factory=dict)
     controlled: dict[str, int] = field(default_factory=dict)
+    casts: dict[str, int] = field(default_factory=dict)
 
 
 class GameBuilder:
@@ -217,6 +218,12 @@ class GameBuilder:
         self._seat.commander_damage.setdefault(commander, {})[str(to_seat)] = damage
         return self
 
+    def with_commander_casts(self, commander: str, casts: int) -> GameBuilder:
+        """How many times the described seat's commander (by card name) has been cast from
+        the command zone."""
+        self._seat.casts[commander] = casts
+        return self
+
     def controlled_by(self, card: str, seat: int) -> GameBuilder:
         """A permanent the described seat owns is controlled by the seat with this number."""
         self._seat.controlled[card] = seat
@@ -295,7 +302,7 @@ class GameBuilder:
             if placed.zone is Zone.LIBRARY:
                 seat.library.append(card.id)
             if placed.is_commander:
-                seat.commander_casts[card.id] = 0
+                seat.commander_casts[card.id] = plan.casts.get(card.name, 0)
             if placed.zone is Zone.BATTLEFIELD and card.name in plan.controlled:
                 card.controller = SeatNumber(plan.controlled[card.name])
         if plan.commander_damage:
