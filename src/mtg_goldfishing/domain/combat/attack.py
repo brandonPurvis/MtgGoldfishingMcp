@@ -1,4 +1,5 @@
-"""`attack`: declare attackers and which of them the imaginary opponents block."""
+"""`attack`: declare attackers, and in a goldfish game which of them the imaginary opponents
+block; in a contested game, which seat each attacker attacks."""
 
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     has_vigilance,
     is_creature,
 )
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import OPPONENTS, Attack, CardInstance, Game, Zone
 from mtg_goldfishing.domain.game.naming import Purpose, matches, resolve
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
@@ -51,13 +53,17 @@ def _attacker_error(error: Error) -> Error:
 
 
 def _among(
-    deck: LoadedDeck, attackers: Sequence[CardInstance], names: Sequence[str]
+    decks: Decks, attackers: Sequence[CardInstance], names: Sequence[str]
 ) -> list[CardInstance] | Error:
     """Resolve names to attackers; a name given twice means two different attackers."""
     chosen: list[CardInstance] = []
     for name in names:
         found = next(
-            (a for a in attackers if matches(deck, a, name) and all(a.id != c.id for c in chosen)),
+            (
+                a
+                for a in attackers
+                if matches(decks.of(a.owner), a, name) and all(a.id != c.id for c in chosen)
+            ),
             None,
         )
         if found is None:
@@ -67,7 +73,7 @@ def _among(
 
 
 def _damage(
-    deck: LoadedDeck, attackers: Sequence[CardInstance], value: object
+    decks: Decks, attackers: Sequence[CardInstance], value: object
 ) -> dict[str, int] | Error:
     if value is None:
         return {}
@@ -77,11 +83,79 @@ def _damage(
     for name, amount in value.items():
         if not isinstance(amount, int) or isinstance(amount, bool) or amount < 0:
             return Error(ErrorKind.MALFORMED_ARGUMENT, subject="damage")
-        found = _among(deck, attackers, [str(name)])
+        found = _among(decks, attackers, [str(name)])
         if isinstance(found, Error):
             return found
         damage[found[0].id] = amount
     return damage
+
+
+def _target_seat(game: Game, seat: SeatNumber, value: object) -> SeatNumber | Error:
+    """A seat an attacker attacks: another seat of the game, still in it."""
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        return Error(ErrorKind.MALFORMED_ARGUMENT, subject="targets")
+    target = SeatNumber(value)
+    if target == seat:
+        return Error(ErrorKind.TARGET_IS_YOU)
+    if target not in {other.number for other in game.seats}:
+        return Error(ErrorKind.NO_SUCH_SEAT, number=value)
+    if not game.seat(target).in_game:
+        return Error(ErrorKind.SEAT_OUT, number=value)
+    return target
+
+
+# @spec CMBT-030, CMBT-031, CMBT-032, CMBT-057, CMBT-058, CMBT-059, CMBT-076
+def _seat_targets(
+    game: Game, decks: Decks, seat: SeatNumber, attackers: Sequence[CardInstance], value: object
+) -> dict[str, SeatNumber] | Error:
+    """The seat each attacker attacks: one seat number for all, or a map from attacker to
+    seat number; an attacker given none attacks the only opponent left, when there is one."""
+    opponents = [other.number for other in game.seats if other.number != seat and other.in_game]
+    if attackers and not opponents:
+        return Error(ErrorKind.NO_OPPONENT_LEFT)
+    targets: dict[str, SeatNumber] = {}
+    if isinstance(value, Mapping):
+        for name, number in value.items():
+            found = _among(decks, attackers, [str(name)])
+            if isinstance(found, Error):
+                return found
+            target = _target_seat(game, seat, number)
+            if isinstance(target, Error):
+                return target
+            targets[found[0].id] = target
+    elif value is not None:
+        target = _target_seat(game, seat, value)
+        if isinstance(target, Error):
+            return target
+        targets = {card.id: target for card in attackers}
+    for card in attackers:
+        if card.id in targets:
+            continue
+        if len(opponents) != 1:
+            return Error(ErrorKind.NO_TARGET, subject=face_name(decks.of(card.owner), card))
+        targets[card.id] = opponents[0]
+    return targets
+
+
+# @spec CMBT-054, CMBT-055, CMBT-056, CMBT-069, CMBT-072
+def _misplaced(
+    game: Game, *, blocked: object, commander_target: object, targets: object
+) -> Error | None:
+    """What a game of the other kind takes, or an attack at a moment that has no meaning:
+    a second declaration in one combat, or one after blockers are being declared."""
+    if not game.contested:
+        if targets is not None:
+            return Error(ErrorKind.CONTESTED_ONLY, subject="targets")
+        return None
+    if blocked is not None:
+        return Error(ErrorKind.GOLDFISH_ONLY, subject="blocked")
+    if commander_target is not None:
+        return Error(ErrorKind.GOLDFISH_ONLY, subject="commander_target")
+    if game.step is Step.DECLARE_BLOCKERS:
+        return Error(ErrorKind.ATTACK_AFTER_BLOCKERS)
+    if game.declared_attack is not None:
+        return Error(ErrorKind.ATTACK_DECLARED)
+    return None
 
 
 def _targets(
@@ -110,6 +184,7 @@ def _targets(
 # @spec CMBT-001, CMBT-002, CMBT-003, CMBT-004, CMBT-005, CMBT-006, CMBT-007, CMBT-008, CMBT-009
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
 # @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018, APP-031
+# @spec CMBT-053, CMBT-060, CMBT-068, CMBT-070, CMBT-071
 def attack(
     game: Game,
     deck: LoadedDeck,
@@ -122,9 +197,19 @@ def attack(
     vigilance: object = None,
     haste: object = None,
     override: str | None = None,
+    targets: object = None,
+    decks: Decks | None = None,
 ) -> Result:
     """The active seat declares an attack, moving to declare attackers first when the game
-    is before it."""
+    is before it. In a contested game each attacker attacks a seat, and a seat attacks only
+    with creatures it controls, once each combat. `decks` gives each seat's deck; omitted,
+    every seat plays `deck`."""
+    every = decks or Decks.everyone_playing(game, deck)
+    misplaced = _misplaced(
+        game, blocked=blocked, commander_target=commander_target, targets=targets
+    )
+    if misplaced is not None:
+        return Refusal.error(misplaced)
     lists: dict[str, list[str]] = {}
     for argument, value in (
         ("attackers", attackers),
@@ -150,43 +235,70 @@ def attack(
         return_to_declare_attackers(changed, deck, walk)
     tapped_before = set(changed.tapped_by_attacks)
     found = resolve(
-        changed, deck, seat, lists["attackers"], [Zone.BATTLEFIELD], purpose=Purpose.TAP
+        changed,
+        deck,
+        seat,
+        lists["attackers"],
+        [Zone.BATTLEFIELD],
+        purpose=Purpose.TAP,
+        decks=every,
     )
 
     if isinstance(found, Error):
         return Refusal.error(_attacker_error(found))
     chosen, instances_chosen = found
+
+    def deck_of(card: CardInstance) -> LoadedDeck:
+        return every.of(card.owner)
+
+    not_controlled = next((c for c in chosen if c.controller != seat), None)
+    if not_controlled is not None:
+        return Refusal.error(
+            Error(
+                ErrorKind.NOT_YOUR_ATTACKER,
+                subject=face_name(deck_of(not_controlled), not_controlled),
+            )
+        )
     sub: dict[str, list[CardInstance]] = {}
     for argument in ("blocked", "vigilance", "haste"):
-        among = _among(deck, chosen, lists[argument])
+        among = _among(every, chosen, lists[argument])
         if isinstance(among, Error):
             return Refusal.error(among)
         sub[argument] = among
-    damage_by_id = _damage(deck, chosen, damage)
+    damage_by_id = _damage(every, chosen, damage)
     if isinstance(damage_by_id, Error):
         return Refusal.error(damage_by_id)
-    targets = _targets(deck, chosen, commander_target)
-    if isinstance(targets, Error):
-        return Refusal.error(targets)
+    commander_targets: dict[str, int] = {}
+    seat_targets: dict[str, SeatNumber] = {}
+    if changed.contested:
+        aimed = _seat_targets(changed, every, seat, chosen, targets)
+        if isinstance(aimed, Error):
+            return Refusal.error(aimed)
+        seat_targets = aimed
+    else:
+        aimed_at = _targets(deck, chosen, commander_target)
+        if isinstance(aimed_at, Error):
+            return Refusal.error(aimed_at)
+        commander_targets = aimed_at
     blocked_ids = {c.id for c in sub["blocked"]}
     hasty = {c.id for c in sub["haste"]}
     for card in chosen:
-        name = face_name(deck, card)
-        if not is_creature(deck, card):
+        name = face_name(deck_of(card), card)
+        if not is_creature(deck_of(card), card):
             problems.add(FailedCheck(CheckKind.NOT_A_CREATURE, subject=name))
         if card.tapped and card.id not in tapped_before:
             problems.add(FailedCheck(CheckKind.ATTACKER_TAPPED, subject=name))
         if (
             card.entered_turn == changed.turn
             and card.id not in hasty
-            and not has_haste(changed, deck, card)
+            and not has_haste(changed, deck_of(card), card)
         ):
             problems.add(FailedCheck(CheckKind.SUMMONING_SICK_ATTACKER, subject=name))
         if (
-            is_creature(deck, card)
+            is_creature(deck_of(card), card)
             and card.id not in blocked_ids
             and card.id not in damage_by_id
-            and numeric_power(deck, card) is None
+            and numeric_power(deck_of(card), card) is None
         ):
             problems.add(FailedCheck(CheckKind.POWER_NOT_A_NUMBER, subject=name))
     judged = problems.judge(override)
@@ -195,7 +307,7 @@ def attack(
     watchful = {c.id for c in sub["vigilance"]}
     newly_tapped = []
     for card in chosen:
-        if card.id in watchful or has_vigilance(changed, deck, card) or card.tapped:
+        if card.id in watchful or has_vigilance(changed, deck_of(card), card) or card.tapped:
             continue
         card.tapped = True
         newly_tapped.append(card)
@@ -204,7 +316,8 @@ def attack(
             attackers=[c.id for c in chosen],
             blocked=sorted(blocked_ids, key=lambda i: int(i[1:])),
             damage=damage_by_id,
-            commander_targets=targets,
+            commander_targets=commander_targets,
+            targets={card_id: target.value for card_id, target in seat_targets.items()},
         )
         if chosen
         else None
@@ -218,11 +331,16 @@ def attack(
     events.extend(walk.events)
     events.extend(instances_chosen)
     summary = AttackDeclared(
-        attackers=tuple(face_name(deck, c) for c in chosen),
-        blocked=tuple(face_name(deck, c) for c in sub["blocked"]),
+        attackers=tuple(face_name(deck_of(c), c) for c in chosen),
+        blocked=tuple(face_name(deck_of(c), c) for c in sub["blocked"]),
         commander_targets=tuple(
-            (face_name(deck, c), targets[c.id]) for c in chosen if c.id in targets
+            (face_name(deck_of(c), c), commander_targets[c.id])
+            for c in chosen
+            if c.id in commander_targets
         ),
-        tapped=tuple(face_name(deck, c) for c in newly_tapped),
+        tapped=tuple(face_name(deck_of(c), c) for c in newly_tapped),
+        targets=tuple(
+            (face_name(deck_of(c), c), seat_targets[c.id]) for c in chosen if c.id in seat_targets
+        ),
     )
     return Applied(changed, summary, tuple(events), tuple(walk.snapshots))

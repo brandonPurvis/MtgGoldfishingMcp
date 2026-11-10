@@ -39,6 +39,7 @@ def play(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             reason=arguments.get("reason"),
             override=override,
             outside=outside,
+            decks=decks,
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

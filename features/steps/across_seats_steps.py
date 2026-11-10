@@ -13,7 +13,7 @@ from typing import Any
 from behave import given, then, when
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
-from mtg_goldfishing.domain.game.model import CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.seats import SeatNumber
 
 SEAT = r"S{number:d}"
@@ -32,15 +32,6 @@ def _as_seat(context: Any, number: int, tool: str, **arguments: object) -> ToolR
 
 def _names_in(context: Any, number: int, zone: Zone) -> list[str]:
     return [card.name for card in _game(context).in_zone(zone, SeatNumber(number))]
-
-
-def _cards_named(context: Any, name: str) -> list[CardInstance]:
-    return [card for card in _game(context).cards if card.name == name]
-
-
-def _the_card(context: Any, name: str) -> CardInstance:
-    (card,) = _cards_named(context, name)
-    return card
 
 
 def _arrange(context: Any, number: int, names: list[str], zone: Zone) -> None:
@@ -221,15 +212,14 @@ def step_impl(context: Any, number: int, count: int) -> None:
     assert len(_names_in(context, number, Zone.GRAVEYARD)) == count
 
 
-@then(f'seat {SEAT} controls "{{card}}"')
-def step_impl(context: Any, number: int, card: str) -> None:
-    found = _the_card(context, card)
-    assert (found.zone, found.controller) == (Zone.BATTLEFIELD, SeatNumber(number)), found
-
-
-@then(f'"{{card}}" is owned by seat {SEAT}')
-def step_impl(context: Any, card: str, number: int) -> None:
-    assert _the_card(context, card).owner == SeatNumber(number)
+@then(f'seat {SEAT} controls "{{card}}" owned by seat S{{owner:d}}')
+def step_impl(context: Any, number: int, card: str, owner: int) -> None:
+    found = [
+        c
+        for c in _game(context).battlefield_of(SeatNumber(number))
+        if c.name == card and c.owner == SeatNumber(owner)
+    ]
+    assert found, _game(context).battlefield_of(SeatNumber(number))
 
 
 @then(f"no card seat {SEAT} owns is left in the game")

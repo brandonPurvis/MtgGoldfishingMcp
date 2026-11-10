@@ -17,7 +17,6 @@ from mtg_goldfishing.domain.play.playing import effect
 from tests.support.acting import S1, S2, S3, acted, error_kinds, events_named
 from tests.support.builders import Situation, a_game
 
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 DISCARD = "discard a card"
 
 
@@ -63,7 +62,6 @@ def pending_of(situation: Situation) -> list[tuple[str, SeatNumber, Any, str]]:
 
 
 # @spec PLAY-097
-@M3B
 def test_ask_creates_a_pending_choice_per_seat_entry_by_entry_in_turn_order_from_the_next() -> None:
     situation = table_of()
     asking(
@@ -80,7 +78,6 @@ def test_ask_creates_a_pending_choice_per_seat_entry_by_entry_in_turn_order_from
 
 
 # @spec PLAY-120
-@M3B
 def test_an_ask_naming_the_acting_seat_addresses_it_last_of_its_entry() -> None:
     situation = table_of()
     asking(situation, {"seats": [1, 2, 3], "text": DISCARD})
@@ -88,7 +85,6 @@ def test_an_ask_naming_the_acting_seat_addresses_it_last_of_its_entry() -> None:
 
 
 # @spec PLAY-098
-@M3B
 def test_an_ask_of_the_opponents_names_every_other_seat_still_in_the_game() -> None:
     situation = table_of(third_out=True)
     asking(situation, {"seats": "opponents", "text": DISCARD})
@@ -96,7 +92,6 @@ def test_an_ask_of_the_opponents_names_every_other_seat_still_in_the_game() -> N
 
 
 # @spec GAME-109, GAME-120
-@M3B
 def test_while_an_ask_waits_the_seat_it_is_addressed_to_is_the_seat_to_act() -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": DISCARD})
@@ -107,7 +102,6 @@ def test_while_an_ask_waits_the_seat_it_is_addressed_to_is_the_seat_to_act() -> 
 
 
 # @spec PLAY-099
-@M3B
 def test_an_ask_is_answered_with_the_answering_seat_s_own_delta_applied_at_once() -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": DISCARD})
@@ -119,7 +113,6 @@ def test_an_ask_is_answered_with_the_answering_seat_s_own_delta_applied_at_once(
 
 
 # @spec PLAY-121, PLAY-101
-@M3B
 @pytest.mark.parametrize("answer", [{}, {"delta": {}}], ids=["no delta", "an empty delta"])
 def test_an_ask_answered_with_nothing_is_accepted_and_changes_nothing_else(
     answer: dict[str, object],
@@ -133,7 +126,6 @@ def test_an_ask_answered_with_nothing_is_accepted_and_changes_nothing_else(
 
 
 # @spec PLAY-122
-@M3B
 def test_an_ask_answer_reaches_other_seats_as_any_delta_of_that_seat_may() -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": "deal 2 damage to any player"})
@@ -144,7 +136,6 @@ def test_an_ask_answer_reaches_other_seats_as_any_delta_of_that_seat_may() -> No
 
 
 # @spec PLAY-100
-@M3B
 @pytest.mark.parametrize(
     "delta",
     [
@@ -162,7 +153,6 @@ def test_an_ask_answer_may_not_create_a_pending_choice(delta: object) -> None:
 
 
 # @spec PLAY-105
-@M3B
 def test_only_the_oldest_waiting_pending_choice_may_be_answered() -> None:
     situation = table_of()
     asking(situation, {"seats": [2, 3], "text": DISCARD})
@@ -172,7 +162,6 @@ def test_only_the_oldest_waiting_pending_choice_may_be_answered() -> None:
 
 
 # @spec PLAY-106
-@M3B
 def test_a_seat_may_not_answer_a_pending_choice_addressed_to_another_seat() -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": DISCARD})
@@ -182,7 +171,6 @@ def test_a_seat_may_not_answer_a_pending_choice_addressed_to_another_seat() -> N
 
 
 # @spec PLAY-107
-@M3B
 @pytest.mark.parametrize(
     ("argument", "value"),
     [("selections", {"graveyard": ["Island"]}), ("rest_order", ["Island"]), ("blocks", {})],
@@ -194,7 +182,6 @@ def test_an_ask_is_answered_only_with_a_delta(argument: str, value: object) -> N
 
 
 # @spec PLAY-107
-@M3B
 @pytest.mark.parametrize(
     ("reveal", "argument", "value"),
     [
@@ -217,7 +204,6 @@ def test_a_look_or_search_is_answered_only_with_its_own_arguments(
 
 
 # @spec PLAY-102
-@M3B
 def test_look_at_hand_reveals_the_named_seat_s_hand_to_the_looking_seat() -> None:
     situation = table_of()
     result = acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -230,7 +216,6 @@ def test_look_at_hand_reveals_the_named_seat_s_hand_to_the_looking_seat() -> Non
 
 
 # @spec PLAY-104
-@M3B
 def test_look_at_an_empty_hand_creates_no_pending_choice() -> None:
     situation = a_game().and_an_opposing_seat().build()
     result = acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -239,7 +224,6 @@ def test_look_at_an_empty_hand_creates_no_pending_choice() -> None:
 
 
 # @spec PLAY-116
-@M3B
 def test_a_look_at_hand_beside_an_ask_shows_the_hand_the_answers_left() -> None:
     situation = table_of()
     asking_and_looking = {"ask": [{"seats": [2], "text": DISCARD}], "look_at_hand": 2}
@@ -254,7 +238,6 @@ def test_a_look_at_hand_beside_an_ask_shows_the_hand_the_answers_left() -> None:
 
 
 # @spec PLAY-103, GAME-155
-@M3B
 def test_cards_selected_from_a_hand_go_to_their_owner_s_zones_and_the_rest_stay() -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -266,7 +249,6 @@ def test_cards_selected_from_a_hand_go_to_their_owner_s_zones_and_the_rest_stay(
 
 
 # @spec PLAY-103, GAME-155
-@M3B
 def test_a_hand_choice_may_select_nothing_or_a_card_by_its_instance_id() -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -276,7 +258,6 @@ def test_a_hand_choice_may_select_nothing_or_a_card_by_its_instance_id() -> None
 
 
 # @spec PLAY-111
-@M3B
 def test_a_card_selected_from_a_hand_to_the_battlefield_enters_under_its_owner() -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -286,7 +267,6 @@ def test_a_card_selected_from_a_hand_to_the_battlefield_enters_under_its_owner()
 
 
 # @spec PLAY-112
-@M3B
 def test_a_hand_answer_s_control_puts_the_selected_card_under_the_seat_named() -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -300,7 +280,6 @@ def test_a_hand_answer_s_control_puts_the_selected_card_under_the_seat_named() -
 
 
 # @spec PLAY-113
-@M3B
 @pytest.mark.parametrize(
     "answer",
     [
@@ -321,7 +300,6 @@ def test_a_hand_answer_s_delta_holds_only_control_of_cards_it_puts_onto_the_batt
 
 
 # @spec PLAY-107
-@M3B
 def test_a_hand_choice_takes_no_rest_order() -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -330,7 +308,6 @@ def test_a_hand_choice_takes_no_rest_order() -> None:
 
 
 # @spec GAME-090
-@M3B
 def test_cards_revealed_by_a_look_at_a_hand_are_shown_only_to_the_looking_seat() -> None:
     situation = table_of()
     result = acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -341,7 +318,6 @@ def test_cards_revealed_by_a_look_at_a_hand_are_shown_only_to_the_looking_seat()
 
 
 # @spec GAME-094
-@M3B
 def test_the_public_form_of_a_look_at_a_hand_gives_its_kind_and_seats_but_no_cards() -> None:
     situation = table_of()
     result = acted(situation, recorded(situation, {"look_at_hand": 2}))
@@ -372,7 +348,6 @@ def test_with_nothing_waiting_the_active_seat_may_play_and_move_the_game(tool: s
 
 
 # @spec CMBT-029, TURN-044
-@M3B
 @pytest.mark.parametrize("tool", ["attack", "advance", "play", "effect"])
 def test_the_active_seat_may_not_act_while_a_choice_waits_on_another_seat(tool: str) -> None:
     situation = table_of(2)

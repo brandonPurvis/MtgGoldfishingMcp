@@ -28,7 +28,7 @@ def _leave(game: Game, card: CardInstance) -> None:
 
 
 # @spec PLAY-046, PLAY-047, PLAY-048, PLAY-049, PLAY-052, PLAY-053, PLAY-054, GAME-020
-# @spec GAME-101
+# @spec GAME-101, PLAY-088, PLAY-089, PLAY-119
 def move(
     game: Game,
     deck: LoadedDeck,
@@ -36,15 +36,18 @@ def move(
     destination: Destination,
     *,
     commander_stays: bool = False,
+    arriving_under: SeatNumber | None = None,
 ) -> list[Event]:
-    """Move a card to a destination.
+    """Move a card to a destination; `deck` is the card's owner's.
 
     A commander bound for the graveyard or exile goes to the command zone instead unless
     `commander_stays`. A card leaving the battlefield loses its tapped state, counters and
     face and returns to its owner's control; a token leaving it ceases to exist. A card
     bound for a hand, graveyard, exile, command zone or library goes to its owner's. A
-    permanent arriving on the battlefield enters tapped when its reading says so, or
-    always for `battlefield_tapped`.
+    permanent arriving on the battlefield enters under the control of `arriving_under`, or
+    its owner when none is named, tapped when its reading says so, or always for
+    `battlefield_tapped`. In a contested game a permanent moved from the battlefield to the
+    battlefield leaves and arrives again.
     """
     from_zone = card.zone
     redirected = False
@@ -56,12 +59,13 @@ def move(
         destination = Destination.COMMAND
         redirected = True
     events: list[Event] = []
-    if from_zone is Zone.BATTLEFIELD and destination.zone is Zone.BATTLEFIELD:
+    arriving_again = from_zone is Zone.BATTLEFIELD and destination.zone is Zone.BATTLEFIELD
+    if arriving_again and not game.contested:
         if destination is Destination.BATTLEFIELD_TAPPED:
             card.tapped = True
         return [CardMoved(card.name, from_zone.value, destination.value)]
     _leave(game, card)
-    if card.is_token and from_zone is Zone.BATTLEFIELD:
+    if card.is_token and from_zone is Zone.BATTLEFIELD and not arriving_again:
         game.remove_token(card)
         return [CardMoved(card.name, from_zone.value, destination.value, token_gone=True)]
     enters_tapped = False
@@ -73,6 +77,8 @@ def move(
             for text in reading.assumptions
         )
     game.put(card, destination, tapped=enters_tapped)
+    if card.zone is Zone.BATTLEFIELD:
+        card.controller = arriving_under or card.owner
     events.insert(0, CardMoved(card.name, from_zone.value, destination.value, redirected))
     return events
 

@@ -22,7 +22,7 @@ ANSWERS: dict[AskedKind, tuple[str, ...]] = {
 """The calls by which a seat to act does what it is asked."""
 
 
-# @spec GAME-108, GAME-109, GAME-113, TURN-041
+# @spec GAME-108, GAME-109, GAME-113, TURN-041, GAME-164
 def seats_to_act(game: Game) -> Asked | None:
     """The seats the game is waiting on and what they are asked, in order of precedence:
     during mulligans every seat still in the game that has not kept; then the seat the
@@ -44,7 +44,8 @@ def seats_to_act(game: Game) -> Asked | None:
 
 
 # @spec GAME-102, GAME-104, GAME-114, GAME-115, GAME-116, GAME-117, GAME-118, GAME-119
-# @spec GAME-148, GAME-149, GAME-150, GAME-170, TURN-043
+# @spec GAME-148, GAME-149, GAME-150, GAME-170, TURN-043, TURN-044, GAME-161, GAME-167
+# @spec CMBT-028, CMBT-029, PLAY-106
 def may_call(game: Game, seat: SeatNumber, tool: str) -> Error | None:
     """The error refusing a call from `seat` now, or None when the game accepts it.
 

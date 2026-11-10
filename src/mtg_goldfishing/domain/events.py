@@ -33,14 +33,20 @@ class ErrorKind(Enum):
     TOO_MANY_OPPONENTS = "too_many_opponents"
     BAD_STARTING_LIFE = "bad_starting_life"
     BAD_POSITION = "bad_position"
+    CONTESTED_ONLY = "contested_only"
+    GOLDFISH_ONLY = "goldfish_only"
     # the seat to act
     NOT_YOUR_CALL = "not_your_call"
     NOT_ACCEPTED_NOW = "not_accepted_now"
     SEAT_ELIMINATED = "seat_eliminated"
+    # seats named in a call
+    NO_SUCH_SEAT = "no_such_seat"
+    SEAT_OUT = "seat_out"
     # naming cards
     CARD_NOT_IN_ZONE = "card_not_in_zone"
     TOO_FEW_MATCHING = "too_few_matching"
     INSTANCE_REPEATED = "instance_repeated"
+    HIDDEN_ZONE = "hidden_zone"
     # arguments
     MALFORMED_ARGUMENT = "malformed_argument"
     UNKNOWN_DELTA_KEY = "unknown_delta_key"
@@ -51,11 +57,17 @@ class ErrorKind(Enum):
     UNKNOWN_STEP = "unknown_step"
     LOOK_AND_SEARCH = "look_and_search"
     LOOK_WITHOUT_REST = "look_without_rest"
+    TOO_MANY_REVEALS = "too_many_reveals"
+    LOOK_AT_OWN_HAND = "look_at_own_hand"
+    DAMAGE_NEEDS_SEATS = "damage_needs_seats"
     # play
     CARD_DATA_NEEDED = "card_data_needed"
     NOT_IN_LIBRARY = "not_in_library"
     WRONG_CHOICE = "wrong_choice"
     NOT_REVEALED = "not_revealed"
+    WRONG_ANSWER = "wrong_answer"
+    ANSWER_MAY_NOT_REVEAL = "answer_may_not_reveal"
+    HAND_ANSWER_DELTA = "hand_answer_delta"
     SOURCE_MANA_UNKNOWN = "source_mana_unknown"
     SOURCE_TAPPED = "source_tapped"
     # mulligan and advance
@@ -67,6 +79,14 @@ class ErrorKind(Enum):
     ATTACKER_NOT_ON_BATTLEFIELD = "attacker_not_on_battlefield"
     NOT_AN_ATTACKER = "not_an_attacker"
     BAD_COMMANDER_TARGET = "bad_commander_target"
+    NOT_YOUR_ATTACKER = "not_your_attacker"
+    ATTACK_DECLARED = "attack_declared"
+    ATTACK_AFTER_BLOCKERS = "attack_after_blockers"
+    TARGET_IS_YOU = "target_is_you"
+    NO_TARGET = "no_target"
+    NO_OPPONENT_LEFT = "no_opponent_left"
+    NOT_YOUR_BLOCKER = "not_your_blocker"
+    NOT_ATTACKING_YOU = "not_attacking_you"
     # deck
     LINE_UNREADABLE = "line_unreadable"
     COUNT_NOT_POSITIVE = "count_not_positive"
@@ -100,6 +120,8 @@ class CheckKind(Enum):
     ATTACKER_TAPPED = "attacker_tapped"
     SUMMONING_SICK_ATTACKER = "summoning_sick_attacker"
     POWER_NOT_A_NUMBER = "power_not_a_number"
+    BLOCKER_TAPPED = "blocker_tapped"
+    BLOCKER_NOT_A_CREATURE = "blocker_not_a_creature"
     DECK_SIZE = "deck_size"
     SINGLETON = "singleton"
     COLOR_IDENTITY = "color_identity"
@@ -119,7 +141,8 @@ class AskedKind(Enum):
 class Asked:
     """The seats a game is waiting on, in ascending seat number, and what they are asked.
 
-    `choice` is the kind of the pending choice the seat must answer (`look`, `search`).
+    `choice` is the kind of the pending choice the seat must answer (`look`, `search`,
+    `hand`, `ask`, `blocks`).
     """
 
     seats: tuple[SeatNumber, ...]
@@ -133,7 +156,9 @@ class Error:
 
     `subject` is the card, argument or line concerned; `zone` and `found_in` are zone
     names; `names` lists several subjects or the accepted alternatives; `number` and
-    `expected` carry counts; `asked` is what the seats to act are asked.
+    `expected` carry counts, or a seat number; `asked` is what the seats to act are asked;
+    `through_ask` adds, to an error about a delta's names in a contested game, that other
+    seats' hands and libraries are reached through `ask`.
     """
 
     kind: ErrorKind
@@ -144,6 +169,7 @@ class Error:
     number: int | None = None
     expected: int | None = None
     asked: Asked | None = None
+    through_ask: bool = False
 
 
 @dataclass(frozen=True)
@@ -167,6 +193,8 @@ class NoticeKind(Enum):
     TURN_LIMIT = "turn_limit"
     LIFE = "life"
     EMPTY_LIBRARY = "empty_library"
+    TESTED_SEAT_ELIMINATED = "tested_seat_eliminated"
+    OPPONENTS_ELIMINATED = "opponents_eliminated"
 
 
 # ---------------------------------------------------------------------------------------
@@ -346,8 +374,28 @@ class CountersChanged:
 
 @dataclass(frozen=True)
 class LifeChanged:
+    """A seat's life changed by a delta. In a contested game `seat` names the seat."""
+
     change: int
     now: int
+    seat: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class SeatDamaged:
+    """Noncombat damage a delta dealt to a seat of a contested game, and its life after."""
+
+    seat: SeatNumber
+    amount: int
+    life: int
+
+
+@dataclass(frozen=True)
+class ControlChanged:
+    """A permanent that a delta gave to another seat's control."""
+
+    card: str
+    seat: SeatNumber
 
 
 @dataclass(frozen=True)
@@ -365,6 +413,7 @@ class AlreadySoKind(Enum):
     ALREADY_TAPPED = "already_tapped"
     ALREADY_UNTAPPED = "already_untapped"
     COUNTER_AT_ZERO = "counter_at_zero"
+    ALREADY_CONTROLLED = "already_controlled"
 
 
 @dataclass(frozen=True)
@@ -392,9 +441,35 @@ class RevealedCard:
 
 @dataclass(frozen=True)
 class CardsRevealed:
+    """Cards revealed for a pending choice. In a contested game `seat` names the seat the
+    choice is addressed to, the only seat shown the cards, and `hand_of` the seat whose hand
+    a `hand` choice shows."""
+
     choice_id: str
     kind: str
     cards: tuple[RevealedCard, ...]
+    seat: SeatNumber | None = None
+    hand_of: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class ChoiceRevealedTo:
+    """The public form of a reveal: its kind, the seat it is addressed to and, for a look at
+    a hand, whose hand; never the cards."""
+
+    kind: str
+    seat: SeatNumber
+    hand_of: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class ChoiceAsked:
+    """A decision another seat's effect asks of a seat, as a pending choice for that seat."""
+
+    choice_id: str
+    seat: SeatNumber
+    asked_by: SeatNumber
+    text: str
 
 
 @dataclass(frozen=True)
@@ -414,6 +489,14 @@ class ChoiceResolved:
 
 
 @dataclass(frozen=True)
+class AskAnswered:
+    """A seat's answer to an `ask` pending choice; what its delta did follows it."""
+
+    choice_id: str
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
 class AttackerDamage:
     attacker: str
     damage: int
@@ -422,10 +505,84 @@ class AttackerDamage:
 
 @dataclass(frozen=True)
 class AttackDeclared:
+    """An attack declared. In a contested game `targets` gives the seat each attacker attacks."""
+
     attackers: tuple[str, ...]
     blocked: tuple[str, ...]
     commander_targets: tuple[tuple[str, int], ...]
     tapped: tuple[str, ...]
+    targets: tuple[tuple[str, SeatNumber], ...] = ()
+
+
+@dataclass(frozen=True)
+class BlocksRequested:
+    """A `blocks` pending choice for an attacked seat, with the attackers attacking it."""
+
+    choice_id: str
+    seat: SeatNumber
+    attackers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class NoBlocksDeclared:
+    """An attacked seat with no untapped creature, for which no blocks were declared."""
+
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
+class BlockDeclared:
+    blocker: str
+    attacker: str
+
+
+@dataclass(frozen=True)
+class BlocksDeclared:
+    """A seat's answer to its `blocks` choice."""
+
+    seat: SeatNumber
+    blocks: tuple[BlockDeclared, ...]
+
+
+@dataclass(frozen=True)
+class SeatHit:
+    """One attacker's combat damage to the seat it attacks."""
+
+    attacker: str
+    damage: int
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
+class DamagedSeat:
+    """A seat dealt combat damage: its life after, and each commander's damage to it so far."""
+
+    seat: SeatNumber
+    life: int
+    commander_damage: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class CombatDamageToSeats:
+    """A contested game's combat damage: each attacker's hit and each damaged seat's totals."""
+
+    hits: tuple[SeatHit, ...]
+    seats: tuple[DamagedSeat, ...]
+
+
+class EliminationCause(Enum):
+    LIFE = "life"
+    COMMANDER_DAMAGE = "commander_damage"
+    CONCEDE = "concede"
+
+
+@dataclass(frozen=True)
+class SeatEliminated:
+    """A seat that left a contested game, why, and a conceding seat's notes."""
+
+    seat: SeatNumber
+    cause: EliminationCause
+    notes: str = ""
 
 
 @dataclass(frozen=True)
@@ -461,6 +618,7 @@ class ReminderIssued:
 class StopReason(Enum):
     REMINDER = "reminder"
     DISCARD = "discard"
+    BLOCKS = "blocks"
 
 
 @dataclass(frozen=True)
@@ -551,15 +709,25 @@ Event = (
     | ManaAdded
     | CountersChanged
     | LifeChanged
+    | SeatDamaged
+    | ControlChanged
     | DamageAdded
     | LibraryShuffled
     | AlreadySo
     | InstanceChosen
     | CardsRevealed
+    | ChoiceRevealedTo
+    | ChoiceAsked
     | NothingRevealed
     | ChoiceResolved
+    | AskAnswered
     | AttackDeclared
+    | BlocksRequested
+    | NoBlocksDeclared
+    | BlocksDeclared
     | CombatDamageDealt
+    | CombatDamageToSeats
+    | SeatEliminated
     | AssumptionMade
     | ReminderIssued
     | AdvanceStopped

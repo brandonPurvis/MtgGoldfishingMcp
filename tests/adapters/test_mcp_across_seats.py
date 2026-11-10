@@ -10,7 +10,6 @@ import pytest
 from mtg_goldfishing.adapters.mcp.definitions import TOOL_DEFINITIONS
 from mtg_goldfishing.adapters.mcp.parameters import Shaped, shape
 
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 DEFINITIONS = {definition.name: definition for definition in TOOL_DEFINITIONS}
 
 
@@ -19,7 +18,6 @@ def parameter(tool: str, name: str) -> Any:
 
 
 # @spec CMBT-030, CMBT-031
-@M3B
 @pytest.mark.parametrize("targets", [2, {"Grizzly Bears": 3}, '{"Grizzly Bears": 3}'])
 def test_attack_takes_targets_as_one_seat_number_or_a_map(targets: object) -> None:
     arguments = {"game_id": "g1", "attackers": ["Grizzly Bears"], "targets": targets}
@@ -27,7 +25,6 @@ def test_attack_takes_targets_as_one_seat_number_or_a_map(targets: object) -> No
 
 
 # @spec CMBT-039, PLAY-099
-@M3B
 @pytest.mark.parametrize(
     "answer",
     [{"blocks": {"Llanowar Elves": "Grizzly Bears"}}, {"delta": {"discard": ["Island"]}}, {}],
@@ -39,21 +36,18 @@ def test_choose_takes_blocks_or_a_delta_in_place_of_selections(answer: dict[str,
 
 
 # @spec CMBT-045
-@M3B
 def test_choose_takes_an_override_for_the_rule_checks_on_blockers() -> None:
     arguments = {"game_id": "g1", "choice_id": "x1", "blocks": {}, "override": "it can block"}
     assert isinstance(shape(DEFINITIONS["choose"].parameters, arguments), Shaped)
 
 
 # @spec PLAY-084, CMBT-051
-@M3B
 def test_effect_takes_immediate() -> None:
     arguments = {"game_id": "g1", "source": "combat", "delta": {}, "immediate": True}
     assert isinstance(shape(DEFINITIONS["effect"].parameters, arguments), Shaped)
 
 
 # @spec TOOL-069
-@M3B
 def test_effect_says_a_combat_result_gives_only_what_happens_to_the_creatures() -> None:
     immediate = parameter("effect", "immediate")
     assert immediate is not None
@@ -63,7 +57,6 @@ def test_effect_says_a_combat_result_gives_only_what_happens_to_the_creatures() 
 
 
 # @spec TOOL-070
-@M3B
 def test_attack_says_a_blocked_attacker_s_damage_entry_is_dealt_in_full() -> None:
     targets = parameter("attack", "targets")
     assert targets is not None

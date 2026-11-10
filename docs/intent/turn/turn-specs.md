@@ -20,11 +20,11 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-032**: In a goldfish game, the tested seat shall be the active seat of every turn, and the three imaginary opponents shall take no turns.
 - [x] **TURN-033**: When the turn of a contested game passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only seat still in the game, the game shall increase its round number by one; the first turn of the game shall begin round 1.
 - [x] **TURN-034**: In a goldfish game, the round number shall equal the turn number.
-- [ ] **TURN-036**: When the active seat of a contested game is eliminated during its turn, the game shall discard the declared attack and every waiting pending choice of kind `blocks`.
+- [x] **TURN-036**: When the active seat of a contested game is eliminated during its turn, the game shall discard the declared attack and every waiting pending choice of kind `blocks`.
 - [ ] **TURN-037**: When the active seat of a contested game is eliminated while other seats' items remain on the stack or a pending choice waits, the game shall go on asking the remaining seats about those items, resolving them and waiting for those pending choices, and shall begin the next seat's turn only once the stack is empty and no pending choice waits.
-- [ ] **TURN-038**: When the turn of an eliminated active seat ends in a contested game, the game shall empty every seat's mana pool and the next seat in turn order still in the game shall begin its turn as it would after a `cleanup`: through `untap`, `upkeep` and `draw` to `main1`, stopping where a reminder stops it.
+- [x] **TURN-038**: When the turn of an eliminated active seat ends in a contested game, the game shall empty every seat's mana pool and the next seat in turn order still in the game shall begin its turn as it would after a `cleanup`: through `untap`, `upkeep` and `draw` to `main1`, stopping where a reminder stops it.
 - [ ] **TURN-061**: When the active seat of a contested game is eliminated while an `attack` or `end` response window is open, the game shall ask no further seat in that window and shall close it once the stack is empty, instead of beginning its asking again.
-- [ ] **TURN-062**: When a turn of a contested game ends and no seat is still in the game (every seat eliminated), the game shall begin no turn and shall have no active seat.
+- [x] **TURN-062**: When a turn of a contested game ends and no seat is still in the game (every seat eliminated), the game shall begin no turn and shall have no active seat.
 
 ## Beginning another seat's turn
 
@@ -41,7 +41,7 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-009**: When `advance` is accepted, in a goldfish game or a contested game, the outcome shall list the steps entered, any card drawn, any reminders and any notices raised.
 - [x] **TURN-010**: If `advance` is called with `to` naming an unknown step, in a goldfish game or a contested game, then `advance` shall return an error and the game shall not move.
 - [x] **TURN-043**: If a seat of a contested game that is not the active seat calls `advance`, then `advance` shall return an error and the game shall not move.
-- [ ] **TURN-044**: If the active seat of a contested game calls `advance` while it is not the seat to act, because a pending choice or another seat's reminder is waiting on another seat, then `advance` shall return an error and the game shall not move.
+- [x] **TURN-044**: If the active seat of a contested game calls `advance` while it is not the seat to act, because a pending choice or another seat's reminder is waiting on another seat, then `advance` shall return an error and the game shall not move.
 - [ ] **TURN-046**: When an `advance` stops short of its target, in a goldfish game or a contested game, the outcome shall be `OK`, say why it stopped, and say what to send next with the change number to pass as `after`.
 
 ## Stopping for reminders

@@ -136,7 +136,14 @@ DELTA_SHAPE = (
     " {filter?}, which reveals the library sorted by name for a pending choice. A"
     " destination is hand, battlefield, battlefield_tapped, graveyard, exile, command,"
     " library_top or library_bottom. A card is named by its name, a face's name or an"
-    " instance id; a name given twice means two cards."
+    " instance id; a name given twice means two cards. Contested games: a delta may tap,"
+    " untap, put counters on and move other seats' cards in public zones, but never reach"
+    " another seat's hand or library. control: {seat number: [names]}, permanents that seat"
+    " now controls (applied after counters). life: {seat number: signed change} for any"
+    " seat. damage: {seat number: damage}, never a single number. ask: [{seats: [seat"
+    ' numbers] or "opponents", text}], what other seats must decide (a discard, a'
+    " sacrifice); each answers with its own delta (applied after shuffle). look_at_hand: a"
+    " seat number, which reveals that seat's hand to you for a pending choice."
 )
 
 PAY_SHAPE = (
@@ -385,6 +392,7 @@ PLAY = ToolDefinition(
     ),
 )
 
+# @spec TOOL-069
 EFFECT = ToolDefinition(
     name="effect",
     purpose="Record anything that happens without playing a card.",
@@ -424,6 +432,16 @@ EFFECT = ToolDefinition(
         _reason("cracking the Treasure now to hold up removal"),
         _override("Concordant Crossroads gives the creature haste"),
         _after(),
+        Parameter(
+            "immediate",
+            Kind.FLAG,
+            "Contested games: true for an effect that is applied at once, such as the result"
+            " of combat between creatures stated by the attacking seat once the game is in"
+            " combat_damage. A combat result gives only what happens to the creatures: the"
+            " service deals the declared attack's damage to seats on entering combat_damage,"
+            " so a life or damage entry for that damage would be applied in addition to it.",
+            True,
+        ),
     ),
     overridable=(
         "Rule checks on paying — an unpayable cost, a summoning-sick creature named in"
@@ -440,7 +458,10 @@ CHOOSE = ToolDefinition(
         " destination, in `rest_order` or else in the order revealed. For a search,"
         " unselected cards stay in the library and it is shuffled before selected cards go"
         " to its top or bottom. Cards selected to library_top end with the first one named"
-        " on top."
+        " on top. Contested games: a choice addressed to your seat is answered by its kind —"
+        " a look at another seat's hand with selections (the cards go to their owner's"
+        " zones, the rest stay in that hand), an ask with your own delta, applied at once,"
+        " blocks with blocks."
     ),
     parameters=(
         _game_id(),
@@ -456,7 +477,6 @@ CHOOSE = ToolDefinition(
             Kind.OBJECT,
             "Destinations mapped to revealed cards; {} selects nothing.",
             {"hand": ["Sol Ring"], "library_bottom": ["Island"]},
-            required=True,
         ),
         Parameter(
             "rest_order",
@@ -465,10 +485,32 @@ CHOOSE = ToolDefinition(
             ["Forest", "Ponder"],
         ),
         _after(),
+        Parameter(
+            "delta",
+            Kind.OBJECT,
+            "Contested games: your answer to an ask, in the delta shape described under play,"
+            " without ask, look_at_hand, look or search; omitted when you have nothing to do."
+            " For a look at a hand, only control, for selected cards put onto the battlefield"
+            " under a seat other than their owner.",
+            {"discard": ["Island"]},
+        ),
+        Parameter(
+            "blocks",
+            Kind.OBJECT,
+            "Contested games: each of your blocking creatures mapped to the attacker it"
+            " blocks; {} declares no blocks.",
+            {"Llanowar Elves": "Grizzly Bears"},
+        ),
+        _override("the blocker untapped in response"),
     ),
-    overridable="Nothing; a wrong choice id or a card that was not revealed is an error.",
+    overridable=(
+        "Contested games: a blocker that is tapped or is not a creature fails a rule check"
+        " that `override` passes. A wrong choice id, a card that was not revealed, or an"
+        " argument the choice's kind is not answered with is an error."
+    ),
 )
 
+# @spec TOOL-070
 ATTACK = ToolDefinition(
     name="attack",
     purpose="Declare attackers and which are blocked.",
@@ -525,6 +567,17 @@ ATTACK = ToolDefinition(
         _reason("holding back Birds of Paradise for mana"),
         _override("Craterhoof Behemoth gave everything haste"),
         _after(),
+        Parameter(
+            "targets",
+            Kind.WHOLE_NUMBER_OR_OBJECT,
+            "Contested games: the seat each attacker attacks, one seat number for all or"
+            " {attacker: seat number}; needed with more than one opponent. Each attacked seat"
+            " then declares its own blocks, so blocked and commander_target are not given."
+            " A blocked attacker's damage entry is dealt in full to the seat it attacks, the"
+            " service making no reduction for blockers, so give it only for the damage that"
+            " gets past them.",
+            {"Grizzly Bears": 2, "Shivan Dragon": 3},
+        ),
     ),
     overridable=(
         "Rule checks — an attacker that is not a creature, is tapped, or entered this turn"

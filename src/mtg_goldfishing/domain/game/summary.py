@@ -8,6 +8,7 @@ from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Asked, NoticeKind
 from mtg_goldfishing.domain.game.acting import seats_to_act
 from mtg_goldfishing.domain.game.cards_in_play import is_land
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import OPPONENTS, Game, GameStatus
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.steps import Step
@@ -66,14 +67,18 @@ class GameSummary:
 
 
 # @spec GAME-089, APP-035
-def summarize(game: Game, deck: LoadedDeck, seat: SeatNumber) -> GameSummary:
+def summarize(
+    game: Game, deck: LoadedDeck, seat: SeatNumber, *, decks: Decks | None = None
+) -> GameSummary:
     """The game as one seat's status line shows it: that seat's own turn count, zones, pool,
     life and commanders; a goldfish game's damage to its imaginary opponents; and, in a
-    contested game, every other seat's life and who is to act."""
+    contested game, every other seat's life and who is to act. Its lands are those it
+    controls, each read from its owner's deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
     shown = game.seat(seat)
     imaginary = game.imaginary
     others = [other for other in game.seats if other.number != seat]
-    lands = [card for card in game.battlefield_of(seat) if is_land(deck, card)]
+    lands = [card for card in game.battlefield_of(seat) if is_land(every.of(card.owner), card)]
     return GameSummary(
         game_id=game.game_id,
         status=game.status,

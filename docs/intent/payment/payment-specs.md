@@ -22,7 +22,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 ## Mana sources
 
 - [x] **PAY-010**: In every game, the game shall treat as a mana source of the acting seat any permanent on the battlefield controlled by the acting seat that has a mana ability reading, is a token whose spec gives `produces`, or is a card whose card definition gives `produces`.
-- [ ] **PAY-045**: In a contested game, the game shall decide whose mana source a permanent is by its controller, not its owner: a permanent the acting seat controls but does not own is its mana source, and a permanent it owns but another seat controls is not.
+- [x] **PAY-045**: In a contested game, the game shall decide whose mana source a permanent is by its controller, not its owner: a permanent the acting seat controls but does not own is its mana source, and a permanent it owns but another seat controls is not.
 - [x] **PAY-011**: In every game, when a mana source's amount is counted, the game shall evaluate the count from the game's state at the moment of payment.
 - [ ] **PAY-050**: In a contested game, when a mana source's reading makes mana of any color among the commander's color identity, the game shall take those colors from the color identity of the commanders of the seat that controls the source, not of the seat that owns it.
 - [ ] **PAY-051**: In a contested game, when a mana source's amount is counted, the game shall count the permanents, devotion, hand and graveyard of the seat that controls the source, not of the seat that owns it.
@@ -33,8 +33,8 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-015**: In every game, the auto payment system shall use a mana source whose ability costs life only when the acting seat's life after the whole payment — sources, Phyrexian symbols and `pay.life` together — would remain 1 or more.
 - [x] **PAY-016**: In every game, when the auto payment system uses a mana source whose ability costs mana, the game shall pay that ability's mana cost from the acting seat's mana pool or its other mana sources within the same payment.
 - [x] **PAY-017**: In every game, when a payment uses a mana source whose ability costs life, the game shall reduce the acting seat's life by that amount and the outcome shall state it.
-- [ ] **PAY-046**: In a contested game, a payment shall spend mana only from the acting seat's mana pool, tap or sacrifice only permanents the acting seat controls, and take life only from the acting seat, never reaching another seat's mana pool, permanents or life.
-- [ ] **PAY-047**: If a `pay.with` entry in a contested game names a permanent that another seat controls, then the call shall return an error.
+- [x] **PAY-046**: In a contested game, a payment shall spend mana only from the acting seat's mana pool, tap or sacrifice only permanents the acting seat controls, and take life only from the acting seat, never reaching another seat's mana pool, permanents or life.
+- [x] **PAY-047**: If a `pay.with` entry in a contested game names a permanent that another seat controls, then the call shall return an error.
 
 ## Auto payment system
 

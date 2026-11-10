@@ -28,6 +28,8 @@ def effect(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             expect=arguments.get("expect"),
             reason=arguments.get("reason"),
             override=override,
+            immediate=arguments.get("immediate"),
+            decks=decks,
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

@@ -60,12 +60,12 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 - [x] **GAME-088**: In a contested game, every outcome to a seat other than a `get_log` response, and its `get_state`, shall show the cards in that seat's own hand and shall never show the cards in another seat's hand.
 - [x] **GAME-089**: In a contested game, every outcome to a seat and its `get_state` may show any seat's battlefield, graveyard, exile and command zone, the stack, each seat's life, hand size and library size, commander damage, and which seats are eliminated.
-- [ ] **GAME-090**: In a contested game, cards revealed by a pending choice (a look, a search or a look at a hand) shall be shown only to the seat the pending choice is addressed to.
+- [x] **GAME-090**: In a contested game, cards revealed by a pending choice (a look, a search or a look at a hand) shall be shown only to the seat the pending choice is addressed to.
 - [ ] **GAME-091**: In a contested game, the public form of an event that moves a card from one hidden zone (hand or library) to a hidden zone, without the card being revealed, shall give the seat and a count and not the card's name (`S2 drew 2 cards`, `S3 put a card into its hand`).
 - [ ] **GAME-168**: In a contested game, the public form of an event that moves a card from a public zone or the stack into a hidden zone (a permanent returned to its owner's hand, a graveyard card shuffled into a library) shall name the card, every seat having been able to see it before the move.
 - [ ] **GAME-092**: In a contested game, the public form of an event that moves a card from a hidden zone (hand or library) into a public zone or onto the stack shall name the card.
 - [ ] **GAME-093**: In a contested game, the public form of a `mulligan` with `keep` true shall give the number of cards the seat kept and the number it put on the bottom, and not their names.
-- [ ] **GAME-094**: In a contested game, the public form of a pending choice shall give its kind, the seat it is addressed to and, for a `hand` pending choice, the seat whose hand is shown, and not the cards it revealed.
+- [x] **GAME-094**: In a contested game, the public form of a pending choice shall give its kind, the seat it is addressed to and, for a `hand` pending choice, the seat whose hand is shown, and not the cards it revealed.
 - [ ] **GAME-095**: In a contested game, an outcome to a seat other than a `get_log` response shall show an event that moves a card into, between or out of another seat's hidden zones (hand or library) only in its public form, whichever seat's call caused the event.
 - [x] **GAME-152**: In a contested game, the limits on what a seat may see shall not apply to `get_log`, whose response holds every seat's hidden-zone content for any seat that calls it, while the game is running and after it has ended.
 - [ ] **GAME-153**: In a contested game, the public form of a `mulligan` with `keep` false shall give the seat and the number of mulligans it has now taken, and not the cards of either hand.
@@ -81,13 +81,13 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-018**: If a card name appears in one list argument more times than there are matching instances, or an instance id appears twice in one list argument, in a goldfish game or a contested game, then the operation shall return an error.
 - [x] **GAME-019**: When a tool argument is a map keyed by card, in a goldfish game or a contested game, the game shall accept an instance id as a key in the same way as a card name.
 - [x] **GAME-020**: When a card leaves the battlefield, in a goldfish game or a contested game, the game shall set that card to its first face.
-- [ ] **GAME-096**: In a contested game, when a card name is given for a card in a hidden zone (hand or library) anywhere but in the `selections` of a pending choice, the game shall resolve it only among the acting seat's own cards.
-- [ ] **GAME-155**: In a contested game, when the `selections` of a `look`, `search` or `hand` pending choice give a card name, the game shall resolve it among the cards that pending choice revealed, whichever seat owns them.
-- [ ] **GAME-156**: If a card name given in a contested game matches no card in the zones the acting seat may see (every public zone, the stack, and its own hand and library), then the error shall be the same whether or not a card of that name is in another seat's hand or library.
-- [ ] **GAME-157**: If an instance id given in a contested game names a card in another seat's hand or library, outside the `selections` of a pending choice that revealed that card, then the call shall return an error that says the card is in a hidden zone of that seat, by seat number, and does not say whether that zone is its hand or its library.
-- [ ] **GAME-097**: In a contested game, when a card name is given for a card in a public zone or on the stack, the game shall resolve it, within the one zone the operation is looking in, among the cards the acting seat controls before any other seat's, and then among the other seats' cards seat by seat in turn order starting from the seat after the acting seat (an operation that looks in several zones takes them in its own order first, PLAY-087), applying the choice among several matching instances (untapped for tapping or paying, tapped for untapping, then lowest instance id) only within the first seat that has a match.
-- [ ] **GAME-098**: In a contested game, an instance id given in a tool argument shall name that card instance whichever seat owns or controls it, subject to the zone the operation expects.
-- [ ] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
+- [x] **GAME-096**: In a contested game, when a card name is given for a card in a hidden zone (hand or library) anywhere but in the `selections` of a pending choice, the game shall resolve it only among the acting seat's own cards.
+- [x] **GAME-155**: In a contested game, when the `selections` of a `look`, `search` or `hand` pending choice give a card name, the game shall resolve it among the cards that pending choice revealed, whichever seat owns them.
+- [x] **GAME-156**: If a card name given in a contested game matches no card in the zones the acting seat may see (every public zone, the stack, and its own hand and library), then the error shall be the same whether or not a card of that name is in another seat's hand or library.
+- [x] **GAME-157**: If an instance id given in a contested game names a card in another seat's hand or library, outside the `selections` of a pending choice that revealed that card, then the call shall return an error that says the card is in a hidden zone of that seat, by seat number, and does not say whether that zone is its hand or its library.
+- [x] **GAME-097**: In a contested game, when a card name is given for a card in a public zone or on the stack, the game shall resolve it, within the one zone the operation is looking in, among the cards the acting seat controls before any other seat's, and then among the other seats' cards seat by seat in turn order starting from the seat after the acting seat (an operation that looks in several zones takes them in its own order first, PLAY-087), applying the choice among several matching instances (untapped for tapping or paying, tapped for untapping, then lowest instance id) only within the first seat that has a match.
+- [x] **GAME-098**: In a contested game, an instance id given in a tool argument shall name that card instance whichever seat owns or controls it, subject to the zone the operation expects.
+- [x] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
 - [x] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
 - [x] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
 
@@ -108,20 +108,20 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-105**: When a seat keeps in a contested game while another seat has not kept, the game shall stay in status `mulligan` with no active seat and no step.
 - [x] **GAME-106**: When the last seat still in the game that had not kept keeps in a contested game, the game shall set its status to `active`, make the first seat in turn order that is still in the game the active seat, and proceed through that seat's untap, upkeep and draw steps to its `main1` exactly as an `advance` to `main1` would, stopping where a reminder stops it.
 - [x] **GAME-107**: When the last seat to keep keeps in a contested game, the outcome shall show what the start of the first turn did, and shall name the card the first seat drew only when the calling seat is the seat that drew it.
-- [ ] **GAME-158**: While a contested game's status is `mulligan`, the game shall accept `end_game` from an opposing seat as its concession and eliminate that seat, whether or not it has kept.
-- [ ] **GAME-159**: When a concession during status `mulligan` leaves no seat still in the game that has not kept, the game shall start within the conceding call exactly as it does when the last seat keeps (GAME-106).
+- [x] **GAME-158**: While a contested game's status is `mulligan`, the game shall accept `end_game` from an opposing seat as its concession and eliminate that seat, whether or not it has kept.
+- [x] **GAME-159**: When a concession during status `mulligan` leaves no seat still in the game that has not kept, the game shall start within the conceding call exactly as it does when the last seat keeps (GAME-106).
 
 ## The seat to act
 
 - [x] **GAME-108**: While a contested game's status is `mulligan`, the seats to act shall be every seat still in the game (not eliminated) that has not kept.
-- [ ] **GAME-109**: While a pending choice waits in a contested game that has left status `mulligan`, the seat to act shall be the seat that the oldest waiting pending choice is addressed to, ahead of any waiting reminder, open response window or the active seat.
+- [x] **GAME-109**: While a pending choice waits in a contested game that has left status `mulligan`, the seat to act shall be the seat that the oldest waiting pending choice is addressed to, ahead of any waiting reminder, open response window or the active seat.
 - [ ] **GAME-111**: While no pending choice waits and a reminder waits for a seat other than the active seat in a contested game, the seat to act shall be that reminded seat, ahead of any open response window and the active seat.
 - [ ] **GAME-112**: While no pending choice and no reminder for a seat other than the active seat waits and a response window is open in a contested game, the seat to act shall be the seat the window is asking.
 - [x] **GAME-113**: While a started contested game has no waiting pending choice, no waiting reminder for a seat other than the active seat and no open response window, the seat to act shall be the active seat.
 - [ ] **GAME-114**: In a contested game, the game shall accept `get_state`, `get_log` and `wait` from any seat in any status, including an eliminated seat and a seat that is not the seat to act.
 - [x] **GAME-115**: In a contested game, the game shall accept `choose` only from the seat that the oldest waiting pending choice is addressed to.
 - [ ] **GAME-116**: In a contested game, the game shall accept `play`, `effect` and `pass` from a seat other than the active seat only while that seat is the seat to act because a response window is asking it or a reminder waits for it.
-- [ ] **GAME-117**: In a contested game, the game shall accept `play` and `effect` from the active seat only while the active seat is the seat to act, and `attack` and `advance` from it only while it is the seat to act, no response window is open and the stack is empty.
+- [x] **GAME-117**: In a contested game, the game shall accept `play` and `effect` from the active seat only while the active seat is the seat to act, and `attack` and `advance` from it only while it is the seat to act, no response window is open and the stack is empty.
 - [x] **GAME-118**: If a seat of a contested game makes a call the game does not accept from it at that moment, and the call is not a resend of that seat's most recent accepted change, then the call shall return an error that names the seat to act by seat number and says what that seat is being asked, and shall change nothing.
 - [x] **GAME-119**: If an eliminated seat of a contested game calls any game tool other than `get_state`, `get_log`, `wait` or, for the tested seat, `end_game`, then the call shall return an error and change nothing.
 - [x] **GAME-120**: While any pending choice waits in a contested game, the game's status shall be `pending_choice`.
@@ -150,25 +150,25 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 ## Life, elimination and conceding
 
-- [ ] **GAME-128**: In a contested game, the game shall check every seat still in the game for elimination each time one delta has been applied in full (a delta applied at once, the delta of each stack item as it resolves, the delta of each `choose` answer), each time the damage of one combat has been applied in full, and when a seat concedes, so that a call that resolves several stack items checks after each of them.
-- [ ] **GAME-160**: In a contested game, the game shall not check for elimination between the keys of one delta or between the attackers of one combat's damage: a seat whose life is 0 or less partway through a delta and above 0 once the whole delta is applied is not eliminated.
-- [ ] **GAME-129**: When a seat's life is 0 or less in a contested game, the game shall eliminate that seat.
-- [ ] **GAME-130**: When one commander has dealt 21 or more combat damage to a seat in a contested game, the game shall eliminate that seat.
-- [ ] **GAME-131**: When an opposing seat still in a contested game calls `end_game` with a `result` of `win`, `loss` or `stalled`, the game shall eliminate that seat (it concedes), record its `notes`, and leave the game's status and result unchanged.
-- [ ] **GAME-161**: In a contested game, the game shall accept the conceding `end_game` of an opposing seat still in the game whichever seat is the seat to act and whatever the game is waiting on, including a pending choice, a reminder or a response window that waits on the conceding seat itself.
-- [ ] **GAME-132**: When a seat is eliminated in a contested game, every card that seat owns shall leave the game, being removed from every zone, including the battlefields of seats that control it and the stack.
-- [ ] **GAME-133**: When a seat is eliminated in a contested game, every permanent it controls but does not own shall return to its owner's control.
-- [ ] **GAME-135**: When a seat is eliminated in a contested game, every pending choice addressed to it shall be discarded.
-- [ ] **GAME-162**: When a seat is eliminated in a contested game, every pending choice of kind `ask` that its effect addressed to another seat (its `asked_by` is the eliminated seat) shall stay waiting and be answered by the seat it is addressed to.
-- [ ] **GAME-163**: When a seat is eliminated in a contested game, every pending choice of kind `hand` that shows that seat's hand (its `hand_of` is the eliminated seat) shall be discarded.
-- [ ] **GAME-136**: While a seat of a contested game is eliminated, the game shall never make it the active seat.
-- [ ] **GAME-164**: While no seat of a contested game is still in the game (every seat eliminated), the game shall keep its status and have no active seat and no seat to act.
-- [ ] **GAME-167**: While no seat of a contested game is still in the game (every seat eliminated), the game shall accept only `get_state`, `get_log`, `wait` and the tested seat's `end_game`, and shall answer any other call that is not a resend with an error.
-- [ ] **GAME-138**: When a call causes a seat's elimination in a contested game, the outcome of that call shall say which seat was eliminated and why (life, commander damage or conceding).
-- [ ] **GAME-169**: When a seat eliminated in a contested game has both life 0 or less and 21 or more combat damage from one commander at the same check, the outcome shall give life as the reason, as the log entry does (REC-077).
-- [ ] **GAME-139**: When several seats meet an elimination condition at the same check in a contested game, the game shall apply their eliminations one seat at a time in turn order starting from the active seat.
+- [x] **GAME-128**: In a contested game, the game shall check every seat still in the game for elimination each time one delta has been applied in full (a delta applied at once, the delta of each stack item as it resolves, the delta of each `choose` answer), each time the damage of one combat has been applied in full, and when a seat concedes, so that a call that resolves several stack items checks after each of them.
+- [x] **GAME-160**: In a contested game, the game shall not check for elimination between the keys of one delta or between the attackers of one combat's damage: a seat whose life is 0 or less partway through a delta and above 0 once the whole delta is applied is not eliminated.
+- [x] **GAME-129**: When a seat's life is 0 or less in a contested game, the game shall eliminate that seat.
+- [x] **GAME-130**: When one commander has dealt 21 or more combat damage to a seat in a contested game, the game shall eliminate that seat.
+- [x] **GAME-131**: When an opposing seat still in a contested game calls `end_game` with a `result` of `win`, `loss` or `stalled`, the game shall eliminate that seat (it concedes), record its `notes`, and leave the game's status and result unchanged.
+- [x] **GAME-161**: In a contested game, the game shall accept the conceding `end_game` of an opposing seat still in the game whichever seat is the seat to act and whatever the game is waiting on, including a pending choice, a reminder or a response window that waits on the conceding seat itself.
+- [x] **GAME-132**: When a seat is eliminated in a contested game, every card that seat owns shall leave the game, being removed from every zone, including the battlefields of seats that control it and the stack.
+- [x] **GAME-133**: When a seat is eliminated in a contested game, every permanent it controls but does not own shall return to its owner's control.
+- [x] **GAME-135**: When a seat is eliminated in a contested game, every pending choice addressed to it shall be discarded.
+- [x] **GAME-162**: When a seat is eliminated in a contested game, every pending choice of kind `ask` that its effect addressed to another seat (its `asked_by` is the eliminated seat) shall stay waiting and be answered by the seat it is addressed to.
+- [x] **GAME-163**: When a seat is eliminated in a contested game, every pending choice of kind `hand` that shows that seat's hand (its `hand_of` is the eliminated seat) shall be discarded.
+- [x] **GAME-136**: While a seat of a contested game is eliminated, the game shall never make it the active seat.
+- [x] **GAME-164**: While no seat of a contested game is still in the game (every seat eliminated), the game shall keep its status and have no active seat and no seat to act.
+- [x] **GAME-167**: While no seat of a contested game is still in the game (every seat eliminated), the game shall accept only `get_state`, `get_log`, `wait` and the tested seat's `end_game`, and shall answer any other call that is not a resend with an error.
+- [x] **GAME-138**: When a call causes a seat's elimination in a contested game, the outcome of that call shall say which seat was eliminated and why (life, commander damage or conceding).
+- [x] **GAME-169**: When a seat eliminated in a contested game has both life 0 or less and 21 or more combat damage from one commander at the same check, the outcome shall give life as the reason, as the log entry does (REC-077).
+- [x] **GAME-139**: When several seats meet an elimination condition at the same check in a contested game, the game shall apply their eliminations one seat at a time in turn order starting from the active seat.
 - [x] **GAME-140**: In a goldfish game, the game shall never eliminate the tested seat.
-- [ ] **GAME-141**: In a contested game, the game shall not eliminate a seat for attempting to draw from a library with too few cards.
+- [x] **GAME-141**: In a contested game, the game shall not eliminate a seat for attempting to draw from a library with too few cards.
 
 ## Notices
 
@@ -179,12 +179,12 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-042**: When a seat attempts a draw with fewer cards in its library than the draw calls for, in a goldfish game or a contested game, the game shall draw the cards that are there and raise the empty library notice.
 - [x] **GAME-043**: While a game, goldfish or contested, has a raised notice, every outcome about that game to every seat shall include the notice, including after the notice's condition stops holding.
 - [x] **GAME-044**: The game, goldfish or contested, shall never change its status or refuse a call because a notice has been raised.
-- [ ] **GAME-142**: When the tested seat of a contested game is eliminated, the game shall raise the tested-seat-eliminated notice.
-- [ ] **GAME-143**: When every opposing seat of a contested game has been eliminated, the game shall raise the opponents-eliminated notice.
+- [x] **GAME-142**: When the tested seat of a contested game is eliminated, the game shall raise the tested-seat-eliminated notice.
+- [x] **GAME-143**: When every opposing seat of a contested game has been eliminated, the game shall raise the opponents-eliminated notice.
 - [x] **GAME-144**: When a contested game first enters a turn of the round whose number equals `turn_limit`, the game shall raise the turn limit notice.
 - [ ] **GAME-145**: When a seat of a contested game first attempts a draw with fewer cards in its library than the draw calls for, the game shall raise an empty library notice of that seat's own, naming the seat by seat number, whether or not another seat's empty library notice is already raised.
 - [ ] **GAME-165**: In a contested game, the game shall raise the empty library notice at most once for each seat, however many times that seat attempts a draw with too few cards.
-- [ ] **GAME-146**: In a contested game, the game shall not raise the damage notice (120 pooled damage), the commander damage notice (21 to each of three imaginary opponents) or the life notice, which belong to goldfish games only.
+- [x] **GAME-146**: In a contested game, the game shall not raise the damage notice (120 pooled damage), the commander damage notice (21 to each of three imaginary opponents) or the life notice, which belong to goldfish games only.
 
 ## Ending
 
@@ -192,8 +192,8 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-046**: When the tested seat calls `end_game`, in a goldfish game or a contested game, the game shall discard every pending choice and any declared attack.
 - [x] **GAME-047**: If `end_game` is called with a `result` other than `win`, `loss` or `stalled`, by any seat of a goldfish game or a contested game, then `end_game` shall return an error and change nothing.
 - [ ] **GAME-147**: When the tested seat of a contested game calls `end_game`, the game shall discard any open response window and every stack item.
-- [ ] **GAME-148**: When the tested seat of a contested game calls `end_game` while the game's status is not `ended`, the game shall accept the call whichever seat is the seat to act and whatever the game is waiting on: mulligans, a pending choice, a reminder or a response window.
-- [ ] **GAME-149**: When the tested seat of a contested game calls `end_game` after it has been eliminated, the game shall accept the call and end the game.
+- [x] **GAME-148**: When the tested seat of a contested game calls `end_game` while the game's status is not `ended`, the game shall accept the call whichever seat is the seat to act and whatever the game is waiting on: mulligans, a pending choice, a reminder or a response window.
+- [x] **GAME-149**: When the tested seat of a contested game calls `end_game` after it has been eliminated, the game shall accept the call and end the game.
 - [x] **GAME-150**: While a contested game's status is `ended`, the game shall accept only `get_state`, `get_log` and `wait`, and shall answer any other call that is not a resend with an error.
 - [x] **GAME-170**: If a call to a contested game that is not a resend is refused for more than one of these reasons, then the error returned shall be the first that applies of: the game has ended (GAME-150); the calling seat is eliminated (GAME-119); the calling seat is not the seat to act for that call (GAME-118).
 

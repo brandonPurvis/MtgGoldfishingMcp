@@ -86,9 +86,11 @@ def an_error(error: Error, game: GameSummary | None) -> Outcome:
     return refused(Refusal.error(error), game)
 
 
-def status_after_change(game: Game) -> Status:
-    """`CHOICE` when the changed game waits for a choice, else `OK`."""
-    return Status.CHOICE if game.pending else Status.OK
+def status_after_change(game: Game, seat: SeatNumber) -> Status:
+    """`CHOICE` when the changed game waits for a choice the calling seat must answer, else
+    `OK`: a seat whose call asked another seat for a choice has nothing to choose."""
+    waiting = game.waiting_choice
+    return Status.CHOICE if waiting is not None and waiting.seat == seat else Status.OK
 
 
 def carries_override(arguments: Mapping[str, object]) -> bool:
@@ -243,7 +245,7 @@ def _respond_about(call: Call, found: SeatOfGame, respond: Respond) -> Answer:
     if stored.game.contested:
         call.seat = found.seat
     decks = decks_of(call.ports.decks, stored.game)
-    call.game = summarize(stored.game, decks.of(found.seat), found.seat)
+    call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
     return respond(call, Loaded(stored, decks, found.seat, call.game))
 
 
@@ -322,7 +324,7 @@ def change_game(
 def _answer_resend(call: Call, loaded: Loaded, resent: Resent) -> Answer:
     """The original report again, as the calling seat may see it, with nothing saved but
     the call record."""
-    status = status_after_change(resent.game)
+    status = status_after_change(resent.game, loaded.seat)
     summary, events = _seen(loaded.seat, resent.summary, resent.events)
     return call.finish(Outcome(status, summary, events, loaded.summary))
 
@@ -347,10 +349,10 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
     )
     summary, events = _seen(loaded.seat, applied.summary, applied.events)
     outcome = Outcome(
-        status_after_change(changed),
+        status_after_change(changed, loaded.seat),
         summary,
         events,
-        summarize(changed, loaded.deck, loaded.seat),
+        summarize(changed, loaded.deck, loaded.seat, decks=loaded.decks),
     )
 
     def write() -> Outcome | None:

@@ -221,13 +221,15 @@ def _ability_making(abilities: Sequence[Source], mana: ManaString) -> Source | N
     return abilities[0] if abilities else None
 
 
+# @spec PAY-047
 def _resolve_named(
     game: Game, deck: LoadedDeck, seat: SeatNumber, entries: Sequence[PayWith]
 ) -> tuple[list[_Named], list[Error | FailedCheck], list[InstanceChosen]]:
+    """The sources `pay.with` names, among the permanents the paying seat controls."""
     named: list[_Named] = []
     problems: list[Error | FailedCheck] = []
     names = [entry.source for entry in entries]
-    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP)
+    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP, own_only=True)
     if isinstance(found, Error):
         return [], [found], []
     cards, chosen_events = found
