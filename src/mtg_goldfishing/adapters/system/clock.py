@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from mtg_goldfishing.application.ports import Clock
 
-class SystemClock:
+
+class SystemClock(Clock):
     """The current time in UTC."""
 
     def now(self) -> datetime:

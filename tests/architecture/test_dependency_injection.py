@@ -121,8 +121,6 @@ CONTAINER_LIBRARIES = (
     "that_depends",
 )
 
-NOT_BUILT = "M1: ports are not abstract base classes yet"
-
 
 def _named(classes: tuple[type, ...]) -> list[str]:
     return [cls.__name__ for cls in classes]
@@ -153,21 +151,18 @@ def test_every_class_the_ports_module_offers_for_implementing_is_a_known_port() 
 
 
 # @spec APP-042
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 @pytest.mark.parametrize("port", PORTS, ids=_named(PORTS))
 def test_a_port_is_an_abstract_base_class(port: type) -> None:
     assert ABC in port.__mro__
 
 
 # @spec APP-042
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 @pytest.mark.parametrize("port", PORTS, ids=_named(PORTS))
 def test_every_operation_of_a_port_is_abstract(port: type) -> None:
     assert getattr(port, "__abstractmethods__", frozenset()) == OPERATIONS[port]
 
 
 # @spec APP-043
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 @pytest.mark.parametrize(("implementation", "port"), IMPLEMENTATIONS, ids=IMPLEMENTATION_IDS)
 def test_an_implementation_inherits_from_the_port_it_implements(
     implementation: type, port: type
@@ -186,7 +181,6 @@ def test_an_implementation_is_a_concrete_class(implementation: type) -> None:
 
 
 # @spec APP-044
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 @pytest.mark.parametrize("port", PORTS, ids=_named(PORTS))
 def test_a_class_missing_an_operation_of_its_port_cannot_be_constructed(port: type) -> None:
     missing = min(OPERATIONS[port])

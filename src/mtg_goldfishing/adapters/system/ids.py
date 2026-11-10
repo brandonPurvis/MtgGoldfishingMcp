@@ -5,6 +5,8 @@ from __future__ import annotations
 import secrets
 import string
 
+from mtg_goldfishing.application.ports import IdSource
+
 GAME_ID_ALPHABET = string.ascii_lowercase + string.digits
 GAME_ID_LENGTH = 10
 SEED_LIMIT = 2**63
@@ -12,7 +14,7 @@ SEED_LIMIT = 2**63
 
 
 # @spec GAME-004, GAME-006
-class RandomIdSource:
+class RandomIdSource(IdSource):
     """Ten random lower-case letters or digits for a game id; a random positive seed."""
 
     def new_game_id(self) -> str:

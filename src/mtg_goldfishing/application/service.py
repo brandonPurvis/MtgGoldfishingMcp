@@ -42,7 +42,7 @@ from mtg_goldfishing.application.use_cases.handling import Ports
 Arguments = Mapping[str, object]
 
 
-# @spec APP-009, APP-011
+# @spec APP-009, APP-011, APP-049, APP-050
 class Service:
     """The use cases, one per tool, over the ports they reach the outside world through."""
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from mtg_goldfishing.application.ports import Clock
+
 DEFAULT_TIME = datetime(2026, 1, 1, tzinfo=UTC)
 
 
@@ -14,7 +16,7 @@ def _in_utc(time: datetime) -> datetime:
 
 
 # @spec APP-013
-class FixedClock:
+class FixedClock(Clock):
     """Tells the time it was last set to, in UTC, until the test sets another."""
 
     def __init__(self, time: datetime = DEFAULT_TIME) -> None:

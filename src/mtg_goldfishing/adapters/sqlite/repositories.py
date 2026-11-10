@@ -12,7 +12,14 @@ from datetime import UTC, datetime
 
 from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.adapters.sqlite.database import SqliteDatabase
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    DeckRepository,
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    StoredGame,
+    UnitOfWork,
+)
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
@@ -26,7 +33,7 @@ def utc_now() -> datetime:
 
 
 # @spec STOR-001, STOR-004, STOR-005, STOR-008
-class SqliteGameRepository:
+class SqliteGameRepository(GameRepository):
     """Each game is one row: its state as one JSON document and a version counter."""
 
     def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
@@ -78,7 +85,7 @@ def _copied_columns(game: Game) -> tuple[str, str, int, str, str | None, str]:
 
 
 # @spec STOR-001, STOR-010
-class SqliteDeckRepository:
+class SqliteDeckRepository(DeckRepository):
     """Each loaded deck is one row, written once and never replaced."""
 
     def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
@@ -107,7 +114,7 @@ class SqliteDeckRepository:
 
 
 # @spec STOR-001, STOR-011, STOR-012
-class SqliteRecordStore:
+class SqliteRecordStore(RecordStore):
     """Log entries, turn snapshots and call records, each a row holding one JSON document.
 
     Nothing here deletes or updates a row: records are kept indefinitely.
@@ -176,7 +183,7 @@ class SqliteRecordStore:
 
 
 # @spec STOR-001, STOR-006, STOR-007
-class SqliteUnitOfWork:
+class SqliteUnitOfWork(UnitOfWork):
     """A transaction on the calling thread's connection.
 
     Every write made on that thread between `begin` and `commit` is saved together; after

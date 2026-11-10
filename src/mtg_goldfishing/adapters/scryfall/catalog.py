@@ -11,7 +11,7 @@ import httpx
 
 from mtg_goldfishing import __version__
 from mtg_goldfishing.adapters.scryfall.conversion import read_scryfall_card
-from mtg_goldfishing.application.ports import CardCache
+from mtg_goldfishing.application.ports import CardCache, CardCatalog
 from mtg_goldfishing.domain.cards import Card, CardLookup, LookupStatus, same_name
 
 COLLECTION_URL = "https://api.scryfall.com/cards/collection"
@@ -75,7 +75,7 @@ def _names_in(data: object) -> list[str]:
     ]
 
 
-class ScryfallCatalog:
+class ScryfallCatalog(CardCatalog):
     """Supplies card data by exact name from the cache, fetching what is missing from Scryfall."""
 
     def __init__(
