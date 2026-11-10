@@ -3,11 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from mtg_goldfishing.domain.game.calls import accept_change, check_accepted, follow_change
-from mtg_goldfishing.domain.game.creation import new_game
-from mtg_goldfishing.domain.game.ending import end_game
-from mtg_goldfishing.domain.game.listing import list_state
-from mtg_goldfishing.domain.game.mulligan import mulligan
 
 from mtg_goldfishing.domain.events import (
     AlreadyApplied,
@@ -22,6 +17,10 @@ from mtg_goldfishing.domain.events import (
     NoticeKind,
     NoticeRaised,
 )
+from mtg_goldfishing.domain.game.calls import accept_change, check_accepted, follow_change
+from mtg_goldfishing.domain.game.creation import new_game
+from mtg_goldfishing.domain.game.ending import end_game
+from mtg_goldfishing.domain.game.listing import list_state
 from mtg_goldfishing.domain.game.model import (
     Attack,
     Game,
@@ -31,6 +30,7 @@ from mtg_goldfishing.domain.game.model import (
     Zone,
 )
 from mtg_goldfishing.domain.game.movement import draw
+from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.naming import Purpose, resolve
 from mtg_goldfishing.domain.game.notices import examine_end_conditions, examine_turn_limit
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
