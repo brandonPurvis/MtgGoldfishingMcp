@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import replace
 
 from mtg_goldfishing.domain.cards import Card, CardSource, Face
@@ -196,11 +196,15 @@ def definition_reading(card: Card, definition: CardDefinition) -> CardReading:
     a choice), `enters_tapped` replaces its enters-tapped reading, and haste, vigilance or
     flash among the keywords become its own keywords.
     """
-    reading = read_card(card)
-    index = _defined_face(card, definition) or 0
-    return CardReading(
-        tuple(
-            _defined_reading(face, definition) if i == index else face
-            for i, face in enumerate(reading.faces)
-        )
-    )
+    return definitions_reading(card, (definition,))
+
+
+# @spec DECK-014, DECK-015, DECK-016, DECK-017
+def definitions_reading(card: Card, definitions: Iterable[CardDefinition]) -> CardReading:
+    """The readings of a card with several definitions, each describing one of its faces."""
+    faces = list(read_card(card).faces)
+    for definition in definitions:
+        index = _defined_face(card, definition) or 0
+        if index < len(faces):
+            faces[index] = _defined_reading(faces[index], definition)
+    return CardReading(tuple(faces))

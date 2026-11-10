@@ -10,6 +10,12 @@ from dataclasses import dataclass
 from enum import Enum
 
 from mtg_goldfishing.domain.mana import ManaString
+from mtg_goldfishing.domain.reading.model import (
+    EntersTappedReport,
+    KeywordReport,
+    ReadAbility,
+    UnreadAbility,
+)
 from mtg_goldfishing.domain.steps import Step
 
 
@@ -151,11 +157,33 @@ class StepsEntered:
 
 
 @dataclass(frozen=True)
+class DeckReport:
+    """What `load_deck` tells about a loaded deck's definitions and readings, named by face.
+
+    `definitions_applied` names the cards a card definition changed. The rest list mana
+    abilities read with assumptions, mana abilities not read, mana abilities the auto
+    payment system will not use on its own (they sacrifice or carry another cost), cards
+    granting haste or vigilance, cards read as entering tapped, cards assumed to enter
+    untapped, and haste, vigilance or flash readings made with assumptions.
+    """
+
+    definitions_applied: tuple[str, ...] = ()
+    read_with_assumptions: tuple[ReadAbility, ...] = ()
+    unread: tuple[UnreadAbility, ...] = ()
+    not_used_on_their_own: tuple[ReadAbility, ...] = ()
+    granting_haste_or_vigilance: tuple[KeywordReport, ...] = ()
+    enters_tapped: tuple[EntersTappedReport, ...] = ()
+    assumed_untapped: tuple[EntersTappedReport, ...] = ()
+    keywords_with_assumptions: tuple[KeywordReport, ...] = ()
+
+
+@dataclass(frozen=True)
 class DeckLoaded:
     deck_id: str
     card_count: int
     commanders: tuple[str, ...]
     already_loaded: bool = False
+    report: DeckReport = DeckReport()
 
 
 @dataclass(frozen=True)
