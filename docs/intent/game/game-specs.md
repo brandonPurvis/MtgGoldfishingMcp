@@ -7,9 +7,9 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-001**: When `new_game` is called with a known deck id, the game shall be created with its commanders in the command zone, every other card in the library, life 40, status `mulligan`, turn 0 and no step.
 - [x] **GAME-002**: When a game is created, the game shall assign instance ids `c1`, `c2`, … to commanders first and then to the remaining cards, each group ordered by lower-cased card name with copies of one card adjacent.
 - [x] **GAME-003**: When a game is created, the game shall shuffle the library and deal seven cards to the hand.
-- [ ] **GAME-004**: When `new_game` is called without a seed, the use case shall obtain a seed from the id source, and the outcome shall state the seed used.
+- [x] **GAME-004**: When `new_game` is called without a seed, the use case shall obtain a seed from the id source, and the outcome shall state the seed used.
 - [x] **GAME-005**: When `new_game` succeeds, the outcome shall state the game id, the seed and the cards in the opening hand.
-- [ ] **GAME-006**: The game id shall be `g` followed by ten random characters obtained from the id source.
+- [x] **GAME-006**: The game id shall be `g` followed by ten random characters obtained from the id source.
 - [x] **GAME-007**: If `new_game` is called with an unknown deck id, then `new_game` shall return an error and create nothing.
 - [x] **GAME-008**: If `new_game` is called with a `turn_limit` that is not a positive integer, then `new_game` shall return an error and create nothing.
 - [x] **GAME-009**: When `new_game` is called without `draw_first_turn`, the game shall be created with `draw_first_turn` true.
@@ -80,4 +80,4 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-050**: While a game's status is `pending_choice`, the game shall accept only `choose`, `get_state`, `get_log` and `end_game`.
 - [x] **GAME-051**: While a game's status is `ended`, the game shall accept only `get_state` and `get_log`.
 - [x] **GAME-052**: If a tool is called while the game's status does not accept it, then the call shall return an error naming the status and the tools that are accepted.
-- [ ] **GAME-053**: If a game tool is called with a game id that names no game, then the call shall return an error and change nothing.
+- [x] **GAME-053**: If a game tool is called with a game id that names no game, then the call shall return an error and change nothing.
