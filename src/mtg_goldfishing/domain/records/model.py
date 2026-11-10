@@ -23,8 +23,17 @@ class PermanentRecord:
 
 @dataclass(frozen=True)
 class ReminderRecord:
+    """A reminder issued for one permanent.
+
+    `card` is the name of the permanent's face in play. `instance_id`, `card_name` and
+    `turn` are kept so a later `effect` can be judged to answer it from the log alone.
+    """
+
     card: str
     step: Step
+    instance_id: str = ""
+    card_name: str = ""
+    turn: int = 0
 
 
 @dataclass(frozen=True)
