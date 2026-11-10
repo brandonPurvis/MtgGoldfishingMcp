@@ -335,6 +335,16 @@ def test_load_deck_lists_each_part_of_the_deck_report_that_is_not_empty() -> Non
     ]
 
 
+# @spec DECK-038
+def test_load_deck_names_the_cards_a_refresh_kept_on_their_cached_data() -> None:
+    report = DeckReport(not_refreshed=("Sol Ring", "Ponder"))
+    outcome = Outcome(Status.OK, DeckLoaded("d3f9a01c2e", 100, (ATRAXA,), report=report))
+    assert response("load_deck", outcome) == [
+        "OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.",
+        "Not refreshed (cached data kept): Sol Ring, Ponder",
+    ]
+
+
 # @spec TOOL-026
 def test_load_deck_names_both_commanders_and_any_overridden_checks() -> None:
     overridden = ChecksOverridden(

@@ -6,6 +6,8 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
+import pytest
+
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.events import (
@@ -35,6 +37,7 @@ from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.results import Applied, Result
 from mtg_goldfishing.domain.mana import ManaString
+from mtg_goldfishing.domain.play.playing import effect
 from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
 from mtg_goldfishing.domain.records.export import export, log_entry_to_data
 from mtg_goldfishing.domain.records.log import log_entry
@@ -46,6 +49,7 @@ from mtg_goldfishing.domain.records.model import (
     TurnSnapshot,
 )
 from mtg_goldfishing.domain.records.reminders import JudgedReminder, judge_reminders
+from mtg_goldfishing.domain.records.snapshots import take_snapshot
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import Situation, a_game
@@ -633,6 +637,40 @@ def test_a_reminder_is_answered_by_the_name_of_the_face_in_play() -> None:
     reminding, game = entered_upkeep(situation)
     answering, _ = effect_from(game, "valki, god of lies")
     assert judged([reminding, answering]) == [True]
+
+
+TIBALT = "Tibalt, Cosmic Impostor"
+
+
+# @spec REC-009, REC-010
+@pytest.mark.parametrize(
+    ("source", "answered"),
+    [(VALKI.name, True), (TIBALT.upper(), True), ("Valki, God of Lies", False)],
+    ids=["card name", "face in play", "face not in play"],
+)
+def test_the_game_and_the_log_agree_on_answering_a_reminder_issued_on_a_back_face(
+    source: str, answered: bool
+) -> None:
+    back_face_trigger = CardReading((FaceReading(), FaceReading(step_triggers=(Step.UPKEEP,))))
+    situation = (
+        a_game()
+        .in_step(Step.UNTAP)
+        .with_card(VALKI, back_face_trigger)
+        .with_battlefield(VALKI.name)
+        .build()
+    )
+    situation.named(VALKI.name).face = 1
+    reminding, game = entered_upkeep(situation)
+    arguments = {"source": source, "delta": {}}
+    result = applied(effect(game, situation.deck, source=source, delta={}))
+    answering = logged("effect", arguments, game, result)
+    snapshot = take_snapshot(result.game, situation.deck)
+    assert snapshot is not None
+    unanswered = () if answered else (ReminderRecord(TIBALT, Step.UPKEEP),)
+    assert (judged([reminding, answering]), snapshot.unanswered_reminders) == (
+        [answered],
+        unanswered,
+    )
 
 
 # @spec REC-010

@@ -298,6 +298,26 @@ def test_a_cached_card_kept_when_its_refresh_was_unavailable_is_used() -> None:
     assert isinstance(load_deck(request, lookups, DeckStore().get), DeckLoad)
 
 
+# @spec DECK-038
+@pytest.mark.parametrize("status", [LookupStatus.UNAVAILABLE, LookupStatus.NOT_FOUND])
+def test_a_card_a_refresh_could_not_fetch_again_is_named_as_not_refreshed(
+    status: LookupStatus,
+) -> None:
+    request = read_deck_request(cards="99 Forest", commander=ATRAXA)
+    assert not isinstance(request, Refusal)
+    lookups = catalog_answers(request.names_to_look_up, [recorded_card("Forest")])
+    lookups[ATRAXA] = CardLookup(status, recorded_card(ATRAXA))
+    load = load_deck(request, lookups, DeckStore().get)
+    assert isinstance(load, DeckLoad)
+    assert load.summary.report.not_refreshed == (ATRAXA,)
+
+
+# @spec DECK-038
+def test_a_deck_whose_cards_were_all_fetched_names_no_card_as_not_refreshed() -> None:
+    load = a_deck_list().loaded()
+    assert load.summary.report.not_refreshed == ()
+
+
 # @spec DECK-020
 def test_a_name_missing_from_the_catalogs_answers_counts_as_unavailable() -> None:
     request = read_deck_request(cards="99 Forest", commander=ATRAXA)

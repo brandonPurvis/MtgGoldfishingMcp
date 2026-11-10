@@ -5,7 +5,7 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 ## General
 
 - [x] **READ-001**: The card reader shall produce every reading from a card face's rules text, type line and keywords alone, without access to game state.
-- [x] **READ-002**: The card reader shall attach to every reading a list of assumptions, which is empty when the text matched a known form exactly.
+- [x] **READ-002**: The card reader shall attach to every mana ability reading, keyword reading and enters-tapped reading a list of assumptions, which is empty when the text matched a known form exactly.
 
 ## Mana abilities: forms read exactly
 
@@ -21,7 +21,7 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-012**: When a mana ability's text adds an amount equal to the controller's devotion to one or more colors, the card reader shall read it as a counted amount over that devotion.
 - [x] **READ-013**: When a mana ability's text adds mana for each card in the controller's hand or graveyard, the card reader shall read it as a counted amount over that zone.
 - [x] **READ-014**: When a mana ability's text restricts spending to spells of named card types (`Spend this mana only to cast creature spells`), the card reader shall record a restriction listing those card types.
-- [x] **READ-015**: When a face's type line contains a basic land type (`Plains`, `Island`, `Swamp`, `Mountain`, `Forest`, `Wastes`), the card reader shall read the corresponding tap-for-one-mana ability even if the rules text is empty.
+- [x] **READ-015**: When a face's type line contains a basic land type (`Plains`, `Island`, `Swamp`, `Mountain`, `Forest`), the card reader shall read the corresponding tap-for-one-mana ability even if the rules text is empty.
 - [x] **READ-016**: When a face has more than one mana ability, the card reader shall read each ability separately.
 - [x] **READ-017**: The card reader shall not include in a mana ability's life cost any life lost through a separate triggered ability on the same card.
 
@@ -62,6 +62,7 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-038**: When rules text gives haste or vigilance for a limited time (`until end of turn`), the card reader shall not read it as a grant.
 - [x] **READ-039**: When haste or vigilance is conferred through attachment (`Equipped creature has`, `Enchanted creature has`), the card reader shall not read it.
 - [x] **READ-040**: When a card has or grants haste or vigilance only under a condition, the card reader shall read the keyword as present and add the assumption "assumes its condition is met".
+- [x] **READ-044**: When a static ability gives haste or vigilance to `<plural subtype> you control` (`Goblins you control have haste`), the card reader shall read a grant limited to that subtype in its singular form.
 
 ## Entering tapped
 

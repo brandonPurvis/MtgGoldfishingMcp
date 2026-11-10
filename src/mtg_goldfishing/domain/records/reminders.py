@@ -18,15 +18,16 @@ class JudgedReminder:
 
 
 # @spec REC-010
-def names_reminded_permanent(source: str, reminder: ReminderRecord) -> bool:
-    """Whether an `effect`'s source names the reminded permanent.
+def names_reminded_permanent(source: str, *, card_name: str, face: str, instance_id: str) -> bool:
+    """Whether an `effect`'s source names a reminded permanent.
 
     It does when, ignoring case, it equals the permanent's card name, the name of its face
-    in play, or its instance id.
+    in play when it was reminded, or its instance id. The permanent need not still be on
+    the battlefield. This is the one rule: the game marks reminders answered by it, and the
+    log is judged by it.
     """
     wanted = source.strip().casefold()
-    names = (reminder.card_name, reminder.card, reminder.instance_id)
-    return any(name and name.casefold() == wanted for name in names)
+    return any(name and name.casefold() == wanted for name in (card_name, face, instance_id))
 
 
 def _effect_source(entry: LogEntry) -> str | None:
@@ -42,7 +43,12 @@ def _answers(entry: LogEntry, issued_by: LogEntry, reminder: ReminderRecord) -> 
         source is not None
         and entry.seq > issued_by.seq
         and entry.turn == reminder.turn
-        and names_reminded_permanent(source, reminder)
+        and names_reminded_permanent(
+            source,
+            card_name=reminder.card_name,
+            face=reminder.card,
+            instance_id=reminder.instance_id,
+        )
     )
 
 

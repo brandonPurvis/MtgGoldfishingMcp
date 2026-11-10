@@ -6,7 +6,7 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 
 - [x] **CMBT-001**: When `attack` is called while the game is in `main1` or `begin_combat`, the game shall move to `declare_attackers`, performing the automatic actions and issuing the reminders of the steps entered, and store the declaration.
 - [x] **CMBT-002**: When `attack` moves the game through `begin_combat`, the game shall declare the attack whether or not a reminder was issued for `begin_combat`, and the outcome shall list any such reminder.
-- [x] **CMBT-003**: When `attack` is called while the game is in `declare_attackers` with no attack declared, the game shall store the declaration.
+- [x] **CMBT-003**: When `attack` is called while the game is in `declare_attackers`, or in `declare_blockers` with no attack declared, the game shall store the declaration without moving to another step.
 - [x] **CMBT-004**: When `attack` is called while the game is in `declare_attackers` or `declare_blockers` with an attack already declared, the game shall replace the earlier declaration.
 - [x] **CMBT-005**: If `attack` is called while the game is in `untap`, `upkeep` or `draw` and carries no `override`, then `attack` shall fail a rule check.
 - [x] **CMBT-006**: When `attack` is called while the game is in `untap`, `upkeep` or `draw` with an `override` reason, the game shall move to `declare_attackers` as from `main1` and store the declaration.

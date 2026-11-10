@@ -175,7 +175,6 @@ _BASIC_LAND_TYPES = {
     "swamp": "B",
     "mountain": "R",
     "forest": "G",
-    "wastes": "C",
 }
 _AMOUNTS = {
     "one": 1,
@@ -451,7 +450,9 @@ def read_step_triggers(text: _FaceText) -> tuple[Step, ...]:
 # Haste, vigilance and flash
 
 _CONDITION = re.compile(r"\b(?:as long as|during|if|unless|while)\b", re.IGNORECASE)
-_LIMITED_TIME = re.compile(r"\b(?:until end of turn|this turn)\b", re.IGNORECASE)
+# A keyword given for a limited time: until end of turn, or gained this turn. A condition that
+# only speaks of the turn (`As long as you've cast a spell this turn`) does not limit it.
+_LIMITED_TIME = re.compile(r"\buntil end of turn\b|\bgains?\b[^.]*\bthis turn\b", re.IGNORECASE)
 _GRANT = re.compile(
     r"(?:^|,\s*)(?:(?P<all>[Aa]ll creatures)"
     r"|(?P<other>[Oo]ther )?(?:[Cc]reatures|(?P<subtype>[A-Z][A-Za-z'-]*) creatures"
@@ -493,7 +494,7 @@ _NOT_PLURAL_SUBTYPES = frozenset(
 )
 
 
-# @spec READ-036, READ-037, READ-038, READ-039, READ-040
+# @spec READ-036, READ-037, READ-038, READ-039, READ-040, READ-044
 def read_keyword(keyword: str, text: _FaceText) -> KeywordReading:
     """Whether the face has `keyword` itself, grants it to creatures you control, or neither.
 
@@ -554,8 +555,20 @@ def _granted(keyword: str, sentence: str) -> KeywordGrant | None:
     if plural is not None:
         if plural in _NOT_PLURAL_SUBTYPES:
             return None
-        subtype = plural[:-3] + "f" if plural.endswith("ves") else plural[:-1]
+        subtype = _singular(plural)
     return KeywordGrant(includes_self=not match["other"], subtype=subtype)
+
+
+_SINGULAR_ENDING_IE = frozenset({"Faeries", "Zombies"})
+
+
+def _singular(plural: str) -> str:
+    """A plural creature subtype in its singular form: Goblins, Elves, Allies, Zombies."""
+    if plural.endswith("ves"):
+        return plural[:-3] + "f"
+    if plural.endswith("ies") and plural not in _SINGULAR_ENDING_IE:
+        return plural[:-3] + "y"
+    return plural[:-1]
 
 
 # Entering tapped
@@ -579,8 +592,15 @@ def read_enters_tapped(text: _FaceText) -> EntersTappedReading:
     return ENTERS_UNTAPPED
 
 
+_STAYS_TAPPED = re.compile(r",? and (?:it )?(?:doesn't|does not) untap during [^.]*", re.IGNORECASE)
+
+
 def _entering_condition(sentence: str, before: list[str]) -> str | None:
-    """The condition or choice an enters-tapped sentence is subject to, as written."""
+    """The condition or choice an enters-tapped sentence is subject to, as written.
+
+    A rider saying the permanent does not untap is not a condition on entering tapped.
+    """
+    sentence = _STAYS_TAPPED.sub("", sentence)
     if match := re.search(r"\bunless (?P<condition>[^.]+)", sentence):
         return "unless " + match["condition"]
     if re.match(r"^If you don't\b", sentence) and before:

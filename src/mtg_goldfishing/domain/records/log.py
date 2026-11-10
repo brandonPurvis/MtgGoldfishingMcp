@@ -159,7 +159,9 @@ def _reminders_issued(before: Game | None, after: Game) -> tuple[ReminderRecord,
             card=reminder.name,
             step=reminder.step,
             instance_id=reminder.instance_id,
-            card_name=_card_name(before, after, reminder.instance_id) or reminder.name,
+            card_name=reminder.card_name
+            or _card_name(before, after, reminder.instance_id)
+            or reminder.name,
             turn=after.turn,
         )
         for reminder in after.reminders[kept:]
