@@ -1,9 +1,8 @@
-"""In-memory and in-process implementations of the ports."""
+"""In-memory implementations of the ports, for tests."""
 
 from mtg_goldfishing.adapters.memory.cards import InMemoryCardCache, InMemoryCardCatalog
 from mtg_goldfishing.adapters.memory.clock import FixedClock
 from mtg_goldfishing.adapters.memory.ids import FixedIdSource
-from mtg_goldfishing.adapters.memory.locks import InProcessGameLocks
 from mtg_goldfishing.adapters.memory.storage import (
     InMemoryDeckRepository,
     InMemoryGameRepository,
@@ -22,5 +21,4 @@ __all__ = [
     "InMemoryRecordStore",
     "InMemoryStores",
     "InMemoryUnitOfWork",
-    "InProcessGameLocks",
 ]

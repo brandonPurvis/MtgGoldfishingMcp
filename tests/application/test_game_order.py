@@ -7,11 +7,8 @@ import time
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 
-from mtg_goldfishing.adapters.memory import (
-    InMemoryGameRepository,
-    InMemoryRecordStore,
-    InProcessGameLocks,
-)
+from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
+from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.application.ports import GameRecords, StoredGame
 from mtg_goldfishing.domain.game.model import Game

@@ -79,5 +79,6 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-049**: While a game's status is `active`, the game shall accept every game tool except `mulligan` and `choose`.
 - [x] **GAME-050**: While a game's status is `pending_choice`, the game shall accept only `choose`, `get_state`, `get_log` and `end_game`.
 - [x] **GAME-051**: While a game's status is `ended`, the game shall accept only `get_state` and `get_log`.
-- [x] **GAME-052**: If a tool is called while the game's status does not accept it, then the call shall return an error naming the status and the tools that are accepted.
+- [x] **GAME-052**: If a tool is called while the game's status does not accept it, and the call is not a resend of the game's most recent change, then the call shall return an error naming the status and the tools that are accepted.
 - [x] **GAME-053**: If a game tool is called with a game id that names no game, then the call shall return an error and change nothing.
+- [x] **GAME-054**: When a changing call is a resend of the game's most recent change, the game shall answer it as a resend even when the game's status no longer accepts that tool.

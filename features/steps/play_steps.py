@@ -79,6 +79,17 @@ def step_impl(context: Any, source: str, count: int, rest: str) -> None:
     agent.look = agent.text
 
 
+@when(
+    'I record an effect from "{source:Quoted}" that looks at the top {count:d} cards,'
+    ' the rest going to "{rest:Quoted}", after the change number I last saw'
+)
+def step_impl(context: Any, source: str, count: int, rest: str) -> None:
+    agent = context.agent
+    agent.change_at_start = agent.change()
+    look = {"look": {"n": count, "from": "top", "rest": rest}}
+    agent.call("effect", source=source, delta=look, after=agent.change_at_start)
+
+
 @when("I choose the first revealed card for my hand")
 def step_impl(context: Any) -> None:
     agent = context.agent

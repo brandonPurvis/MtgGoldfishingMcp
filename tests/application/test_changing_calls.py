@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from mtg_goldfishing.application.outcome import Status
+from collections.abc import Callable
+
+from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.domain.cards import Card, Face
 from mtg_goldfishing.domain.events import (
     AlreadyApplied,
     CardPlayed,
+    CardsRevealed,
     CheckKind,
     ErrorKind,
     GameEnded,
@@ -287,3 +290,95 @@ def test_a_resend_changes_nothing_and_adds_no_log_entry() -> None:
     harness.service.play(call)
     assert (harness.game().change, harness.version()) == (1, 2)
     assert [e.seq for e in harness.records().entries] == [1]
+
+
+# ------------------------------------------------------------- resends after the status changed
+
+
+def sent_twice(send: Callable[[dict[str, object]], Answer], call: dict[str, object]) -> Answer:
+    """The answer to the second of two identical calls."""
+    send(call)
+    return send(call)
+
+
+def is_a_resend(answer: Answer) -> bool:
+    return any(isinstance(event, AlreadyApplied) for event in answer.outcome.events)
+
+
+# @spec GAME-054
+def test_end_game_resent_after_the_game_ended_is_answered_as_a_resend() -> None:
+    harness = a_service()
+    harness.holding(a_game().build())
+    call = {"game_id": GAME_ID, "result": "win", "notes": "fast", "after": 0}
+    again = sent_twice(harness.service.end_game, call)
+    assert (again.outcome.summary, is_a_resend(again)) == (GameEnded("win", "fast"), True)
+
+
+# @spec GAME-054
+def test_keeping_a_hand_resent_once_the_game_is_active_is_answered_as_a_resend() -> None:
+    harness = a_service()
+    harness.holding(a_game().in_mulligan().with_hand("Forest").with_library("Island").build())
+    call = {"game_id": GAME_ID, "keep": True, "after": 0}
+    again = sent_twice(harness.service.mulligan, call)
+    assert (again.outcome.status, is_a_resend(again)) == (Status.OK, True)
+
+
+# @spec GAME-054
+def test_an_effect_that_left_a_choice_pending_resent_is_answered_choice_with_its_cards() -> None:
+    harness = a_service()
+    harness.holding(a_game().with_library("Island", "Forest", "Swamp").build())
+    call = {"game_id": GAME_ID, "source": "Ponder", "delta": LOOK, "after": 0}
+    again = sent_twice(harness.service.effect, call)
+    revealed = [event for event in again.outcome.events if isinstance(event, CardsRevealed)]
+    assert (again.outcome.status, len(revealed), is_a_resend(again)) == (Status.CHOICE, 1, True)
+
+
+# @spec GAME-054
+def test_a_play_that_left_a_choice_pending_resent_is_answered_choice_with_its_cards() -> None:
+    harness = a_service()
+    harness.holding(
+        a_game()
+        .with_hand("Ponder")
+        .with_battlefield("Island")
+        .with_library("Island", "Forest", "Swamp")
+        .build()
+    )
+    call = {"game_id": GAME_ID, "card": "Ponder", "delta": LOOK, "after": 0}
+    again = sent_twice(harness.service.play, call)
+    revealed = [event for event in again.outcome.events if isinstance(event, CardsRevealed)]
+    assert (again.outcome.status, len(revealed), is_a_resend(again)) == (Status.CHOICE, 1, True)
+
+
+# @spec GAME-054
+def test_a_choice_resent_after_it_was_made_is_answered_as_a_resend() -> None:
+    harness = a_service()
+    harness.holding(a_game().with_library("Island", "Forest", "Swamp").build())
+    harness.service.effect({"game_id": GAME_ID, "source": "Ponder", "delta": LOOK})
+    pending = harness.game().pending_choice
+    assert pending is not None
+    call = {
+        "game_id": GAME_ID,
+        "choice_id": pending.choice_id,
+        "selections": {"hand": ["Forest"]},
+        "after": 1,
+    }
+    again = sent_twice(harness.service.choose, call)
+    assert (again.outcome.status, is_a_resend(again)) == (Status.OK, True)
+
+
+# @spec GAME-054
+def test_a_resend_after_the_status_changed_changes_nothing() -> None:
+    harness = a_service()
+    harness.holding(a_game().build())
+    call = {"game_id": GAME_ID, "result": "win", "notes": "fast", "after": 0}
+    sent_twice(harness.service.end_game, call)
+    assert (harness.game().change, [e.seq for e in harness.records().entries]) == (1, [1])
+
+
+# @spec GAME-052
+def test_a_call_that_is_not_a_resend_is_refused_in_a_status_that_does_not_accept_it() -> None:
+    harness = a_service()
+    harness.holding(a_game().build())
+    harness.service.end_game({"game_id": GAME_ID, "result": "win", "after": 0})
+    answer = harness.service.end_game({"game_id": GAME_ID, "result": "loss", "after": 0})
+    assert errors_of(answer.outcome.summary) == [ErrorKind.NOT_ACCEPTED_IN_STATUS]

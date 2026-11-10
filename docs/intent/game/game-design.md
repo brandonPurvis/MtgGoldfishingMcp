@@ -162,6 +162,8 @@ Ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-t
 
 A tool called in a status that does not accept it is an error that names the status and what can be done instead.
 
+A resend of the game's most recent change is answered as such whatever the status (see The Change Number).
+
 ## Decisions & Alternatives
 
 | Decision | Chosen | Alternatives Considered | Rationale |

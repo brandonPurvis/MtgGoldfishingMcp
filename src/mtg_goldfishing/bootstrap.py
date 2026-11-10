@@ -27,10 +27,9 @@ from fastapi import FastAPI
 
 from mtg_goldfishing.adapters.mcp.app import create_app
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
-from mtg_goldfishing.adapters.memory import InProcessGameLocks
 from mtg_goldfishing.adapters.scryfall import ScryfallCatalog
 from mtg_goldfishing.adapters.sqlite import SchemaTooNew, SqliteStores
-from mtg_goldfishing.adapters.system import RandomIdSource, SystemClock
+from mtg_goldfishing.adapters.system import InProcessGameLocks, RandomIdSource, SystemClock
 from mtg_goldfishing.application.ports import CardCatalog
 from mtg_goldfishing.application.service import Service
 

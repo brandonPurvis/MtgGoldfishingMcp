@@ -137,7 +137,7 @@ def test_an_advance_that_stops_for_a_reminder_says_why_and_what_to_send_next() -
     assert response("advance", outcome_of(situation, result))[:3] == [
         "OK end → cleanup → T7 untap → upkeep",
         "Reminder (upkeep): Phyrexian Arena",
-        'Stopped at upkeep for the reminder. Send advance(to="main1") again to continue.',
+        'Stopped at upkeep for the reminder. Send advance(to="main1", after=0) again to continue.',
     ]
 
 
@@ -150,9 +150,9 @@ def test_several_reminded_permanents_with_one_name_are_counted() -> None:
 # @spec TOOL-026
 def test_an_advance_that_stops_before_cleanup_says_how_many_cards_to_discard() -> None:
     event = AdvanceStopped(StopReason.DISCARD, Step.END, Step.MAIN1, discard_count=2)
-    assert event_lines(event) == [
+    assert event_lines(event, after=42) == [
         "Stopped at end: the hand is over seven cards, so 2 must be discarded in cleanup."
-        ' Send advance(to="main1", discard=[2 cards from hand]) to continue,'
+        ' Send advance(to="main1", discard=[2 cards from hand], after=42) to continue,'
         " or add override if the hand has no maximum size."
     ]
 
@@ -457,3 +457,9 @@ def test_a_stale_change_number_says_where_the_game_is_now() -> None:
         "The game is now at change #42, so your picture of it is stale."
         " Check the latest status line or call get_state, then send the call with after=42."
     )
+
+
+# @spec APP-020
+def test_an_internal_failure_says_it_was_inside_the_service_and_not_caused_by_the_call() -> None:
+    text = error_text(Error(ErrorKind.INTERNAL_FAILURE))
+    assert ("inside the service" in text, "not caused by the call" in text) == (True, True)

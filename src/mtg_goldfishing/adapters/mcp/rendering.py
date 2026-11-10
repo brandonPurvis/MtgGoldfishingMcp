@@ -102,11 +102,12 @@ def response_lines(tool: str, outcome: Outcome) -> list[str]:
     if isinstance(outcome.payload, StateListing):
         lines.extend(state_lines(outcome.payload))
     raised: list[NoticeKind] = []
+    after = outcome.game.change if outcome.game else None
     for event in sorted(outcome.events, key=_place_in_order):
         if isinstance(event, NoticeRaised):
             raised.append(event.notice)
         else:
-            lines.extend(event_lines(event, tool))
+            lines.extend(event_lines(event, tool, after))
     standing = outcome.game.notices if outcome.game else ()
     notices = list(dict.fromkeys((*raised, *standing)))
     lines.extend(notice_line(notice) for notice in notices)
@@ -370,19 +371,21 @@ def _reminder(event: ReminderIssued) -> str:
     return f"Reminder ({event.step.value}): {', '.join(named)}"
 
 
-def _stopped(event: AdvanceStopped) -> str:
+def _stopped(event: AdvanceStopped, after: int | None) -> str:
+    """Why the advance stopped, and the call to send next, with the change number to pass."""
     to = f'to="{event.to.value}"' if event.to is not None else ""
+    following = f"after={after}" if after is not None else ""
     match event.reason:
         case StopReason.REMINDER:
+            arguments = ", ".join(part for part in (to, following) if part)
             return (
                 f"Stopped at {event.step.value} for the reminder."
-                f" Send advance({to}) again to continue."
+                f" Send advance({arguments}) again to continue."
             )
         case StopReason.DISCARD:
             count = event.discard_count
-            arguments = ", ".join(
-                part for part in (to, f"discard=[{_plural(count, 'card')} from hand]") if part
-            )
+            discard = f"discard=[{_plural(count, 'card')} from hand]"
+            arguments = ", ".join(part for part in (to, discard, following) if part)
             return (
                 f"Stopped at {event.step.value}: the hand is over {_number_word(MAXIMUM_HAND)}"
                 f" cards, so {count} must be discarded in cleanup. Send advance({arguments})"
@@ -430,8 +433,12 @@ def _deck_loaded(event: DeckLoaded) -> list[str]:
     return [headline, *report_lines(event.report)]
 
 
-def event_lines(event: Event, tool: str | None = None) -> list[str]:
-    """The one rendering of each event type. `tool` words what an override would do."""
+def event_lines(event: Event, tool: str | None = None, after: int | None = None) -> list[str]:
+    """The one rendering of each event type.
+
+    `tool` words what an override would do; `after` is the game's change number, for an
+    event that says what call to send next.
+    """
     match event:
         case StepsEntered():
             return _steps(event)
@@ -502,7 +509,7 @@ def event_lines(event: Event, tool: str | None = None) -> list[str]:
         case ReminderIssued():
             return [_reminder(event)]
         case AdvanceStopped():
-            return [_stopped(event)]
+            return [_stopped(event, after)]
         case ExpectationMismatched():
             return [f"Warning: {event.key} is {event.actual}, expected {event.expected}"]
         case NoticeRaised():

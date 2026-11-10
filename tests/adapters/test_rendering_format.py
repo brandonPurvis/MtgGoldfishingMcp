@@ -10,6 +10,7 @@ from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Outcome, Status
 from mtg_goldfishing.domain.events import (
     AdvanceStopped,
+    AlreadyApplied,
     AssumptionKind,
     AssumptionMade,
     AttackerDamage,
@@ -17,6 +18,7 @@ from mtg_goldfishing.domain.events import (
     CardsDrawn,
     CardsRevealed,
     CheckKind,
+    ChecksOverridden,
     CombatDamageDealt,
     CostPaid,
     DeckLoaded,
@@ -184,6 +186,21 @@ def test_event_lines_appear_in_the_fixed_order_whatever_order_they_happened_in()
         "Stopped",
         "Warning:",
         "Notice:",
+    ]
+
+
+# @spec TOOL-016
+def test_already_applied_and_overridden_checks_come_before_the_steps_entered() -> None:
+    events = (
+        StepsEntered((EnteredStep(7, Step.UNTAP),)),
+        ChecksOverridden((COST_CHECK,), "Cost reducer in play"),
+        AlreadyApplied(41),
+    )
+    outcome = Outcome(Status.OK, EffectRecorded("x"), events, game=a_summary())
+    assert [line.split(" ")[0] for line in lines("effect", outcome)[1:-1]] == [
+        "Already",
+        "Overridden",
+        "T7",
     ]
 
 

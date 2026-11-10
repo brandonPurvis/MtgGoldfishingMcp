@@ -151,8 +151,8 @@ def error_text(error: Error) -> str:
             return "The game changed while this call was applied, so nothing was. Send it again."
         case ErrorKind.INTERNAL_FAILURE:
             return (
-                "Something failed inside the service and nothing was applied."
-                " Send the call again; if it fails again, report it."
+                "Something failed inside the service, not caused by the call, and nothing was"
+                " applied. Send the call again; if it fails again, report it."
             )
         case _:
             assert_never(error.kind)

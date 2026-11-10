@@ -39,6 +39,26 @@ def check_accepted(game: Game, tool: str) -> Error | None:
     )
 
 
+# @spec GAME-036, GAME-054
+def resend_of(
+    game: Game, tool: str, arguments: Mapping[str, object], after: int | None
+) -> Resent | None:
+    """The most recent change's original report when the call resends it, else None.
+
+    A resend is recognised whatever the game's status, so it is asked before the status is.
+    """
+    last = game.last_change
+    if (
+        after is not None
+        and after == game.change - 1
+        and last is not None
+        and last.tool == tool
+        and last.arguments == arguments_without_after(arguments)
+    ):
+        return Resent(game, last.summary, (*last.events, AlreadyApplied(game.change)))
+    return None
+
+
 # @spec GAME-035, GAME-036, GAME-037
 def follow_change(
     game: Game, tool: str, arguments: Mapping[str, object], after: int | None
@@ -50,14 +70,9 @@ def follow_change(
     """
     if after is None or after == game.change:
         return None
-    last = game.last_change
-    if (
-        after == game.change - 1
-        and last is not None
-        and last.tool == tool
-        and last.arguments == arguments_without_after(arguments)
-    ):
-        return Resent(game, last.summary, (*last.events, AlreadyApplied(game.change)))
+    resent = resend_of(game, tool, arguments, after)
+    if resent is not None:
+        return resent
     return Refusal.error(Error(ErrorKind.STALE_CHANGE, number=game.change))
 
 

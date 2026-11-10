@@ -6,7 +6,7 @@ Design: `records-design.md`. Prefix: `REC`.
 
 - [x] **REC-001**: When a changing call is accepted, from `new_game` through `end_game`, the service shall append one log entry for the game whose `seq` equals the game's change number after the call.
 - [x] **REC-002**: The service shall append no log entry for a refused call, for `get_state` or `get_log`, or for a resent call that was recognised and not applied again.
-- [x] **REC-003**: A log entry shall record the turn and step the game was in when the call was made, the tool, and the call's arguments as received.
+- [x] **REC-003**: A log entry shall record the turn and step the game was in when the call was made, the tool, and the arguments as received, with object and list parameters given as JSON strings decoded.
 - [x] **REC-004**: A log entry for `play` or `effect` shall record the card played or the effect's source, the zone a played card came from, the delta as applied including what the service added, the choices, and the payment made.
 - [x] **REC-005**: A log entry shall record the agent's `reason` verbatim.
 - [x] **REC-006**: A log entry shall record any `override` reason, the rule checks it overrode, any `expect` mismatches, any assumptions the service made, the cards drawn, the steps entered, the reminders issued and the notices first raised by the call.
@@ -29,7 +29,7 @@ Design: `records-design.md`. Prefix: `REC`.
 
 ## Call records
 
-- [x] **REC-017**: When any tool call is received, whatever its outcome and whether or not it names an existing game, the service shall store one call record holding the time, the game id as supplied, the tool, the arguments as received, the status, the response exactly as returned, whether the call carried an override, and the game's change number after the call.
+- [x] **REC-017**: When any tool call is received, whatever its outcome and whether or not it names an existing game, the service shall store one call record holding the time, the game id as supplied, the tool, the arguments as received, with object and list parameters given as JSON strings decoded, the status, the response exactly as returned, whether the call carried an override, and the game's change number after the call.
 - [x] **REC-018**: When a `get_log` call succeeds, its call record's response shall hold a one-line note of the export's size in place of the export.
 
 ## `get_log`

@@ -75,11 +75,17 @@ class Shaped:
 
 @dataclass(frozen=True)
 class Misshapen:
-    """A call the adapter cannot shape; `problems` names each argument at fault."""
+    """A call the adapter cannot shape; `problems` names each argument at fault.
+
+    `arguments` holds the call's arguments as received, with each one that has its
+    parameter's shape decoded where it was sent as a JSON string.
+    """
 
     problems: tuple[str, ...] = field(default=())
+    arguments: dict[str, object] = field(default_factory=dict)
 
 
+# @spec REC-017
 def shape(parameters: Sequence[Parameter], arguments: Mapping[str, object]) -> Shaped | Misshapen:
     """The call's arguments shaped to `parameters`, or every argument that could not be."""
     known = {parameter.name: parameter for parameter in parameters}
@@ -99,7 +105,8 @@ def shape(parameters: Sequence[Parameter], arguments: Mapping[str, object]) -> S
         else:
             shaped[parameter.name] = fitted.value
     if problems:
-        return Misshapen(tuple(problems))
+        received = {name: shaped.get(name, value) for name, value in arguments.items()}
+        return Misshapen(tuple(problems), received)
     return Shaped(shaped)
 
 

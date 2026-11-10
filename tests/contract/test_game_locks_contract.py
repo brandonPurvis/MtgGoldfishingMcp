@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import pytest
 
-from mtg_goldfishing.adapters.memory import InProcessGameLocks
+from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application.ports import GameLocks
 
 WAIT = 5.0

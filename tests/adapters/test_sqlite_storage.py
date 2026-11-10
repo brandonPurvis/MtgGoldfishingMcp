@@ -195,7 +195,7 @@ def test_a_game_being_written_reads_as_it_was_until_its_unit_of_work_commits(
 
 
 # @spec STOR-009
-def test_another_game_written_while_a_game_is_being_written_is_saved(
+def test_a_write_to_another_game_waits_at_most_for_the_open_write_and_is_saved(
     stores: SqliteStores,
 ) -> None:
     stores.games.add(a_game().build().game)
