@@ -223,10 +223,18 @@ def _revealed(card: CardInstance) -> RevealedCard:
 
 
 def _pend(
-    game: Game, source: str, kind: str, cards: Sequence[CardInstance], rest: Destination | None
+    game: Game,
+    source: str,
+    kind: str,
+    cards: Sequence[CardInstance],
+    rest: Destination | None,
+    *,
+    from_bottom: bool = False,
 ) -> list[Event]:
     choice_id = game.new_choice_id()
-    game.pending_choice = PendingChoice(choice_id, source, kind, [c.id for c in cards], rest)
+    game.pending_choice = PendingChoice(
+        choice_id, source, kind, [c.id for c in cards], rest, from_bottom
+    )
     game.status = GameStatus.PENDING_CHOICE
     return [CardsRevealed(choice_id, kind, tuple(_revealed(c) for c in cards))]
 
@@ -235,7 +243,14 @@ def _look(game: Game, look: Look, source: str) -> list[Event]:
     ids = list(reversed(game.library[-look.n :])) if look.from_bottom else game.library[: look.n]
     if not ids:
         return [NothingRevealed("look")]
-    return _pend(game, source, "look", [game.instance(i) for i in ids], look.rest)
+    return _pend(
+        game,
+        source,
+        "look",
+        [game.instance(i) for i in ids],
+        look.rest,
+        from_bottom=look.from_bottom,
+    )
 
 
 def _matches_filter(deck: LoadedDeck, card: CardInstance, text: str) -> bool:

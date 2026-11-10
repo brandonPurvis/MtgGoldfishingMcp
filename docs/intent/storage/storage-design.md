@@ -34,7 +34,7 @@ A tool call's writes — the game's new state, its log entry, any snapshots, and
 
 ## Concurrency
 
-The database runs in WAL mode so readers do not block writers. Calls for the same game are applied one at a time: each use case holds the game's lock for the duration of a call, through the `GameLocks` port, which is implemented in-process. In addition, each save checks the game's version counter and increments it; a save against a stale version fails rather than overwriting. Within one process the lock makes that failure unreachable; the counter exists so that correctness does not depend on there being one process. If it does occur, nothing is saved and the agent receives an `ERROR` saying the game changed underneath the call and to send it again.
+The database runs in WAL mode so readers do not block writers. A write to one game made while another game's unit of work is open waits for that unit to end, up to a busy timeout of 5 seconds, and is not refused before then. Calls for the same game are applied one at a time: each use case holds the game's lock for the duration of a call, through the `GameLocks` port, which is implemented in-process. In addition, each save checks the game's version counter and increments it; a save against a stale version fails rather than overwriting. Within one process the lock makes that failure unreachable; the counter exists so that correctness does not depend on there being one process. If it does occur, nothing is saved and the agent receives an `ERROR` saying the game changed underneath the call and to send it again.
 
 Read-only calls (`get_state`, `get_log`) take the same per-game lock, so they never see a half-applied change. Their call records are written in their own transaction.
 

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from mtg_goldfishing.domain.cards import Card, Face
 from mtg_goldfishing.domain.game.ending import end_game
 from mtg_goldfishing.domain.game.results import Applied
+from mtg_goldfishing.domain.mana import ManaString
+from mtg_goldfishing.domain.play.playing import play
+from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
 from mtg_goldfishing.domain.records.model import HandCard, PermanentRecord, ReminderRecord
 from mtg_goldfishing.domain.records.snapshots import take_snapshot
 from mtg_goldfishing.domain.steps import Step
@@ -112,8 +116,6 @@ def test_mana_available_is_counted_on_entering_the_first_main_step() -> None:
 
 # @spec REC-016
 def test_mana_spent_counts_mana_symbols_paid_but_not_life() -> None:
-    from mtg_goldfishing.domain.play.playing import play  # noqa: PLC0415
-
     situation = (
         a_game()
         .in_step(Step.MAIN1)
@@ -127,3 +129,43 @@ def test_mana_spent_counts_mana_symbols_paid_but_not_life() -> None:
         situation.game = result.game
     snapshot = snapshot_at_cleanup(situation)
     assert snapshot.mana_spent == 3
+
+
+# @spec REC-015
+def test_mana_available_ignores_tapped_state_and_summoning_sickness() -> None:
+    situation = (
+        a_game()
+        .in_step(Step.DRAW, turn=4)
+        .with_battlefield("Forest", tapped=True)
+        .with_battlefield("Llanowar Elves", entered_turn=4)
+        .build()
+    )
+    result = advance(situation.game, situation.deck)
+    assert isinstance(result, Applied)
+    assert result.game.turn_stats.mana_available == 2
+
+
+# @spec REC-016
+def test_mana_spent_counts_a_generic_symbol_as_its_number() -> None:
+    big = Card("Big Beast", (Face("Big Beast", ManaString.parse("{4}{G}"), "Creature — Beast"),))
+    situation = (
+        a_game()
+        .in_step(Step.MAIN1)
+        .with_card(big, CardReading((FaceReading(),)))
+        .with_battlefield(*("Forest",) * 5)
+        .with_hand("Big Beast")
+        .build()
+    )
+    result = play(situation.game, situation.deck, card="Big Beast")
+    assert isinstance(result, Applied), result
+    situation.game = result.game
+    assert snapshot_at_cleanup(situation).mana_spent == 5
+
+
+# @spec REC-014
+def test_payable_pays_phyrexian_symbols_with_mana_not_life() -> None:
+    situation = (
+        a_game().in_step(Step.MAIN2).with_battlefield("Forest").with_hand("Dismember").build()
+    )
+    snapshot = snapshot_at_cleanup(situation)
+    assert snapshot.hand == (HandCard("Dismember", payable=False),)

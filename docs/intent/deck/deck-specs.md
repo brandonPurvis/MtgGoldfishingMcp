@@ -7,13 +7,13 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-001**: When parsing the `cards` text given to `load_deck`, the deck parser shall read each non-ignored line as `<count> <name>`, `<count>x <name>`, or a bare `<name>` with a count of one.
 - [x] **DECK-002**: When parsing the `cards` text given to `load_deck`, the deck parser shall ignore blank lines and lines that start with `#` or `//`.
 - [x] **DECK-003**: When a deck list line carries a set code in parentheses after the card name, the deck parser shall drop the set code and everything after it.
-- [x] **DECK-004**: When the same card appears on more than one deck list line, the deck parser shall add the counts together.
+- [x] **DECK-004**: When more than one deck list line names the same card, by any letter case, its full name or a face name, `load_deck` shall add the counts together.
 - [x] **DECK-005**: If a deck list line gives a count of zero or less, then `load_deck` shall return an error naming the line and create nothing.
-- [x] **DECK-006**: When a card named in the `commander` parameter of `load_deck` also appears in `cards`, `load_deck` shall count that card once.
+- [x] **DECK-006**: When a card named in the `commander` parameter of `load_deck` also appears in `cards`, `load_deck` shall treat one listed copy of that card as the commander.
 
 ## Commanders
 
-- [x] **DECK-007**: If `load_deck` is given no commander or more than two commanders, then `load_deck` shall return an error and create nothing.
+- [x] **DECK-007**: If `load_deck` is given no commander, or more than two distinct commanders (names of the same card counting once), then `load_deck` shall return an error and create nothing.
 - [x] **DECK-008**: If a commander name given to `load_deck` resolves to no card and has no card definition, then `load_deck` shall return an error naming it and create nothing.
 
 ## Card definitions
@@ -28,6 +28,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-016**: When a card definition's `keywords` includes `Haste`, `Vigilance` or `Flash`, the loaded deck shall treat that keyword as the card's own.
 - [x] **DECK-017**: The loaded deck shall hold readings made from each card's data after card definitions have been applied.
 - [x] **DECK-018**: `load_deck` shall never change the shared card cache on account of a card definition.
+- [x] **DECK-039**: If a card definition names a face the card does not have, or two definitions describe the same face of one card, then `load_deck` shall return an error and create nothing.
 
 ## Resolution errors
 

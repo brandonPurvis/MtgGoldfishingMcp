@@ -36,13 +36,13 @@ Names follow the usual rules (see `game`): a name given twice means two differen
 | `untap`, `upkeep`, `draw` | Rule check: combat this early skips the first main step. With an override, proceeds as from `main1`. |
 | `combat_damage` or later | Rule check: combat is over for this turn. With an override this is an additional combat: the game returns to `declare_attackers` of the current turn (see `turn`) and declares. Creatures tapped by an earlier declaration this turn are not refused for being tapped. |
 
-An empty `attackers` list is accepted: it declares no attack, and clears an earlier declaration.
+An empty `attackers` list is accepted: it moves the game and is checked for timing as any attack is, declares no attack, and clears an earlier declaration.
 
 A refused `attack` changes nothing, including the step.
 
 ### What happens on declaring
 
-Each attacker is tapped unless it has vigilance: its own, granted by another permanent the service has read, or listed in `vigilance`. The declaration is stored on the game.
+Each attacker is tapped unless it has vigilance: its own, granted by a permanent the service has read (including the attacker's own grant when that grant includes itself), or listed in `vigilance`. The declaration is stored on the game.
 
 ### Refusals
 
@@ -56,7 +56,7 @@ Rule checks, overridable:
 
 - an attacker whose type line (for a token, its `types`) does not include `Creature`;
 - an attacker that is tapped, other than by an earlier attack declaration this turn;
-- an attacker that entered the battlefield this turn and has no haste — its own, granted, or listed in `haste`;
+- an attacker that entered the battlefield this turn and has no haste — its own, granted by a permanent the service has read (including the attacker's own grant when that grant includes itself), or listed in `haste`;
 - an attacker whose power is not a number (`*`, or absent) with no entry in `damage`;
 - the two timing checks in the table above.
 

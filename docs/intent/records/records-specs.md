@@ -23,9 +23,9 @@ Design: `records-design.md`. Prefix: `REC`.
 - [x] **REC-011**: When the game enters `cleanup`, after any discard, the service shall write a snapshot for the turn holding the hand, the battlefield with tapped state and counters, the graveyard, the number of lands, mana available, mana spent, whether a land drop was made, life, damage dealt, commander damage and unanswered reminders.
 - [x] **REC-012**: When `end_game` is called during a turn that has no snapshot, the service shall write a snapshot for that turn.
 - [x] **REC-013**: The service shall write at most one snapshot per turn of a game.
-- [x] **REC-014**: A snapshot shall mark each card in hand `payable` when the mana cost of the card's first face, with X as 0, could be paid if every mana source the auto payment system may use on its own were untapped, and shall mark every land `payable`.
-- [x] **REC-015**: A snapshot's `mana_available` shall be the most mana the mana sources the auto payment system may use on its own could make, counted when the game entered the turn's `main1`.
-- [x] **REC-016**: A snapshot's `mana_spent` shall be the number of mana symbols paid across the turn's payments, not counting life.
+- [x] **REC-014**: A snapshot shall mark each card in hand `payable` when the mana cost of the card's first face, with X as 0 and each Phyrexian symbol paid with mana, could be paid if every mana source the auto payment system may use on its own were untapped, and shall mark every land `payable`.
+- [x] **REC-015**: A snapshot's `mana_available` shall be the most mana the mana sources the auto payment system may use on its own could make, counted when the game entered the turn's `main1`, ignoring tapped state and summoning sickness.
+- [x] **REC-016**: A snapshot's `mana_spent` shall be the amount of mana paid across the turn's payments, a generic symbol counting as its number and a generic hybrid paid as generic as two, not counting life.
 
 ## Call records
 

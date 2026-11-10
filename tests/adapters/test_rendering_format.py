@@ -102,6 +102,14 @@ def test_the_status_line_shows_turn_step_hand_lands_pool_life_damage_commander_t
     )
 
 
+# @spec TOOL-017
+def test_the_status_line_shows_damage_to_each_opponent_and_an_empty_pool_as_braces() -> None:
+    commanders = (CommanderStatus(ATRAXA, (3, 0, 5), 0),)
+    outcome = Outcome(Status.OK, EffectRecorded("x"), game=a_summary(commanders=commanders))
+    assert " · Pool {} · " in lines("effect", outcome)[-1]
+    assert " · Cmdr 3/0/5 · " in lines("effect", outcome)[-1]
+
+
 # @spec TOOL-018
 def test_two_commanders_show_one_damage_and_tax_group_each_in_name_order() -> None:
     commanders = (
@@ -134,6 +142,15 @@ def test_for_an_ended_game_the_status_line_begins_with_the_result() -> None:
     summary = a_summary(status=GameStatus.ENDED, result="win")
     outcome = Outcome(Status.OK, StateListed("summary"), game=summary, payload=None)
     assert lines("end_game", outcome)[-1].startswith("Ended (win) · T6 main1 · Hand 4 · ")
+
+
+# @spec TOOL-019, TOOL-021
+def test_a_game_ended_during_mulligans_shows_the_mulligan_status_line() -> None:
+    summary = a_summary(
+        status=GameStatus.ENDED, result="loss", turn=0, step=None, hand=7, mulligans=0, change=2
+    )
+    outcome = Outcome(Status.OK, StateListed("summary"), game=summary, payload=None)
+    assert lines("end_game", outcome)[-1] == "Ended (loss) · Mulligan 0 · Hand 7 · #2"
 
 
 # @spec TOOL-022

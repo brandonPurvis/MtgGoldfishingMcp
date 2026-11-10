@@ -93,7 +93,7 @@ def test_the_call_record_keeps_the_text_the_renderer_produced() -> None:
     assert harness.last_call().response == answer.response
 
 
-# @spec REC-018
+# @spec REC-018, APP-026
 def test_a_successful_get_log_s_call_record_keeps_a_note_of_the_export_s_size() -> None:
     harness = harness_with_forest_in_hand()
     answer = harness.service.get_log({"game_id": GAME_ID})

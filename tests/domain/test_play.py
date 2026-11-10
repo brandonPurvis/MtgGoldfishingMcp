@@ -330,6 +330,16 @@ def test_an_explicit_cost_on_play_fails_a_rule_check_without_override() -> None:
     assert [c.kind for c in result.checks] == [CheckKind.EXPLICIT_COST]
 
 
+# @spec PAY-036
+def test_an_explicit_cost_on_play_has_its_x_replaced_by_the_announced_x() -> None:
+    situation = a_game().with_hand("Fireball").with_battlefield("Mountain", "Mountain").build()
+    result = played(
+        situation, "Fireball", pay={"cost": "{X}"}, choices={"x": 2}, override="cost reduced"
+    )
+    paid = next(e for e in result.events if isinstance(e, CostPaid))
+    assert paid.cost == M("{2}")
+
+
 # @spec PAY-040
 def test_an_explicit_cost_on_an_effect_is_not_a_rule_check() -> None:
     situation = a_game().with_battlefield("Mountain").build()
@@ -506,6 +516,17 @@ def test_a_card_fetched_to_the_top_of_the_library_stays_on_top_after_the_shuffle
     assert situation.game.shuffles == 1
 
 
+# @spec PLAY-040
+def test_a_list_fetched_to_the_library_is_placed_top_to_bottom() -> None:
+    situation = a_game().with_library("Island", "Forest", "Swamp", "Plains", "Mountain").build()
+    recorded(
+        situation,
+        {"fetch": {"library_top": ["Mountain", "Plains"], "library_bottom": ["Island", "Swamp"]}},
+    )
+    library = situation.names_in(Zone.LIBRARY)
+    assert (library[:2], library[-2:]) == (["Mountain", "Plains"], ["Island", "Swamp"])
+
+
 # @spec PLAY-041
 def test_fetching_a_card_not_in_the_library_is_an_error() -> None:
     situation = a_game().with_library("Island").build()
@@ -629,6 +650,14 @@ def test_look_reveals_cards_from_an_end_of_the_library_and_waits_for_a_choice() 
     assert situation.game.status is GameStatus.PENDING_CHOICE
 
 
+# @spec PLAY-056
+def test_look_reveals_from_the_top_when_no_end_is_stated() -> None:
+    situation = a_game().with_library("Island", "Forest", "Swamp", "Plains").build()
+    result = recorded(situation, {"look": {"n": 2, "rest": "library_bottom"}})
+    revealed = next(e for e in result.events if isinstance(e, CardsRevealed))
+    assert [c.name for c in revealed.cards] == ["Island", "Forest"]
+
+
 # @spec PLAY-057
 def test_look_without_rest_is_an_error() -> None:
     situation = a_game().with_library("Island").build()
@@ -642,6 +671,21 @@ def test_search_reveals_the_library_sorted_by_name_and_filtered() -> None:
     result = recorded(situation, {"search": {"filter": "basic"}})
     revealed = next(e for e in result.events if isinstance(e, CardsRevealed))
     assert [c.name for c in revealed.cards] == ["Forest", "Island", "Swamp"]
+
+
+# @spec PLAY-058
+def test_search_filter_matches_any_face_s_type_line() -> None:
+    situation = (
+        a_game()
+        .with_library("Island", "Sea Gate Restoration // Sea Gate, Reborn", "Ponder")
+        .build()
+    )
+    result = recorded(situation, {"search": {"filter": "land"}})
+    revealed = next(e for e in result.events if isinstance(e, CardsRevealed))
+    assert [c.name for c in revealed.cards] == [
+        "Island",
+        "Sea Gate Restoration // Sea Gate, Reborn",
+    ]
 
 
 # @spec PLAY-059, PLAY-060
@@ -680,6 +724,33 @@ def test_rest_order_decides_the_order_of_the_rest() -> None:
         rest_order=["Swamp", "Island", "Forest"],
     )
     assert situation.names_in(Zone.LIBRARY) == ["Swamp", "Island", "Forest", "Plains"]
+
+
+# @spec PLAY-063
+def test_the_rest_of_a_bottom_look_returned_to_the_bottom_keeps_its_order() -> None:
+    situation = a_game().with_library("Island", "Forest", "Swamp", "Plains").build()
+    recorded(situation, {"look": {"n": 3, "from": "bottom", "rest": "library_bottom"}})
+    assert situation.game.pending_choice is not None
+    chosen(situation, choice_id=situation.game.pending_choice.choice_id, selections={})
+    assert situation.names_in(Zone.LIBRARY) == ["Island", "Forest", "Swamp", "Plains"]
+
+
+# @spec PLAY-063
+def test_the_rest_of_a_top_look_returned_to_the_top_keeps_its_order() -> None:
+    situation = a_game().with_library("Island", "Forest", "Swamp", "Plains").build()
+    recorded(situation, {"look": {"n": 3, "from": "top", "rest": "library_top"}})
+    assert situation.game.pending_choice is not None
+    chosen(situation, choice_id=situation.game.pending_choice.choice_id, selections={})
+    assert situation.names_in(Zone.LIBRARY) == ["Island", "Forest", "Swamp", "Plains"]
+
+
+# @spec PLAY-063
+def test_the_rest_of_a_bottom_look_sent_to_the_top_goes_in_the_order_revealed() -> None:
+    situation = a_game().with_library("Island", "Forest", "Swamp", "Plains").build()
+    recorded(situation, {"look": {"n": 2, "from": "bottom", "rest": "library_top"}})
+    assert situation.game.pending_choice is not None
+    chosen(situation, choice_id=situation.game.pending_choice.choice_id, selections={})
+    assert situation.names_in(Zone.LIBRARY) == ["Plains", "Swamp", "Island", "Forest"]
 
 
 # @spec PLAY-064

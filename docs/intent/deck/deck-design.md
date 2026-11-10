@@ -29,9 +29,9 @@ load_deck(cards, commander, definitions?, refresh?, override?)
 
 Each line is `<count> <name>`, `<count>x <name>`, or a bare `<name>` (count 1). Blank lines and lines starting with `#` or `//` are ignored. Trailing printing details, as exported by deck sites, are dropped: a set code in parentheses and anything after it (`1 Sol Ring (C21) 263 *F*` is `1 Sol Ring`). A line that fits none of these is an error naming the line.
 
-A commander that also appears in `cards` is counted once. The deck is the commander or commanders plus every other entry.
+When a commander also appears in `cards`, one listed copy of it is the commander; any further copies stay entries, and the singleton check judges them. The deck is the commander or commanders plus every other entry.
 
-A card that appears on more than one line has its counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
+A card named on more than one line — in any letter case, by its full name or by a face name — has its counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
 
 ### Card definitions
 
@@ -62,10 +62,11 @@ Readings (see `card-reading`) are made from the card data after definitions have
 `load_deck` fails with an **error**, creating nothing, when:
 
 - a line cannot be parsed;
-- no commander is given, more than two are given, or a commander name is not resolved;
+- no commander is given, more than two distinct commanders are given (names of the same card count once), or a commander name is not resolved;
 - a name is not found by Scryfall and has no definition (all such names are listed together);
 - card data is unavailable for a name that is not cached and has no definition giving a `type_line` (the names are listed, and the response says the failure is temporary);
-- a definition names a card that is not in the deck, or defines an unfound card without a `type_line`.
+- a definition names a card that is not in the deck, or defines an unfound card without a `type_line`;
+- a definition names a face the card does not have, or two definitions describe the same face of one card.
 
 ## Deck Checks
 

@@ -26,9 +26,9 @@ Design: `tools-design.md`. Prefix: `TOOL`.
 - [x] **TOOL-014**: Every tool except a successful `get_log` shall respond with a single text item made of a status-and-summary line, zero or more event lines, and, for a response about an existing game, a status line.
 - [x] **TOOL-015**: The first word of a text response shall be `OK`, `REJECTED`, `ERROR` or `CHOICE`.
 - [x] **TOOL-016**: Event lines shall appear in this order when present: a statement that the call was already applied; overridden rule checks; steps entered; payment; moves, tokens created and cards drawn; cards revealed for a pending choice with its choice id; combat damage per attacker; assumptions; reminders; why an advance stopped; expectation warnings; notices.
-- [x] **TOOL-017**: The status line for a started game shall read `T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>`.
+- [x] **TOOL-017**: The status line for a started game shall read `T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>`, where `Cmdr` shows that commander's damage to each opponent and an empty pool reads `{}`.
 - [x] **TOOL-018**: While a game has two commanders, the status line shall show `Cmdr` and `Tax` as one group per commander separated by `|`, in the commanders' name order.
-- [x] **TOOL-019**: While a game's status is `mulligan`, the status line shall read `Mulligan <k> · Hand <n> · #<change>`.
+- [x] **TOOL-019**: While a game has no step (its status is `mulligan`, or it ended before the hand was kept), the status line shall read `Mulligan <k> · Hand <n> · #<change>`, where `<k>` is the number of mulligans taken.
 - [x] **TOOL-020**: While a game has a pending choice, the status line shall end with ` · CHOICE pending`.
 - [x] **TOOL-021**: While a game's status is `ended`, the status line shall begin with `Ended (<result>) · `.
 - [x] **TOOL-022**: When a response does not concern an existing game, the response shall have no status line.
@@ -40,7 +40,7 @@ Design: `tools-design.md`. Prefix: `TOOL`.
 ## MCP details
 
 - [x] **TOOL-027**: When a response's status is `ERROR`, the MCP result shall set its error flag; when the status is `OK`, `REJECTED` or `CHOICE`, it shall not.
-- [x] **TOOL-028**: If a tool call's arguments are missing, of the wrong type or otherwise malformed, then the MCP adapter shall respond in the text `ERROR` format rather than with a protocol-level fault, and a call record shall be stored for the call.
+- [x] **TOOL-028**: If a tool call's arguments are missing, of the wrong type or otherwise malformed, then the MCP adapter shall respond in the text `ERROR` format rather than with a protocol-level fault, and a call record shall be stored for the call. An argument name the tool does not have is malformed. A call naming a tool that does not exist is answered as a protocol error.
 
 ## Player brief
 

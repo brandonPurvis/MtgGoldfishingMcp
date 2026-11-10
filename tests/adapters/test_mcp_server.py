@@ -1,6 +1,8 @@
 """The MCP server as a client sees it: tools listed, instructions given, results returned."""
 
+import pytest
 from mcp import Client
+from mcp.shared.exceptions import MCPError
 from mcp.types import TextContent
 
 from mtg_goldfishing.adapters.mcp.instructions import SERVER_INSTRUCTIONS
@@ -112,3 +114,14 @@ async def test_a_malformed_call_over_mcp_is_kept_as_a_call_record() -> None:
         await client.call_tool("play", {"game_id": game_id})
 
     assert (harness.last_call().tool, harness.last_call().game_id) == ("play", game_id)
+
+
+# @spec TOOL-028
+async def test_a_call_naming_a_tool_that_does_not_exist_is_a_protocol_error() -> None:
+    client, harness = _client()
+
+    async with client:
+        with pytest.raises(MCPError):
+            await client.call_tool("cast", {"card": "Forest"})
+
+    assert harness.calls() == ()

@@ -16,7 +16,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 ## Shuffling and hidden information
 
-- [x] **GAME-010**: When the library is shuffled, the game shall order it by a Fisher–Yates shuffle driven only by the basic uniform float of a generator seeded with the integer value of the SHA-256 hash of the text `<seed>:<n>`, where `n` is the number of shuffles the game has already performed.
+- [x] **GAME-010**: When the library is shuffled, the game shall order it by a Fisher–Yates shuffle driven only by the basic uniform float of a generator seeded with the integer value of the SHA-256 hash of the text `<seed>:<n>`, where `n` is the number of shuffles the game has already performed, using Python's `random.Random` seeded with that integer, iterating i from the last index down to 1 and swapping index i with index ⌊random()·(i+1)⌋.
 - [x] **GAME-011**: When two games are created from the same loaded deck with the same seed and receive the same sequence of calls, the games shall hold identical state after every call.
 - [x] **GAME-012**: The service shall never include the order of a game's library, or the identity of a library card that has not been drawn, fetched or revealed, in any tool response or record.
 
@@ -26,7 +26,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-014**: When a card name matches several instances in the zone an operation expects, the game shall choose an untapped instance for tapping or paying and a tapped instance for untapping, and otherwise the instance with the lowest instance id.
 - [x] **GAME-015**: When the instances matching a card name differ in tapped state, counters or face, the outcome shall identify the chosen instance by its instance id.
 - [x] **GAME-016**: If a card name matches nothing in the zone an operation expects, then the operation shall return an error, which names the zone holding that card when the card exists in a different zone.
-- [x] **GAME-017**: When a card name appears more than once in one list argument, the game shall resolve each appearance to a different instance.
+- [x] **GAME-017**: When a card name appears more than once in one list argument, or alongside instance ids of matching cards, the game shall resolve instance ids first and then each appearance of a name to a different instance not already named.
 - [x] **GAME-018**: If a card name appears in one list argument more times than there are matching instances, or an instance id appears twice in one list argument, then the operation shall return an error.
 - [x] **GAME-019**: When a tool argument is a map keyed by card, the game shall accept an instance id as a key in the same way as a card name.
 - [x] **GAME-020**: When a card leaves the battlefield, the game shall set that card to its first face.

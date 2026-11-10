@@ -122,7 +122,7 @@ For a tool that changes a game:
 3. Ask the game whether the call is a resend of its most recent change (see `game`). If it is, answer it as already applied, whatever the game's status.
 4. Ask the game whether its status accepts the tool. If not, return an error outcome.
 5. Ask the game whether the call follows its change number: apply, or refuse as stale.
-6. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this).
+6. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this). A card definition given with the call does not skip the lookup: its fields replace the fetched ones it names.
 7. Call the domain operation.
 8. If applied: build the log entry and any snapshot, and save game, entry and snapshot in one unit of work.
 9. Whatever happened: render the outcome through `Renderer` and add the call record with that text, in the unit of work of step 8 or in its own if step 8 saved nothing.
@@ -132,7 +132,7 @@ Read-only use cases (`get_state`, `get_log`) do steps 1, 2, 4, 9 and 10. `load_d
 
 A call whose arguments the MCP adapter cannot shape at all (a missing parameter, a number where a list belongs) is still handed to the application, which answers it with an `ERROR` outcome — carrying the game summary when the call names an existing game — and adds its call record.
 
-If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service.
+If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service. If even the call record cannot be added, that error is still returned with its rendered text.
 
 ## In-Memory Adapters
 

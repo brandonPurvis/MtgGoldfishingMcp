@@ -70,39 +70,57 @@ def resolve(
 ) -> tuple[list[CardInstance], list[InstanceChosen]] | Error:
     """Resolve each name to a different instance in the expected zones, in zone order.
 
-    A name given more than once means that many different instances. When the matching
-    instances differ from one another, the chosen instance is reported by id.
+    Instance ids are resolved first; each name then takes a matching instance no id or
+    earlier name has taken, so a name given more than once means that many different
+    instances. When the matching instances differ from one another, the chosen instance
+    is reported by id. The result follows the order of the names given.
     """
-    chosen: list[CardInstance] = []
-    reported: list[InstanceChosen] = []
-    seen_ids: set[str] = set()
-    for name in names:
-        if is_instance_id(name):
-            key = name.strip().lower()
-            if key in seen_ids:
-                return Error(ErrorKind.INSTANCE_REPEATED, subject=key)
-            seen_ids.add(key)
-        candidates = [
+
+    def candidates_for(name: str) -> list[CardInstance]:
+        return [
             card
             for zone in zones
             for card in sorted(game.in_zone(zone), key=lambda c: _preference(c, purpose))
             if matches(deck, card, name)
         ]
+
+    picks: dict[int, CardInstance] = {}
+    taken: set[str] = set()
+    for position, name in enumerate(names):
+        if not is_instance_id(name):
+            continue
+        key = name.strip().lower()
+        if key in taken:
+            return Error(ErrorKind.INSTANCE_REPEATED, subject=key)
+        found = candidates_for(name)
+        if not found:
+            return _missing(game, deck, name, zones)
+        picks[position] = found[0]
+        taken.add(key)
+    named_by_id = set(taken)
+    reported: list[InstanceChosen] = []
+    for position, name in enumerate(names):
+        if is_instance_id(name):
+            continue
+        candidates = candidates_for(name)
         if not candidates:
             return _missing(game, deck, name, zones)
-        free = [card for card in candidates if all(card.id != c.id for c in chosen)]
+        free = [card for card in candidates if card.id not in taken]
         if not free:
+            wanted = name.strip().casefold()
             return Error(
                 ErrorKind.TOO_FEW_MATCHING,
                 subject=name,
                 number=len(candidates),
-                expected=sum(1 for n in names if n.strip().casefold() == name.strip().casefold()),
+                expected=sum(1 for n in names if n.strip().casefold() == wanted)
+                + sum(1 for card in candidates if card.id in named_by_id),
             )
         pick = free[0]
-        if not is_instance_id(name) and len(candidates) > 1 and _differ(candidates):
+        if len(candidates) > 1 and _differ(candidates):
             reported.append(InstanceChosen(name, pick.id))
-        chosen.append(pick)
-    return chosen, reported
+        picks[position] = pick
+        taken.add(pick.id)
+    return [picks[position] for position in range(len(names))], reported
 
 
 def resolve_one(

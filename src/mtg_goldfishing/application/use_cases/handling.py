@@ -4,7 +4,7 @@ A call about an existing game holds the game's lock, loads the game and its deck
 them to the tool's own step. Whatever that step decides, the call ends in `Call.finish`:
 the call's saves, if any, and its call record go into one unit of work, holding the text
 `Renderer` produced for the outcome. A call that fails unexpectedly is answered as a
-failure inside the service, still with its call record.
+failure inside the service, still with its call record when that can be added.
 """
 
 from __future__ import annotations
@@ -136,12 +136,20 @@ class Call:
 
     # @spec APP-020
     def guarded(self, answer: Callable[[], Answer]) -> Answer:
-        """The answer, or, if anything fails unexpectedly, an internal failure with its record."""
+        """The answer, or, if anything fails unexpectedly, an internal failure with its record.
+
+        When even that record cannot be added, the internal failure is answered without it.
+        """
         try:
             return answer()
         except Exception:
             _log.exception("the %s call failed inside the service", self.tool)
-            return self.finish(an_error(Error(ErrorKind.INTERNAL_FAILURE), self.game))
+        failure = an_error(Error(ErrorKind.INTERNAL_FAILURE), self.game)
+        try:
+            return self.finish(failure)
+        except Exception:
+            _log.exception("the %s call's record of its failure could not be added", self.tool)
+        return Answer(failure, self.ports.renderer.render(self.tool, failure).response)
 
     def _record(self, outcome: Outcome, response: str) -> CallRecord:
         return CallRecord(

@@ -93,6 +93,14 @@ def test_a_second_attack_replaces_the_first_without_refusing_its_tapped_attacker
     assert result.game.declared_attack.attackers == ["c1", "c2"]
 
 
+# @spec CMBT-004
+def test_attackers_tapped_by_a_replaced_declaration_stay_tapped() -> None:
+    situation = bears(Step.DECLARE_ATTACKERS).with_battlefield("Goblin Guide").build()
+    declared(situation, attackers=["Grizzly Bears"])
+    result = declared(situation, attackers=["Goblin Guide"])
+    assert result.game.instance("c1").tapped
+
+
 # @spec CMBT-005
 def test_attacking_before_the_first_main_step_fails_a_rule_check() -> None:
     situation = bears(Step.UPKEEP).build()
@@ -127,6 +135,20 @@ def test_an_empty_attack_clears_an_earlier_declaration() -> None:
     declared(situation, attackers=["Grizzly Bears"])
     result = declared(situation, attackers=[])
     assert result.game.declared_attack is None
+
+
+# @spec CMBT-009
+def test_an_empty_attack_from_the_first_main_step_moves_to_declare_attackers() -> None:
+    situation = bears().build()
+    result = declared(situation, attackers=[])
+    assert (result.game.step, result.game.declared_attack) == (Step.DECLARE_ATTACKERS, None)
+
+
+# @spec CMBT-009
+def test_an_empty_attack_after_combat_fails_the_timing_check() -> None:
+    situation = bears(Step.MAIN2).build()
+    result = refused(situation, attackers=[])
+    assert [c.kind for c in result.checks] == [CheckKind.COMBAT_OVER]
 
 
 # @spec CMBT-010
@@ -276,6 +298,12 @@ def test_a_creature_with_haste_may_attack_the_turn_it_entered() -> None:
     declared(situation, attackers=["Goblin Guide"])
 
 
+# @spec CMBT-019
+def test_a_creature_whose_own_grant_includes_itself_may_attack_the_turn_it_entered() -> None:
+    situation = a_game().with_battlefield("Goblin Warchief", entered_turn=3).build()
+    declared(situation, attackers=["Goblin Warchief"])
+
+
 # @spec CMBT-020
 def test_an_attacker_whose_power_is_not_a_number_needs_a_damage_entry() -> None:
     situation = a_game().with_battlefield("Tarmogoyf").build()
@@ -330,6 +358,22 @@ def test_a_commander_attacks_opponent_zero_by_default() -> None:
     declared(situation, attackers=["Atraxa, Praetors' Voice"])
     to_damage(situation)
     assert situation.game.commander_damage["c1"] == [4, 0, 0]
+
+
+# @spec CMBT-024
+def test_one_commander_target_number_applies_to_every_attacking_commander() -> None:
+    situation = (
+        a_game()
+        .with_commander("Thrasios, Triton Hero", "Tymna the Weaver", zone=_battlefield())
+        .build()
+    )
+    declared(
+        situation,
+        attackers=["Thrasios, Triton Hero", "Tymna the Weaver"],
+        commander_target=1,
+    )
+    to_damage(situation)
+    assert [situation.game.commander_damage[c] for c in ("c1", "c2")] == [[0, 1, 0], [0, 2, 0]]
 
 
 # @spec CMBT-025

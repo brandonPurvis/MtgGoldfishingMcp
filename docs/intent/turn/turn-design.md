@@ -71,7 +71,7 @@ Entering `cleanup` with more than seven cards in hand therefore needs one of:
 Refusals:
 
 - An advance that *starts* in `end` with more than seven cards in hand and gives neither `discard` nor `override` is refused as a rule check, and the game does not move. This is the same condition as the stop, met when there is nowhere earlier to stop.
-- `discard` naming a number of cards different from the excess, without `override`, is a rule check, and the game does not move.
+- `discard` naming a number of cards different from the excess — counted on entering `cleanup`, so cards drawn on the way count — without `override`, is a rule check, and the game does not move.
 - `discard` naming a card not in hand is an error.
 - `discard` given on an advance that does not enter `cleanup` — because the target is earlier, or the advance stopped for a reminder first — is an error, and the game does not move.
 

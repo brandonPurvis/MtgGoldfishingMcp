@@ -51,6 +51,25 @@ class SnapshotsCannotBeWritten:
         return self._inner.read(game_id, since=since)
 
 
+class CallRecordsCannotBeAdded:
+    """A record store whose disk fills up whenever a call record is added."""
+
+    def __init__(self, inner: InMemoryRecordStore) -> None:
+        self._inner = inner
+
+    def append_entry(self, game_id: str, entry: LogEntry) -> None:
+        self._inner.append_entry(game_id, entry)
+
+    def add_snapshot(self, game_id: str, snapshot: TurnSnapshot) -> None:
+        self._inner.add_snapshot(game_id, snapshot)
+
+    def add_call(self, record: CallRecord) -> None:
+        raise OSError("disk full")
+
+    def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
+        return self._inner.read(game_id, since=since)
+
+
 def errors_of(summary: object) -> list[ErrorKind]:
     assert isinstance(summary, Refused), summary
     return [error.kind for error in summary.errors]
@@ -120,6 +139,26 @@ def test_a_failure_inside_the_service_still_gets_a_call_record() -> None:
     assert [(c.tool, c.status, c.response) for c in harness.calls()] == [
         ("advance", "ERROR", answer.response)
     ]
+
+
+# @spec APP-020
+def test_a_failure_whose_call_record_cannot_be_added_is_still_an_internal_failure_error() -> None:
+    harness = a_service(records=CallRecordsCannotBeAdded)
+    harness.holding(a_game().with_hand("Forest").build())
+    answer = harness.service.play({"game_id": GAME_ID, "card": "Forest"})
+    assert (answer.outcome.status, errors_of(answer.outcome.summary), answer.response) == (
+        Status.ERROR,
+        [ErrorKind.INTERNAL_FAILURE],
+        "ERROR Refused #0",
+    )
+
+
+# @spec APP-017
+def test_an_applied_call_whose_call_record_cannot_be_added_saves_nothing() -> None:
+    harness = a_service(records=CallRecordsCannotBeAdded)
+    harness.holding(a_game().with_hand("Forest").build())
+    harness.service.play({"game_id": GAME_ID, "card": "Forest"})
+    assert (harness.version(), harness.records().entries) == (1, ())
 
 
 def test_a_failure_inside_the_service_carries_the_game_s_summary() -> None:

@@ -34,7 +34,7 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-019**: When an advance enters `cleanup` with more than seven cards in hand, an `override` reason and no `discard`, the game shall enter `cleanup` without discarding.
 - [x] **TURN-020**: When an advance enters `cleanup` with an `override` reason and `discard` naming any number of cards in hand, the game shall discard the cards named.
 - [x] **TURN-021**: If an advance starts in `end` with more than seven cards in hand and gives neither `discard` nor `override`, then `advance` shall fail a rule check and the game shall not move.
-- [x] **TURN-022**: If an advance that enters `cleanup` gives `discard` naming a number of cards different from the number by which the hand exceeds seven and gives no `override`, then `advance` shall fail a rule check and the game shall not move.
+- [x] **TURN-022**: If an advance that enters `cleanup` gives `discard` naming a number of cards different from the number by which the hand exceeds seven on entering `cleanup` and gives no `override`, then `advance` shall fail a rule check and the game shall not move.
 - [x] **TURN-023**: If `discard` names a card that is not in hand, then `advance` shall return an error and the game shall not move.
 - [x] **TURN-024**: If `discard` is given on an advance that does not enter `cleanup`, whether because its target is earlier or because it stops for a reminder first, then `advance` shall return an error and the game shall not move.
 

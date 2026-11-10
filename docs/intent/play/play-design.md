@@ -112,7 +112,7 @@ Keys are applied in the order listed above, whatever order the agent wrote them 
 Details that are not obvious from the shape:
 
 - **`move`** finds each named card among the hand and the public zones — battlefield, graveyard, exile, command — in that order, and the response says which zone it came from. It never takes cards from the library; that is `fetch`.
-- **`fetch`** takes cards from the library by name. A name not in the library is an error. The cards are taken out, the library is shuffled, and only then are any cards destined for `library_top` or `library_bottom` put back, so a card fetched to the top of the library stays on top.
+- **`fetch`** takes cards from the library by name. A name not in the library is an error. The cards are taken out, the library is shuffled, and only then are any cards destined for `library_top` or `library_bottom` put back, so a card fetched to the top of the library stays on top. Each list fetched to the library is placed top to bottom, its first-named card topmost.
 - **`draw`** shows exactly the cards drawn.
 - **`damage`** adds to `damage_dealt`. An effect that hits each opponent for 2 is `damage: 6`.
 - **`look`** and **`search`** create a pending choice instead of completing; they are applied last, so the rest of the delta has already happened.
@@ -155,11 +155,12 @@ PendingChoice {
   kind: "look" | "search"
   revealed: [{ id, name }]
   rest: Destination | "library"
+  from: "top" | "bottom"   // the end a look revealed from
 }
 ```
 
-- **`look`** reveals the top or bottom `n` cards of the library, in order starting from the end looked at: the top card first for `top`, the bottom card first for `bottom`. If the library has fewer than `n`, it reveals what there is. `rest` is required.
-- **`search`** reveals the cards of the library sorted by name, so the order of the library is not disclosed. `filter` limits what is shown to cards whose name or type line contains the filter text, ignoring case. Its `rest` is always `"library"`.
+- **`look`** reveals the top or bottom `n` cards of the library, in order starting from the end looked at: the top card first for `top`, the bottom card first for `bottom`. `from` defaults to `top`. If the library has fewer than `n`, it reveals what there is. `rest` is required.
+- **`search`** reveals the cards of the library sorted by name, so the order of the library is not disclosed. `filter` limits what is shown to cards whose name, or any face's name or type line, contains the filter text, ignoring case. Its `rest` is always `"library"`.
 
 A `look` or `search` that reveals no cards creates no pending choice: the call completes as `OK` and says there was nothing to reveal. A `search` still shuffles the library.
 
@@ -169,7 +170,7 @@ While a choice is pending the game's status is `pending_choice` (see `game`).
 choose(game_id, choice_id, selections, rest_order?)
 ```
 
-`selections` maps destinations to revealed card names. For a `look`, every revealed card not selected goes to the `rest` destination: in `rest_order` if given, otherwise in the order revealed. For a `search`, unselected cards stay in the library and the library is shuffled before any selected cards are put on its top or bottom. Cards selected to `library_top` end up with the first-named card on top, above any `rest` cards that also go to the top.
+`selections` maps destinations to revealed card names. For a `look`, every revealed card not selected goes to the `rest` destination: in `rest_order` if given, listed top to bottom; otherwise cards returned to the end of the library they were looked at from keep their order there, and cards sent anywhere else go in the order revealed. For a `search`, unselected cards stay in the library and the library is shuffled before any selected cards are put on its top or bottom. Cards selected to `library_top` end up with the first-named card on top, above any `rest` cards that also go to the top.
 
 A wrong `choice_id` or a name that was not revealed is an error. Selecting nothing is allowed.
 
