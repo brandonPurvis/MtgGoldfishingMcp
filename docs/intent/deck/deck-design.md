@@ -89,7 +89,7 @@ A loaded deck never changes once created. Every `load_deck` call resolves the ca
 
 If two different decks would ever produce the same id, the newer one's id is lengthened, two characters at a time, until it is unique.
 
-`override` reasons are recorded on the loaded deck each time one is used.
+The `override` reason given when a loaded deck is created is recorded on it. A later `load_deck` that returns the same deck needs its own `override` and leaves the deck as it is; that call's reason is kept in its call record.
 
 ## What a Loaded Deck Holds
 
