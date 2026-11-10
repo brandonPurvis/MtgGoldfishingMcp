@@ -11,3 +11,4 @@ build/
 *.egg-info/
 data/
 .claude/settings.local.json
+.idea/
