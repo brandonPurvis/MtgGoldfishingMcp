@@ -142,7 +142,6 @@ class Attack:
     blocked: list[str] = field(default_factory=list)
     damage: dict[str, int] = field(default_factory=dict)
     commander_targets: dict[str, int] = field(default_factory=dict)
-    tapped_by_declaration: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -172,10 +171,17 @@ class TurnStats:
 
 @dataclass
 class Reminder:
+    """A reminder issued for one permanent this turn.
+
+    `name` is the name of the permanent's face in play when reminded; `card_name` its card
+    name, kept so the reminder can be answered after the permanent has left the battlefield.
+    """
+
     instance_id: str
     name: str
     step: Step
     answered: bool = False
+    card_name: str = ""
 
 
 @dataclass
@@ -216,6 +222,7 @@ class Game:
     cards: list[CardInstance] = field(default_factory=list)
     library: list[str] = field(default_factory=list)
     declared_attack: Attack | None = None
+    tapped_by_attacks: list[str] = field(default_factory=list)  # this turn; reset on untap
     pending_choice: PendingChoice | None = None
     notices: list[NoticeKind] = field(default_factory=list)
     result: Result | None = None

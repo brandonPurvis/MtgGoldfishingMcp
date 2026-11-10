@@ -17,8 +17,8 @@ from mtg_goldfishing.adapters.memory import (
     InMemoryGameRepository,
     InMemoryRecordStore,
     InMemoryStores,
-    InProcessGameLocks,
 )
+from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application.outcome import Answer
 from mtg_goldfishing.application.ports import (
     CardCatalog,

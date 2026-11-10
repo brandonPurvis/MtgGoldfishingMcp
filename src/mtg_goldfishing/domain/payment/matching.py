@@ -8,9 +8,9 @@ is a list of *units*, each the set of kinds it can be.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, replace
-from itertools import product
+from itertools import combinations, product
 
 from mtg_goldfishing.domain.mana import COLORLESS, ManaString, SymbolKind
 
@@ -30,14 +30,25 @@ class Requirement:
     snow: int = 0
 
     @classmethod
-    def of(cls, cost: ManaString, *, phyrexian_life: int) -> Requirement:
-        """The requirement of a cost, paying up to `phyrexian_life` Phyrexian symbols with life."""
+    def of(
+        cls,
+        cost: ManaString,
+        *,
+        phyrexian_life: int = 0,
+        life_for: Collection[int] | None = None,
+    ) -> Requirement:
+        """The requirement of a cost, paying some of its Phyrexian symbols with life.
+
+        `life_for` gives the positions, among the cost's Phyrexian symbols, of those paid
+        with life; without it, the first `phyrexian_life` of them are.
+        """
         constrained: list[Unit] = []
         generic = 0
         generic_hybrid: list[str] = []
         life = 0
         snow = 0
-        life_symbols = phyrexian_life
+        paid_with_life = set(range(phyrexian_life)) if life_for is None else set(life_for)
+        phyrexian = 0
         for symbol in cost.symbols:
             match symbol.kind:
                 case SymbolKind.COLOR:
@@ -54,11 +65,11 @@ class Requirement:
                 case SymbolKind.GENERIC_HYBRID:
                     generic_hybrid.append(symbol.colors[0])
                 case SymbolKind.PHYREXIAN:
-                    if life_symbols > 0:
-                        life_symbols -= 1
+                    if phyrexian in paid_with_life:
                         life += 2
                     else:
                         constrained.append(frozenset(symbol.colors))
+                    phyrexian += 1
                 case SymbolKind.X:
                     pass
         return cls(tuple(constrained), generic, tuple(generic_hybrid), life, snow)
@@ -85,6 +96,23 @@ class Requirement:
 
 def phyrexian_symbols(cost: ManaString) -> int:
     return sum(1 for symbol in cost.symbols if symbol.kind is SymbolKind.PHYREXIAN)
+
+
+def ways_to_pay_phyrexian(cost: ManaString, with_life: int) -> list[tuple[int, ...]]:
+    """The distinct ways to pay `with_life` of a cost's Phyrexian symbols with life.
+
+    Each way is the positions, among the Phyrexian symbols, of those paid with life; ways
+    that differ only between symbols of the same color are given once, in a fixed order.
+    """
+    colors = [s.colors for s in cost.symbols if s.kind is SymbolKind.PHYREXIAN]
+    ways: list[tuple[int, ...]] = []
+    seen: set[tuple[tuple[str, ...], ...]] = set()
+    for way in combinations(range(len(colors)), with_life):
+        paid = tuple(sorted(colors[i] for i in way))
+        if paid not in seen:
+            seen.add(paid)
+            ways.append(way)
+    return ways
 
 
 def _match(requirements: Sequence[Unit], units: Sequence[Unit]) -> list[int | None] | None:
@@ -187,14 +215,19 @@ def _partial_match(requirements: Sequence[Unit], units: Sequence[Unit]) -> list[
 def spend_pool(requirement: Requirement, pool: Sequence[Unit]) -> tuple[Assignment, Requirement]:
     """Spend as much of a requirement as the pool can pay, before any source is tapped.
 
-    Returns how each pool unit was spent and what is left to pay.
+    Pool mana goes to the narrowest requirements first (a single color or colorless before
+    a hybrid), so what is left is as easy as it can be for the sources to pay. Returns how
+    each pool unit was spent and what is left to pay.
     """
-    owner = _partial_match(requirement.constrained, pool)
+    order = sorted(
+        range(len(requirement.constrained)), key=lambda r: (len(requirement.constrained[r]), r)
+    )
+    needs = [requirement.constrained[r] for r in order]
+    owner = _partial_match(needs, pool)
     paid_as: list[str | None] = [
-        None if r is None else _kind_paid(requirement.constrained[r], pool[u])
-        for u, r in enumerate(owner)
+        None if r is None else _kind_paid(needs[r], pool[u]) for u, r in enumerate(owner)
     ]
-    matched = {r for r in owner if r is not None}
+    matched = {order[r] for r in owner if r is not None}
     constrained = tuple(need for r, need in enumerate(requirement.constrained) if r not in matched)
     hybrids_left: list[str] = []
     for color in requirement.generic_hybrid:

@@ -25,7 +25,7 @@ Design: `tools-design.md`. Prefix: `TOOL`.
 
 - [x] **TOOL-014**: Every tool except a successful `get_log` shall respond with a single text item made of a status-and-summary line, zero or more event lines, and, for a response about an existing game, a status line.
 - [x] **TOOL-015**: The first word of a text response shall be `OK`, `REJECTED`, `ERROR` or `CHOICE`.
-- [x] **TOOL-016**: Event lines shall appear in this order when present: steps entered; payment; moves, tokens created and cards drawn; cards revealed for a pending choice with its choice id; combat damage per attacker; assumptions; reminders; why an advance stopped; expectation warnings; notices.
+- [x] **TOOL-016**: Event lines shall appear in this order when present: a statement that the call was already applied; overridden rule checks; steps entered; payment; moves, tokens created and cards drawn; cards revealed for a pending choice with its choice id; combat damage per attacker; assumptions; reminders; why an advance stopped; expectation warnings; notices.
 - [x] **TOOL-017**: The status line for a started game shall read `T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>`.
 - [x] **TOOL-018**: While a game has two commanders, the status line shall show `Cmdr` and `Tax` as one group per commander separated by `|`, in the commanders' name order.
 - [x] **TOOL-019**: While a game's status is `mulligan`, the status line shall read `Mulligan <k> · Hand <n> · #<change>`.
@@ -45,4 +45,4 @@ Design: `tools-design.md`. Prefix: `TOOL`.
 ## Player brief
 
 - [x] **TOOL-029**: The repository shall carry a Claude Code subagent definition at `.claude/agents/goldfish-player.md` that restricts the subagent to the `goldfishing` server's tools.
-- [x] **TOOL-030**: The player brief shall instruct the subagent to play as a strong player aiming to win as fast as the deck can, make every decision itself, give a `reason` on non-obvious plays, pass `after` on every changing call, resolve or consciously pass reminders, end the game with `end_game` and a verdict, and return the game id, seed and verdict.
+- [x] **TOOL-030**: The player brief shall instruct the subagent to play as a strong player aiming to win as fast as the deck can, make every decision itself, give a `reason` on non-obvious plays, use `expect` on plays where it is tracking a number closely, pass `after` on every changing call, resolve or consciously pass reminders, end the game with `end_game` and a verdict, and return the game id, seed and verdict.

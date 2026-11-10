@@ -85,7 +85,7 @@ Every tool except `get_log` responds with plain text:
 | `ERROR` | Structurally impossible or malformed; nothing was applied; cannot be overridden. |
 | `CHOICE` | Applied, and a choice is now pending; call `choose`. |
 
-**Event lines** appear in a fixed order when present: steps entered (`end → cleanup → T7 untap → upkeep`); payment; moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
+**Event lines** appear in a fixed order when present: a statement that the call was already applied (`Already applied as change #41; nothing was applied again.`); overridden rule checks (`Overridden (<reason>): ...`); steps entered (`end → cleanup → T7 untap → upkeep`); payment; moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
 
 Current notices appear on every response about a game, whatever its status: `OK`, `REJECTED`, `ERROR`, `CHOICE`, and `get_state`.
 
@@ -144,6 +144,7 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | Schema failures | Answered as `ERROR` text | Protocol error | One format for the agent to read. |
 | MCP server class | The SDK's low-level server with schemas the adapter declares | The SDK's high-level server built from function signatures | The high-level server rejects calls that fail a signature before the adapter sees them, so they could not be answered as `ERROR` text or recorded. |
 | Unknown parameter names | Malformed argument | Ignored | A misspelled `override` or `after` silently ignored would change what the call does without the agent knowing. |
+| DNS-rebinding protection | On when bound to a loopback address, off otherwise | Always off; always on | It protects a local service from web pages in the user's browser without blocking deliberate remote binding. |
 
 ## Open Questions & Future Decisions
 

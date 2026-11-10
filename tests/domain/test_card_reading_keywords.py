@@ -91,6 +91,26 @@ def test_a_plural_subtype_you_control_have_a_keyword_is_a_grant_limited_to_that_
     )
 
 
+# @spec READ-044
+def test_allies_you_control_have_a_keyword_is_a_grant_limited_to_ally() -> None:
+    card = a_card(
+        "Ally Captain", "Allies you control have vigilance.", "Creature — Human Soldier Ally"
+    )
+    assert face_reading(card).vigilance == KeywordReading(grant=KeywordGrant(subtype="Ally"))
+
+
+# @spec READ-044
+def test_elves_you_control_have_a_keyword_is_a_grant_limited_to_elf() -> None:
+    card = a_card("Elf Chieftain", "Elves you control have haste.", "Creature — Elf")
+    assert face_reading(card).haste == KeywordReading(grant=KeywordGrant(subtype="Elf"))
+
+
+# @spec READ-044
+def test_zombies_you_control_have_a_keyword_is_a_grant_limited_to_zombie() -> None:
+    card = a_card("Zombie Lord", "Zombies you control have haste.", "Creature — Zombie")
+    assert face_reading(card).haste == KeywordReading(grant=KeywordGrant(subtype="Zombie"))
+
+
 # @spec READ-037
 def test_a_keyword_in_a_longer_list_of_what_creatures_get_is_a_grant() -> None:
     card = a_card(
@@ -156,6 +176,28 @@ def test_a_keyword_the_card_has_under_a_condition_is_its_own_with_the_condition_
     assert face_reading(bloodghast).haste == KeywordReading(
         own=True, assumptions=(ASSUMES_CONDITION_MET,)
     )
+
+
+# @spec READ-040
+def test_a_keyword_under_a_condition_that_speaks_of_this_turn_is_its_own_with_the_condition() -> (
+    None
+):
+    card = a_card(
+        "Spell-Minded Creature",
+        "As long as you've cast a noncreature spell this turn, this creature has vigilance.",
+        "Creature — Human Monk",
+    )
+    assert face_reading(card).vigilance == KeywordReading(
+        own=True, assumptions=(ASSUMES_CONDITION_MET,)
+    )
+
+
+# @spec READ-038
+def test_a_keyword_gained_this_turn_is_not_a_grant() -> None:
+    card = a_card(
+        "Rally Spell", "Creatures you control get +1/+0 and gain haste this turn.", "Sorcery"
+    )
+    assert face_reading(card).haste == NO_KEYWORD
 
 
 # @spec READ-040

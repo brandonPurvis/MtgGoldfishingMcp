@@ -18,3 +18,12 @@ Feature: Looking at cards and choosing where they go
     Then the response is OK
     And the status line does not show a pending choice
     And my hand holds one card more than before the look
+
+  Scenario: A look sent twice with after is answered again with its pending choice
+    When I record an effect from "Ponder" that looks at the top 3 cards, the rest going to "library_top", after the change number I last saw
+    And I send the same call again
+    Then the response is CHOICE
+    And the response says "Already applied as change"
+    And the response says "(look) revealed:"
+    And the status line ends with "CHOICE pending"
+    And the game's change number went up by one in all

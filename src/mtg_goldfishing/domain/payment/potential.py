@@ -7,14 +7,14 @@ from mtg_goldfishing.domain.game.cards_in_play import face_of, is_land
 from mtg_goldfishing.domain.game.model import CardInstance, Game
 from mtg_goldfishing.domain.payment.auto import can_pay_with
 from mtg_goldfishing.domain.payment.matching import Requirement
-from mtg_goldfishing.domain.payment.sources import available_sources
+from mtg_goldfishing.domain.payment.sources import available_sources, most_mana_of
 
 
 # @spec REC-015
 def mana_available(game: Game, deck: LoadedDeck) -> int:
     """The most mana the sources the auto payment system may use on their own could make."""
     sources = available_sources(game, deck, paying_for=None, ignore_tapped=True)
-    return sum(source.most_mana for source in sources)
+    return most_mana_of(sources)
 
 
 # @spec REC-014

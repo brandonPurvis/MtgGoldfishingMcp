@@ -30,7 +30,12 @@ from mtg_goldfishing.application.ports import (
 from mtg_goldfishing.application.use_cases.arguments import malformed, text, whole_number
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Error, ErrorKind, Refused
-from mtg_goldfishing.domain.game.calls import accept_change, check_accepted, follow_change
+from mtg_goldfishing.domain.game.calls import (
+    accept_change,
+    check_accepted,
+    follow_change,
+    resend_of,
+)
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
 from mtg_goldfishing.domain.game.summary import GameSummary, summarize
@@ -218,30 +223,33 @@ def overridable(
     return operation
 
 
-# @spec APP-009, APP-017, APP-018, APP-021, APP-023, REC-002
+# @spec APP-009, APP-017, APP-018, APP-021, APP-023, REC-002, GAME-052, GAME-054
 def change_game(
     ports: Ports, tool: str, arguments: Mapping[str, object], operation: Operation
 ) -> Answer:
     """Answer a call that changes a game.
 
-    The game must accept the tool in its status and the call must follow the game's change
-    number. A resend is answered with the original report and changes nothing. An applied
-    result is counted as the game's next change and saved with its log entry and snapshots
-    in one unit of work; a refusal saves nothing about the game.
+    A resend of the game's most recent change is answered with the original report and
+    changes nothing, whatever the game's status. Any other call must be accepted in the
+    game's status and must follow the game's change number. An applied result is counted
+    as the game's next change and saved with its log entry and snapshots in one unit of
+    work; a refusal saves nothing about the game.
     """
 
     def respond(call: Call, loaded: Loaded) -> Answer:
         game = loaded.game
+        after = whole_number(arguments, "after")
+        resent = resend_of(game, tool, arguments, None if isinstance(after, Error) else after)
+        if resent is not None:
+            return _answer_resend(call, loaded, resent)
         not_accepted = check_accepted(game, tool)
         if not_accepted is not None:
             return call.finish(an_error(not_accepted, loaded.summary))
-        after = whole_number(arguments, "after")
         if isinstance(after, Error):
             return call.finish(an_error(after, loaded.summary))
         followed = follow_change(game, tool, arguments, after)
         if isinstance(followed, Resent):
-            status = status_after_change(followed.game)
-            return call.finish(Outcome(status, followed.summary, followed.events, loaded.summary))
+            return _answer_resend(call, loaded, followed)
         if isinstance(followed, Refusal):
             return call.finish(refused(followed, loaded.summary))
         result = operation(game, loaded.deck)
@@ -250,6 +258,12 @@ def change_game(
         return _save_change(call, loaded, accept_change(result, tool, arguments))
 
     return answer_about_game(ports, tool, arguments, respond)
+
+
+def _answer_resend(call: Call, loaded: Loaded, resent: Resent) -> Answer:
+    """The original report again, with nothing saved but the call record."""
+    status = status_after_change(resent.game)
+    return call.finish(Outcome(status, resent.summary, resent.events, loaded.summary))
 
 
 def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:

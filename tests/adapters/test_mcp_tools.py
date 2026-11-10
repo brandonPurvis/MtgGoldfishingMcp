@@ -299,6 +299,17 @@ def test_a_malformed_call_keeps_its_arguments_as_received() -> None:
     assert harness.last_call().arguments["delta"] == "not json"
 
 
+# @spec REC-017
+def test_a_malformed_call_keeps_an_object_sent_as_a_json_string_decoded() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    expect = {"hand": 1}
+
+    surface.call("play", {"game_id": game_id, "card": 7, "expect": json.dumps(expect)})
+
+    assert harness.last_call().arguments["expect"] == expect
+
+
 # @spec TOOL-028
 def test_a_malformed_call_changes_nothing() -> None:
     surface, harness = _surface()

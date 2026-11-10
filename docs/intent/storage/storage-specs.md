@@ -18,7 +18,7 @@ Design: `storage-design.md`. Prefix: `STOR`.
 ## Concurrency
 
 - [x] **STOR-008**: When saving a game, the SQLite adapter shall compare the stored game's version counter with the version the game was loaded at, save and increment the counter when they match, and fail the save without writing when they do not.
-- [x] **STOR-009**: While a game is being written, the SQLite adapter shall allow other games to be read and written without waiting for it.
+- [x] **STOR-009**: While a game is being written, the SQLite adapter shall let other games be read without waiting, and shall apply a write to another game after at most the open write's transaction, never refusing it.
 
 ## Loaded decks and records
 

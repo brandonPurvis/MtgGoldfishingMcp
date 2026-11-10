@@ -68,7 +68,7 @@ Plays `card` — a land, a spell, or the commander.
 effect(game_id, source, delta, choices?, pay?, expect?, reason?, override?)
 ```
 
-Records any change not caused by playing a card: an activated ability, a trigger, sacrificing a Treasure, an imagined opponent's removal spell. `source` says what is responsible. It is free text; when it names a permanent the agent controls, the call counts as answering that permanent's reminder for the current step (see `records`). `pay`, when given, pays a cost exactly as for `play`; when omitted nothing is paid. The cost is paid before the delta is applied, so mana added by the same call's delta cannot pay it.
+Records any change not caused by playing a card: an activated ability, a trigger, sacrificing a Treasure, an imagined opponent's removal spell. `source` says what is responsible. It is free text; when it names a reminded permanent by the rule in `records` (its card name, the name of its face in play when reminded, or its instance id, ignoring case, whether or not the permanent is still on the battlefield), the call answers that permanent's reminders for the current turn. `pay`, when given, pays a cost exactly as for `play`; when omitted nothing is paid. The cost is paid before the delta is applied, so mana added by the same call's delta cannot pay it.
 
 ## Delta
 
@@ -177,7 +177,7 @@ A wrong `choice_id` or a name that was not revealed is an error. Selecting nothi
 
 `play` and `effect` may include `expect`: values the agent believes will be true once the call has been applied. The service compares each with the real state and adds a warning line for each mismatch. The call is applied either way; a mismatch is never a refusal.
 
-Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax`, `damage_dealt`, `step`. `tax` is the tax on the next cast of the commander (the higher, with two commanders). `pool` is compared as a set of mana symbols, ignoring their order and any spending restriction. Any other key is an error that lists the allowed keys. For a call that creates a pending choice, `expect` is evaluated when the choice is created.
+Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax`, `damage_dealt`, `step`. `tax` is the tax on the next cast of the commander (the higher, with two commanders). `pool` is compared as a multiset of mana symbols, ignoring their order and any spending restriction. Any other key is an error that lists the allowed keys. For a call that creates a pending choice, `expect` is evaluated when the choice is created.
 
 ## Decisions & Alternatives
 

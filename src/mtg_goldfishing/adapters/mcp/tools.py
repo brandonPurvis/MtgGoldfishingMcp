@@ -72,7 +72,7 @@ class ToolSurface:
         definition = self._definitions[name]
         return lambda arguments: self._call(definition, arguments)
 
-    # @spec TOOL-010, TOOL-013, TOOL-027, TOOL-028
+    # @spec TOOL-010, TOOL-013, TOOL-027, TOOL-028, REC-017
     def call(self, name: str, arguments: Mapping[str, object]) -> ToolResponse:
         """Answer one call of the tool `name`."""
         return self._call(self._definitions[name], arguments)
@@ -80,7 +80,9 @@ class ToolSurface:
     def _call(self, definition: ToolDefinition, arguments: Mapping[str, object]) -> ToolResponse:
         shaped = shape(definition.parameters, arguments)
         if isinstance(shaped, Misshapen):
-            answer = self._service.malformed_call(definition.name, arguments, shaped.problems)
+            answer = self._service.malformed_call(
+                definition.name, shaped.arguments, shaped.problems
+            )
         else:
             answer = USE_CASES[definition.name](self._service, shaped.arguments)
         return ToolResponse(answer.response, answer.outcome.status is Status.ERROR)

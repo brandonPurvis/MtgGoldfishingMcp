@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from mtg_goldfishing.adapters.memory import FixedClock, FixedIdSource, InProcessGameLocks
+from mtg_goldfishing.adapters.memory import FixedClock, FixedIdSource
 from mtg_goldfishing.adapters.memory.cards import InMemoryCardCatalog
 from mtg_goldfishing.adapters.sqlite import SqliteStores
+from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application import ports
 from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.application.service import Service

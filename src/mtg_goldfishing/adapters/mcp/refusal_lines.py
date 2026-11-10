@@ -115,7 +115,8 @@ def error_text(error: Error) -> str:
                 " Send it without discard."
             )
         case ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD:
-            return f"No {subject} on the battlefield to attack with."
+            where = f"; it is in the {error.found_in}" if error.found_in else ""
+            return f"No {subject} on the battlefield to attack with{where}."
         case ErrorKind.NOT_AN_ATTACKER:
             return f"{subject} is not among the attackers."
         case ErrorKind.BAD_COMMANDER_TARGET:
@@ -151,8 +152,8 @@ def error_text(error: Error) -> str:
             return "The game changed while this call was applied, so nothing was. Send it again."
         case ErrorKind.INTERNAL_FAILURE:
             return (
-                "Something failed inside the service and nothing was applied."
-                " Send the call again; if it fails again, report it."
+                "Something failed inside the service, not caused by the call, and nothing was"
+                " applied. Send the call again; if it fails again, report it."
             )
         case _:
             assert_never(error.kind)

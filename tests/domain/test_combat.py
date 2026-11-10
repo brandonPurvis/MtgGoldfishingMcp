@@ -9,7 +9,9 @@ from mtg_goldfishing.domain.events import (
     CheckKind,
     ChecksOverridden,
     CombatDamageDealt,
+    Error,
     ErrorKind,
+    InstanceChosen,
     ReminderIssued,
 )
 from mtg_goldfishing.domain.game.results import Applied, Refusal
@@ -71,6 +73,14 @@ def test_attacking_in_declare_attackers_declares() -> None:
     situation = bears(Step.DECLARE_ATTACKERS).build()
     declared(situation, attackers=["Grizzly Bears"])
     assert situation.game.declared_attack is not None
+
+
+# @spec CMBT-003
+def test_attacking_in_declare_blockers_with_no_attack_declared_declares_in_that_step() -> None:
+    situation = bears(Step.DECLARE_BLOCKERS).build()
+    result = declared(situation, attackers=["Grizzly Bears"])
+    assert result.game.step is Step.DECLARE_BLOCKERS
+    assert result.game.declared_attack is not None
 
 
 # @spec CMBT-004
@@ -166,6 +176,41 @@ def test_an_attacker_not_on_the_battlefield_is_an_error() -> None:
     assert result.errors[0].kind is ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD
 
 
+# @spec CMBT-014, GAME-016
+def test_an_attacker_in_another_zone_is_an_error_naming_that_zone() -> None:
+    situation = a_game().with_hand("Grizzly Bears").build()
+    result = refused(situation, attackers=["Grizzly Bears"])
+    assert result.errors == (
+        Error(
+            ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD,
+            subject="Grizzly Bears",
+            zone="battlefield",
+            found_in="hand",
+        ),
+    )
+
+
+# @spec GAME-018
+def test_an_attacker_named_more_times_than_there_are_matching_creatures_is_an_error() -> None:
+    situation = bears().build()
+    result = refused(situation, attackers=["Grizzly Bears", "Grizzly Bears"])
+    assert result.errors[0].kind is ErrorKind.TOO_FEW_MATCHING
+
+
+# @spec GAME-018
+def test_an_attacker_instance_id_given_twice_is_an_error() -> None:
+    situation = bears().with_battlefield("Goblin Guide").build()
+    result = refused(situation, attackers=["c1", "C1"])
+    assert result.errors[0].kind is ErrorKind.INSTANCE_REPEATED
+
+
+# @spec GAME-015
+def test_the_attacker_chosen_among_differing_creatures_is_reported_by_instance_id() -> None:
+    situation = bears().with_battlefield("Grizzly Bears", counters={"+1/+1": 1}).build()
+    result = declared(situation, attackers=["Grizzly Bears"])
+    assert InstanceChosen("Grizzly Bears", "c1") in result.events
+
+
 # @spec CMBT-015
 def test_naming_something_that_is_not_attacking_in_blocked_is_an_error() -> None:
     situation = bears().with_battlefield("Goblin Guide").build()
@@ -190,6 +235,30 @@ def test_attacking_with_a_non_creature_fails_a_rule_check() -> None:
 # @spec CMBT-018
 def test_attacking_with_a_tapped_creature_fails_a_rule_check() -> None:
     situation = a_game().with_battlefield("Grizzly Bears", tapped=True).build()
+    result = refused(situation, attackers=["Grizzly Bears"])
+    assert [c.kind for c in result.checks] == [CheckKind.ATTACKER_TAPPED]
+
+
+# @spec CMBT-018
+def test_an_additional_combat_does_not_refuse_creatures_tapped_by_the_first_declaration() -> None:
+    situation = bears().with_battlefield("Goblin Guide").build()
+    declared(situation, attackers=["Grizzly Bears"])
+    to_damage(situation)
+    result = declared(
+        situation, attackers=["Grizzly Bears", "Goblin Guide"], override="Relentless Assault"
+    )
+    overridden = next(e for e in result.events if isinstance(e, ChecksOverridden))
+    assert [c.kind for c in overridden.checks] == [CheckKind.COMBAT_OVER]
+
+
+# @spec CMBT-018
+def test_a_creature_tapped_by_last_turns_attack_and_tapped_again_is_refused() -> None:
+    situation = bears().with_library("Forest").build()
+    declared(situation, attackers=["Grizzly Bears"])
+    moved = advance(situation.game, situation.deck, to="main1")
+    assert isinstance(moved, Applied), moved
+    situation.game = moved.game
+    situation.game.instance("c1").tapped = True
     result = refused(situation, attackers=["Grizzly Bears"])
     assert [c.kind for c in result.checks] == [CheckKind.ATTACKER_TAPPED]
 

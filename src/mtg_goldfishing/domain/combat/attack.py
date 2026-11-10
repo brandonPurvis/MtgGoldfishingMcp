@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 
 from mtg_goldfishing.domain.combat.damage import numeric_power
 from mtg_goldfishing.domain.deck.model import LoadedDeck
@@ -39,6 +40,13 @@ def _names(value: object, argument: str) -> list[str] | Error:
     if isinstance(value, list) and all(isinstance(v, str) for v in value):
         return list(value)
     return Error(ErrorKind.MALFORMED_ARGUMENT, subject=argument)
+
+
+def _attacker_error(error: Error) -> Error:
+    """A naming error for `attackers`: one not on the battlefield is said so, with its zone."""
+    if error.kind is not ErrorKind.CARD_NOT_IN_ZONE:
+        return error
+    return replace(error, kind=ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD)
 
 
 def _among(
@@ -100,7 +108,7 @@ def _targets(
 
 # @spec CMBT-001, CMBT-002, CMBT-003, CMBT-004, CMBT-005, CMBT-006, CMBT-007, CMBT-008, CMBT-009
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
-# @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021
+# @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018
 def attack(
     game: Game,
     deck: LoadedDeck,
@@ -132,19 +140,16 @@ def attack(
     elif step not in _BEFORE_COMBAT + _DECLARING:
         problems.add(FailedCheck(CheckKind.COMBAT_OVER, step=step))
     changed = game.copy()
-    earlier = changed.declared_attack
     walk = Walk()
     if step in _EARLY or step in _BEFORE_COMBAT:
         walk_to(changed, deck, Step.DECLARE_ATTACKERS, walk)
-        earlier = None
     elif step not in _DECLARING:
         return_to_declare_attackers(changed, deck, walk)
-        earlier = None
-    tapped_before = set(earlier.tapped_by_declaration) if earlier else set()
+    tapped_before = set(changed.tapped_by_attacks)
     found = resolve(changed, deck, lists["attackers"], [Zone.BATTLEFIELD], Purpose.TAP)
     if isinstance(found, Error):
-        return Refusal.error(Error(ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD, subject=found.subject))
-    chosen = found[0]
+        return Refusal.error(_attacker_error(found))
+    chosen, instances_chosen = found
     sub: dict[str, list[CardInstance]] = {}
     for argument in ("blocked", "vigilance", "haste"):
         among = _among(deck, chosen, lists[argument])
@@ -194,17 +199,18 @@ def attack(
             blocked=sorted(blocked_ids, key=lambda i: int(i[1:])),
             damage=damage_by_id,
             commander_targets=targets,
-            tapped_by_declaration=sorted(tapped_before | {c.id for c in newly_tapped}),
         )
         if chosen
         else None
     )
+    changed.tapped_by_attacks.extend(c.id for c in newly_tapped)
     events: list[Event] = []
     if walk.entered:
         events.append(walk.summary)
     if judged is not None:
         events.append(judged)
     events.extend(walk.events)
+    events.extend(instances_chosen)
     summary = AttackDeclared(
         attackers=tuple(face_name(deck, c) for c in chosen),
         blocked=tuple(face_name(deck, c) for c in sub["blocked"]),

@@ -137,7 +137,7 @@ def test_an_advance_that_stops_for_a_reminder_says_why_and_what_to_send_next() -
     assert response("advance", outcome_of(situation, result))[:3] == [
         "OK end → cleanup → T7 untap → upkeep",
         "Reminder (upkeep): Phyrexian Arena",
-        'Stopped at upkeep for the reminder. Send advance(to="main1") again to continue.',
+        'Stopped at upkeep for the reminder. Send advance(to="main1", after=0) again to continue.',
     ]
 
 
@@ -150,9 +150,9 @@ def test_several_reminded_permanents_with_one_name_are_counted() -> None:
 # @spec TOOL-026
 def test_an_advance_that_stops_before_cleanup_says_how_many_cards_to_discard() -> None:
     event = AdvanceStopped(StopReason.DISCARD, Step.END, Step.MAIN1, discard_count=2)
-    assert event_lines(event) == [
+    assert event_lines(event, after=42) == [
         "Stopped at end: the hand is over seven cards, so 2 must be discarded in cleanup."
-        ' Send advance(to="main1", discard=[2 cards from hand]) to continue,'
+        ' Send advance(to="main1", discard=[2 cards from hand], after=42) to continue,'
         " or add override if the hand has no maximum size."
     ]
 
@@ -335,6 +335,16 @@ def test_load_deck_lists_each_part_of_the_deck_report_that_is_not_empty() -> Non
     ]
 
 
+# @spec DECK-038
+def test_load_deck_names_the_cards_a_refresh_kept_on_their_cached_data() -> None:
+    report = DeckReport(not_refreshed=("Sol Ring", "Ponder"))
+    outcome = Outcome(Status.OK, DeckLoaded("d3f9a01c2e", 100, (ATRAXA,), report=report))
+    assert response("load_deck", outcome) == [
+        "OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.",
+        "Not refreshed (cached data kept): Sol Ring, Ponder",
+    ]
+
+
 # @spec TOOL-026
 def test_load_deck_names_both_commanders_and_any_overridden_checks() -> None:
     overridden = ChecksOverridden(
@@ -456,4 +466,26 @@ def test_a_stale_change_number_says_where_the_game_is_now() -> None:
     assert error_text(error) == (
         "The game is now at change #42, so your picture of it is stale."
         " Check the latest status line or call get_state, then send the call with after=42."
+    )
+
+
+# @spec APP-020
+def test_an_internal_failure_says_it_was_inside_the_service_and_not_caused_by_the_call() -> None:
+    text = error_text(Error(ErrorKind.INTERNAL_FAILURE))
+    assert ("inside the service" in text, "not caused by the call" in text) == (True, True)
+
+
+# @spec GAME-016, CMBT-014
+def test_an_attacker_found_in_another_zone_is_named_with_that_zone() -> None:
+    from mtg_goldfishing.adapters.mcp.refusal_lines import error_text  # noqa: PLC0415
+    from mtg_goldfishing.domain.events import Error, ErrorKind  # noqa: PLC0415
+
+    error = Error(
+        ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD,
+        subject="Grizzly Bears",
+        zone="battlefield",
+        found_in="hand",
+    )
+    assert error_text(error) == (
+        "No Grizzly Bears on the battlefield to attack with; it is in the hand."
     )

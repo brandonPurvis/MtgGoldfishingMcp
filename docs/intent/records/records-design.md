@@ -24,7 +24,7 @@ LogEntry {
   turn: int                  // 0 during mulligans
   step: Step | null          // step the game was in when the call was made; null during mulligans
   tool: string
-  arguments: object          // the call's arguments as received
+  arguments: object          // the call's arguments as received, JSON-string objects and lists decoded
   outcome: object | null     // what the tool produced that the fields below do not carry:
                              //   new_game: opening hand        mulligan: new hand, cards bottomed
                              //   choose: where each revealed card went
@@ -89,7 +89,7 @@ CallRecord {
   time: timestamp
   game_id: string | null     // as supplied, whether or not such a game exists
   tool: string
-  arguments: object          // as received
+  arguments: object          // as received, JSON-string objects and lists decoded
   status: "OK" | "REJECTED" | "ERROR" | "CHOICE"
   response: string           // exactly what was returned
   is_override: bool          // the call carried an override
@@ -97,7 +97,7 @@ CallRecord {
 }
 ```
 
-For `load_deck` the `cards` argument is stored as received. For a successful `get_log` the `response` holds a one-line note of the export's size, not its content.
+Arguments are stored as received, with any object or list parameter that was given as a JSON string decoded where it decodes to the parameter's shape; this holds for a call whose arguments could not be shaped as for any other. For `load_deck` the `cards` argument is stored as received. For a successful `get_log` the `response` holds a one-line note of the export's size, not its content.
 
 ## `get_log`
 
@@ -119,6 +119,8 @@ Returns JSON, unlike every other tool, because its reader is a program.
 
 `since` returns only entries with a sequence number greater than it, calls whose `change` is greater than it, and snapshots written by those entries. `include_snapshots` defaults to true. `include_calls` defaults to false. `get_log` is accepted in every game status.
 
+Because a refused or read-only call carries the change number it was made at, a reader that polls with `since` set to the change number it last saw does not receive calls made at that same change number; a full read includes them.
+
 A `get_log` call that cannot be answered — an unknown game, a malformed argument — is answered like any other tool's error, in the text format (see `tools`), not as JSON.
 
 ## Decisions & Alternatives
@@ -139,6 +141,7 @@ A `get_log` call that cannot be answered — an unknown game, a malformed argume
 ### Deferred
 1. A way to list games (by deck, by status) so an analysis process can find them without being told each id.
 2. Paging for very long logs beyond `since`.
+3. A call-record cursor for `get_log`, so incremental readers also receive refused and read-only calls made at the change number they last saw.
 
 ## References
 

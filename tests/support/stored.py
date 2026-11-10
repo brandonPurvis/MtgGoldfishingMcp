@@ -117,8 +117,8 @@ def a_rich_game(game_id: str = "gtest000001") -> Game:
         blocked=[token.id],
         damage={elves.id: 1},
         commander_targets={elves.id: 2},
-        tapped_by_declaration=[elves.id],
     )
+    game.tapped_by_attacks = [elves.id]
     game.pending_choice = PendingChoice(
         choice_id="x1", source="Cultivate", kind="look", revealed=["c9", "c10"], rest=None
     )
