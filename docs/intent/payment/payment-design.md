@@ -49,8 +49,8 @@ A **mana source** is a permanent on the battlefield with at least one mana abili
 A source is **available** to the auto payment system when all of these hold:
 
 - it is untapped;
-- its ability taps, does not sacrifice it, and has no other cost;
-- if its ability costs life, the agent's life would stay at 1 or more;
+- its ability taps, does not sacrifice it, and has no cost other than tapping, life or mana;
+- if its ability costs life, the agent's life after the whole payment — sources, Phyrexian symbols and `pay.life` together — would stay at 1 or more;
 - if it is a creature, it did not enter the battlefield this turn, or it has haste (its own, or granted by another permanent's reading);
 - if its ability has a restriction, the card being paid for qualifies, and the restriction's card types are known;
 - its ability has a reading, with or without assumptions.
@@ -61,14 +61,14 @@ A source whose ability itself costs mana (a signet's `{1}, {T}: Add {W}{U}`) is 
 
 ## The Auto Payment System
 
-Given a cost and the game state, it considers every way of paying the cost from the pool and available sources, and picks one by these rules in order. Each rule only breaks ties left by the one before. Only payments that tap no source they could do without are considered: surplus mana left in the pool counts as mana still available, so a payment that taps an extra source would otherwise tie with one that does not.
+Given a cost and the game state, it considers every way of paying the cost from the pool and available sources, and picks one by these rules in order. Each rule only breaks ties left by the one before. Payments that tap no source they could do without are preferred, and another valid payment is used only when none such was examined: surplus mana left in the pool counts as mana still available, so a payment that taps an extra source would otherwise tie with one that does not.
 
 1. **Life for Phyrexian symbols.** Each Phyrexian symbol is paid with 2 life whenever the agent's life would stay at 1 or more and a valid payment remains; otherwise with mana. When paying every Phyrexian symbol with life leaves no valid payment, fewer are paid with life, as many as still allow one.
-2. **Most other cards still castable.** Count the cards that could each be cast, one at a time, from what would remain: every non-land card in hand other than the one being played, and each commander in the command zone at its current tax, each taken at its plain mana cost with X as 0. A multi-face card counts if any of its faces that has a mana cost could be cast. The payment leaving the highest count wins.
-3. **Most colors still available.** Count the distinct colors of mana the remaining sources and pool could make.
+2. **Most other cards still castable.** Count the cards that could each be cast, one at a time, from what would remain: every non-land card in hand other than the one being played, and each commander in the command zone at its current tax, each taken at its plain mana cost with X as 0 and its Phyrexian symbols paid with mana. A multi-face card counts if any of its faces that has a mana cost could be cast. The payment leaving the highest count wins.
+3. **Most colors still available.** Count the distinct colors (W, U, B, R, G) of mana the remaining sources and pool could make.
 4. **Most mana still available.** Total mana the remaining sources and pool could make. This also means a two-mana source is not spent on a one-mana cost when a one-mana source would do.
 5. **Cheapest kind of source.** Prefer tapping, in order: lands that cost nothing to use; lands that cost life to use; non-creature, non-land permanents; creatures. A land's kind is judged by the ability used, so a land tapped through a free ability counts as free. Creatures come last so they stay free to attack.
-6. **Lowest instance id**, so the choice is deterministic.
+6. **Lowest instance ids**: the payment whose sources' instance numbers, sorted, are lexicographically least, so the choice is deterministic.
 
 "What would remain" is the untapped available sources after the payment plus mana left in the pool. Only cards currently in hand and the command zone are considered; the service does not guess at cards not yet drawn.
 
@@ -84,9 +84,9 @@ Whether a cost is payable at all is always decided exactly. Choosing *among* val
 pay: { with?: [name | { source: name, mana: ManaString }], cost?: ManaString, life?: int }
 ```
 
-- **`with`** names sources to use. They are used first — tapped, and sacrificed if their ability says so — and their mana is added to the pool; the auto payment system then pays any remainder. Naming a sacrifice source here is how a Treasure pays for a spell. An entry may state the mana the source makes this time (`{ "source": "Mana Vault", "mana": "{C}{C}{C}" }`); the stated mana is used as given, through the source's mana ability that can make it when there is one, which is how the agent picks a color from a multi-color source and how it uses a permanent the service has not read as a mana source. For a named source that offers a choice and has no stated mana, the service picks the option, and with several mana abilities the ability, that best serves the cost by the rules above. A named permanent that has no mana reading and no stated mana is an error asking for the mana; a named permanent that is already tapped is an error. A named creature that is summoning-sick is a rule check.
-- **`cost`** on `play` replaces the whole cost the service computed, including commander tax, X and extra costs. It exists for cost reducers and alternative costs. Because the service cannot verify it, giving `cost` to `play` is a rule check: the call must carry an `override` reason. On `effect`, which has no computed cost, `cost` is simply the cost of the ability being recorded and is not a rule check.
-- **`life`** pays that much life as part of the cost, for costs the service cannot read from the mana cost.
+- **`with`** names sources to use. They are used first — tapped, and sacrificed if their ability says so — and their mana is added to the pool; the auto payment system then pays any remainder, spending the pool and the named sources' mana together, colorless and single-color mana going to generic symbols first. Naming a sacrifice source here is how a Treasure pays for a spell. An entry may state the mana the source makes this time (`{ "source": "Mana Vault", "mana": "{C}{C}{C}" }`); the stated mana is used as given, through the source's mana ability that can make it when there is one, which is how the agent picks a color from a multi-color source and how it uses a permanent the service has not read as a mana source. For a named source that offers a choice and has no stated mana, the service picks the option, and with several mana abilities the ability, that best serves the cost by the rules above. A named permanent that has no mana reading and no stated mana is an error asking for the mana; a named permanent that is already tapped is an error. A named creature that is summoning-sick is a rule check.
+- **`cost`** on `play` replaces the whole cost the service computed, including commander tax, X and extra costs; any X in it is replaced by `choices.x`. It exists for cost reducers and alternative costs. Because the service cannot verify it, giving `cost` to `play` is a rule check: the call must carry an `override` reason. On `effect`, which has no computed cost, `cost` is simply the cost of the ability being recorded and is not a rule check.
+- **`life`** pays that much life in addition to the rest of the payment, for costs the service cannot read from the mana cost.
 
 `pay` omitted entirely means, for `play`: pay the computed cost automatically; for `effect`: pay nothing.
 

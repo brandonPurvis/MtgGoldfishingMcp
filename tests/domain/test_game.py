@@ -131,6 +131,12 @@ def test_the_shuffle_is_pinned_to_its_algorithm() -> None:
     assert sorted(shuffled(["a", "b", "c", "d", "e"], 1, 0)) == ["a", "b", "c", "d", "e"]
 
 
+# @spec GAME-010
+def test_the_shuffle_gives_the_golden_order_for_a_fixed_library_seed_and_count() -> None:
+    library = ["a", "b", "c", "d", "e", "f", "g", "h"]
+    assert shuffled(library, 42, 3) == ["d", "g", "c", "h", "b", "e", "a", "f"]
+
+
 # @spec GAME-011
 def test_the_same_deck_and_seed_give_the_same_game() -> None:
     first, second = started(seed=99), started(seed=99)
@@ -208,6 +214,22 @@ def test_a_name_given_twice_means_two_different_instances() -> None:
     found = resolve(situation.game, situation.deck, ["Forest", "Forest"], [Zone.BATTLEFIELD])
     assert not isinstance(found, Error)
     assert [c.id for c in found[0]] == ["c1", "c2"]
+
+
+# @spec GAME-017
+def test_an_instance_id_is_resolved_before_a_name_given_earlier_in_the_list() -> None:
+    situation = a_game().with_battlefield("Forest", "Forest").build()
+    found = resolve(situation.game, situation.deck, ["Forest", "c1"], [Zone.BATTLEFIELD])
+    assert not isinstance(found, Error)
+    assert [c.id for c in found[0]] == ["c2", "c1"]
+
+
+# @spec GAME-018
+def test_a_name_with_every_match_already_named_by_id_is_an_error() -> None:
+    situation = a_game().with_battlefield("Forest").build()
+    found = resolve(situation.game, situation.deck, ["Forest", "c1"], [Zone.BATTLEFIELD])
+    assert isinstance(found, Error)
+    assert found.kind is ErrorKind.TOO_FEW_MATCHING
 
 
 # @spec GAME-018

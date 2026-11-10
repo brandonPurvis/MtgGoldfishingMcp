@@ -270,6 +270,17 @@ def test_discarding_the_wrong_number_without_override_fails_a_rule_check() -> No
     ]
 
 
+# @spec TURN-022
+def test_the_number_to_discard_counts_cards_drawn_on_the_way_to_cleanup() -> None:
+    situation = (
+        a_game().in_step(Step.UPKEEP).with_hand(*a_big_hand(8)).with_library("Forest").build()
+    )
+    result = refused(situation, to="cleanup", discard=["Ponder"])
+    assert [(c.kind, c.number, c.expected) for c in result.checks] == [
+        (CheckKind.DISCARD_COUNT, 1, 2)
+    ]
+
+
 # @spec TURN-023
 def test_discarding_a_card_not_in_hand_is_an_error() -> None:
     situation = a_game().in_step(Step.END).with_hand(*a_big_hand(8)).build()

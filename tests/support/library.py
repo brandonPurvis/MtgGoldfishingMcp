@@ -180,6 +180,10 @@ _add(
     _reading(haste=KeywordReading(grant=KeywordGrant(includes_self=True))),
 )
 _add(
+    _card("Goblin Warchief", "{1}{R}{R}", "Creature — Goblin", pt="2/2", identity="R"),
+    _reading(haste=KeywordReading(grant=KeywordGrant(includes_self=True, subtype="Goblin"))),
+)
+_add(
     _card("Phyrexian Arena", "{1}{B}{B}", "Enchantment", identity="B"),
     _reading(step_triggers=(Step.UPKEEP,)),
 )

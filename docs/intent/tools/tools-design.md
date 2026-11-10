@@ -95,7 +95,7 @@ Current notices appear on every response about a game, whatever its status: `OK`
 T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>
 ```
 
-With two commanders, `Cmdr` and `Tax` show a group per commander separated by `|`, in the commanders' name order; `get_state` names them. While a choice is pending the line ends with ` · CHOICE pending`. For an ended game the line begins `Ended (<result>) · `. During mulligans the status line is `Mulligan <k> · Hand <n> · #<change>`. For responses not about an existing game (`load_deck`, an unknown game id) there is no status line.
+With two commanders, `Cmdr` and `Tax` show a group per commander separated by `|`, in the commanders' name order; `get_state` names them. While a choice is pending the line ends with ` · CHOICE pending`. For an ended game the line begins `Ended (<result>) · `. `Cmdr` shows that commander's damage to each opponent, and an empty pool reads `{}`. While a game has no step — during mulligans, or once it has ended before the hand was kept — the status line is `Mulligan <k> · Hand <n> · #<change>`, where *k* is the number of mulligans taken, so a game ended during mulligans reads `Ended (loss) · Mulligan 0 · Hand 7 · #2`. For responses not about an existing game (`load_deck`, an unknown game id) there is no status line.
 
 A `REJECTED` or `ERROR` summary says what was wrong and what to do about it:
 

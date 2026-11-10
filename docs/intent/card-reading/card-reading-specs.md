@@ -17,7 +17,7 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-008**: When a mana ability's cost includes a life payment, or the ability's own text deals damage to its controller, the card reader shall record that amount as the ability's life cost.
 - [x] **READ-009**: When a mana ability's cost includes sacrificing the permanent itself, the card reader shall mark the ability as sacrificing.
 - [x] **READ-010**: When a mana ability's cost includes anything other than `{T}`, mana symbols, a life payment, or sacrificing the permanent itself, the card reader shall record that part of the cost verbatim as the ability's other cost.
-- [x] **READ-011**: When a mana ability's text adds mana `for each <type> you control`, the card reader shall read it as a counted amount over permanents the controller has whose type line contains that type word, ignoring case.
+- [x] **READ-011**: When a mana ability's text adds mana `for each <type> you control`, the card reader shall read it as a counted amount over permanents the controller has whose type line contains that type as a whole word, ignoring case.
 - [x] **READ-012**: When a mana ability's text adds an amount equal to the controller's devotion to one or more colors, the card reader shall read it as a counted amount over that devotion.
 - [x] **READ-013**: When a mana ability's text adds mana for each card in the controller's hand or graveyard, the card reader shall read it as a counted amount over that zone.
 - [x] **READ-014**: When a mana ability's text restricts spending to spells of named card types (`Spend this mana only to cast creature spells`), the card reader shall record a restriction listing those card types.

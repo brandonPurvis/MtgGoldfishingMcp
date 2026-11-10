@@ -32,15 +32,15 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-014**: When a use case handles a call about a game, the use case shall hold that game's lock from before loading the game until after its records are saved.
 - [x] **APP-015**: When two calls for the same game arrive at once, the application shall apply them one after the other, the second seeing the first's result.
 - [x] **APP-016**: When calls for different games arrive at once, the application shall not make one wait for another's lock.
-- [x] **APP-017**: When a domain operation returns an applied result, the use case shall save the game, the log entry and any snapshot in one unit of work.
-- [x] **APP-018**: When a domain operation returns a refusal, the use case shall save nothing about the game.
-- [x] **APP-019**: When a use case finishes, whatever the outcome, the use case shall have added a call record for the call.
-- [x] **APP-026**: When a use case adds a call record, the record's response shall be the text `Renderer` produced for the call's outcome.
+- [x] **APP-017**: When a domain operation returns an applied result, the use case shall save the game, the log entry, any snapshot and the call record in one unit of work.
+- [x] **APP-018**: When a domain operation returns a refusal, the use case shall save nothing but the call record.
+- [x] **APP-019**: When a use case finishes, whatever the outcome, the use case shall have added a call record for the call, read-only calls included, in its own unit of work when nothing else is saved.
+- [x] **APP-026**: When a use case adds a call record, the record's response shall be the text `Renderer` produced for the call's outcome, except that for a successful `get_log` the record holds the renderer's one-line note of the export's size.
 - [x] **APP-027**: When the MCP adapter cannot shape a call's arguments, the application shall return an `ERROR` outcome, carrying the game summary when the call names an existing game, and add a call record for the call.
 - [x] **APP-028**: When the domain reads a structured argument (`delta`, `choices`, `pay`, `expect`, `selections`, `definitions`) that is malformed, the domain shall return an error rather than raise an exception.
-- [x] **APP-020**: If a use case fails unexpectedly, then the use case shall roll back its unit of work, add a call record, and return an `ERROR` outcome stating that the failure was inside the service and not caused by the call.
-- [x] **APP-021**: If saving a game fails because the stored game changed since it was loaded, then the use case shall save nothing and return an `ERROR` outcome asking for the call to be sent again.
-- [x] **APP-022**: When a `play` call brings a card from outside the game, the use case shall resolve that card's data through `CardCatalog` before calling the domain.
+- [x] **APP-020**: If a use case fails unexpectedly, then the use case shall roll back its unit of work, add a call record, and return an `ERROR` outcome stating that the failure was inside the service and not caused by the call; if the call record cannot be added either, the use case shall still return that `ERROR` outcome.
+- [x] **APP-021**: If saving a game fails because the stored game changed since it was loaded, then the use case shall save nothing but the call record and return an `ERROR` outcome asking for the call to be sent again.
+- [x] **APP-022**: When a `play` call brings a card from outside the game, the use case shall resolve that card's data through `CardCatalog` before calling the domain, also when the call gives a card definition, which then replaces the fetched fields it names.
 - [x] **APP-023**: Use cases shall contain no rule of play: every decision about cards, zones, mana, steps or costs shall be made by the domain.
 
 ## Testing

@@ -77,7 +77,7 @@ TurnSnapshot {
 
 `payable` asks whether the plain mana cost of the card's first face, with X as 0, could be paid if every mana source the auto payment system may use on its own were untapped (see `payment`). It says whether a card left in hand was castable in principle this turn, which is what an analysis of clunky hands needs. Lands are always `payable`.
 
-`mana_available` is the most mana those same sources could make, counted on entering the turn's first main step, with counted amounts evaluated then. `mana_spent` is the number of mana symbols paid across the turn's payments, from sources or the pool; life paid is not counted.
+`mana_available` is the most mana those same sources could make, counted on entering the turn's first main step, with counted amounts evaluated then; tapped state and summoning sickness are ignored. `mana_spent` is the amount of mana paid across the turn's payments, from sources or the pool: a generic symbol counts as its number, and a generic hybrid symbol paid as generic counts as two. Life paid is not counted.
 
 ## Call Record
 

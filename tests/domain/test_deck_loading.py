@@ -83,6 +83,13 @@ def test_more_than_two_commanders_is_an_error() -> None:
 
 
 # @spec DECK-007
+def test_names_of_the_same_card_count_as_one_commander() -> None:
+    # Two commander names make the list one card shorter; the deck still has 100.
+    load = a_deck_list().with_commander(ATRAXA, ATRAXA.lower()).of_size(101).loaded()
+    assert load.deck.commanders == (ATRAXA,)
+
+
+# @spec DECK-007
 def test_two_commanders_make_a_deck_led_by_both() -> None:
     load = a_deck_list().with_commander(THRASIOS, TYMNA).loaded()
     assert load.deck.commanders == (THRASIOS, TYMNA)
@@ -172,6 +179,7 @@ def test_definitions_for_two_faces_of_one_card_both_apply() -> None:
     assert [face.mana_cost for face in card.card.faces] == [M("{R}"), M("{U}")]
 
 
+# @spec DECK-039
 def test_two_definitions_for_the_same_face_are_an_error() -> None:
     refusal = (
         a_deck_list()
@@ -184,6 +192,7 @@ def test_two_definitions_for_the_same_face_are_an_error() -> None:
     )
 
 
+# @spec DECK-039
 def test_a_definition_naming_a_face_the_card_does_not_have_is_an_error() -> None:
     refusal = a_deck_list().with_definition(name="Sol Ring", face="Moon Ring", power="1").refused()
     assert refusal.errors == (Error(ErrorKind.MALFORMED_ARGUMENT, subject="definition.face"),)
@@ -353,7 +362,7 @@ def test_two_copies_of_a_card_fail_the_singleton_check() -> None:
     )
 
 
-# @spec DECK-022
+# @spec DECK-022, DECK-006
 def test_a_commander_listed_twice_in_the_cards_fails_the_singleton_check() -> None:
     builder = a_deck_list().of_size(99)
     refusal = builder.refused(builder.text() + f"\n2 {ATRAXA}")
@@ -570,6 +579,15 @@ def test_a_card_named_by_full_name_and_by_face_name_is_one_entry() -> None:
     builder = a_deck_list().with_override("off-color").of_size(98)
     load = builder.loaded(builder.text() + f"\n{VALKI}\nTibalt, Cosmic Impostor")
     assert DeckEntry(VALKI, 2) in load.deck.entries
+
+
+# @spec DECK-004
+def test_a_split_card_named_by_a_face_in_another_letter_case_and_by_full_name_is_one_entry() -> (
+    None
+):
+    builder = a_deck_list().with_override("off-color").of_size(98)
+    load = builder.loaded(builder.text() + "\nfire\nFire // Ice")
+    assert DeckEntry("Fire // Ice", 2) in load.deck.entries
 
 
 # @spec DECK-031

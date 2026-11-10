@@ -129,6 +129,24 @@ def test_a_card_from_outside_that_the_catalog_does_not_know_asks_for_a_definitio
     assert errors_of(answer.outcome.summary) == [ErrorKind.CARD_DATA_NEEDED]
 
 
+# @spec APP-022
+def test_a_definition_given_for_a_card_from_outside_replaces_only_the_fetched_fields_it_names() -> (
+    None
+):
+    harness = a_service(cards=[HELIX])
+    harness.holding(a_game().with_battlefield("Mountain").build())
+    answer = harness.service.play(
+        {
+            "game_id": GAME_ID,
+            "card": "Lightning Helix",
+            "from": "outside",
+            "choices": {"definition": {"name": "Lightning Helix", "mana_cost": "{R}"}},
+        }
+    )
+    assert answer.outcome.status is Status.OK
+    assert [card.name for card in harness.game().in_zone(Zone.GRAVEYARD)] == ["Lightning Helix"]
+
+
 # ------------------------------------------------------------------ outcomes and saving
 
 
@@ -195,13 +213,13 @@ def test_a_call_with_an_error_is_answered_error() -> None:
 
 
 # @spec APP-018, REC-002
-def test_a_refused_call_saves_nothing_about_the_game() -> None:
+def test_a_refused_call_saves_nothing_but_its_call_record() -> None:
     harness = a_service()
     harness.holding(a_game().with_hand("Sol Ring").build())
     before = harness.game()
     harness.service.play({"game_id": GAME_ID, "card": "Sol Ring"})
     assert (harness.game(), harness.version()) == (before, 1)
-    assert harness.records().entries == ()
+    assert (harness.records().entries, len(harness.calls())) == ((), 1)
 
 
 def test_an_overridden_rule_check_is_applied() -> None:

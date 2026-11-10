@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mtg_goldfishing.domain.cards import Card, Face
 from mtg_goldfishing.domain.events import (
     AssumptionKind,
     AssumptionMade,
@@ -22,7 +23,12 @@ from mtg_goldfishing.domain.payment.paying import (
     plan_payment,
     read_pay,
 )
-from mtg_goldfishing.domain.payment.sources import available_sources
+from mtg_goldfishing.domain.payment.sources import available_sources, count
+from mtg_goldfishing.domain.reading.model import (
+    CardReading,
+    FaceReading,
+    PermanentsCount,
+)
 from tests.support.builders import Situation, a_game
 
 M = ManaString.parse
@@ -190,6 +196,20 @@ def test_a_counted_amount_is_evaluated_from_the_game_at_the_moment_of_payment() 
     assert paid.tapped == ("Gaea's Cradle",)
 
 
+# @spec READ-011, PAY-011
+def test_a_count_of_a_type_matches_whole_words_of_type_lines_ignoring_case() -> None:
+    werebear = Card("Werebear Cub", (Face("Werebear Cub", M("{G}"), "Creature — Werebear"),))
+    situation = (
+        a_game()
+        .with_card(werebear, CardReading((FaceReading(),)))
+        .with_battlefield("Gaea's Cradle", "Grizzly Bears", "Werebear Cub")
+        .build()
+    )
+    cradle = situation.named("Gaea's Cradle")
+    bears = count(situation.game, situation.deck, cradle, PermanentsCount("bear"))
+    assert bears == 1
+
+
 # @spec PAY-012
 def test_tapped_sources_are_not_used() -> None:
     situation = a_game().with_battlefield("Forest", tapped=True).build()
@@ -242,7 +262,14 @@ def test_a_source_that_costs_life_is_not_used_when_it_would_take_life_below_one(
     assert [p.kind for p in problems] == [CheckKind.COST_NOT_PAYABLE]
 
 
-# @spec PAY-016
+# @spec PAY-015
+def test_life_costing_sources_are_not_used_when_together_they_would_take_life_below_one() -> None:
+    situation = a_game().with_life(2).with_battlefield("City of Brass", "City of Brass").build()
+    _, problems = pay(situation, "{R}{R}")
+    assert [p.kind for p in problems] == [CheckKind.COST_NOT_PAYABLE]
+
+
+# @spec PAY-016, PAY-012
 def test_a_source_whose_ability_costs_mana_has_that_cost_paid_in_the_same_payment() -> None:
     situation = a_game().with_battlefield("Forest", "Azorius Signet").build()
     paid, _ = pay(situation, "{W}{U}")
@@ -342,11 +369,30 @@ def test_a_commander_in_the_command_zone_counts_as_a_card_to_keep_castable() -> 
     assert tapped_names(situation) == ["Island", "Wastes"]
 
 
+# @spec PAY-023
+def test_a_card_to_keep_castable_counts_only_if_mana_could_pay_its_phyrexian_symbols() -> None:
+    situation = (
+        a_game()
+        .with_battlefield("Swamp", "Swamp", "Forest", "Island")
+        .with_hand("Dismember")
+        .build()
+    )
+    pay(situation, "{1}")
+    assert tapped_names(situation) == ["Forest"]
+
+
 # @spec PAY-024
 def test_when_cards_castable_tie_the_payment_keeping_more_colors_wins() -> None:
     situation = a_game().with_battlefield("Forest", "Island", "Island").build()
     pay(situation, "{1}")
     assert tapped_names(situation) == ["Island"]
+
+
+# @spec PAY-024
+def test_colorless_mana_is_not_a_color_kept_available() -> None:
+    situation = a_game().with_battlefield("Wastes", "Forest", "Forest").build()
+    pay(situation, "{1}")
+    assert tapped_names(situation) == ["Wastes"]
 
 
 # @spec PAY-025
@@ -396,6 +442,17 @@ def test_the_search_stops_after_the_limit_and_uses_the_best_payment_examined() -
     assert [s.name for s in payment.sources] == ["Forest"]
 
 
+# @spec PAY-043
+def test_a_payment_tapping_a_spare_source_is_used_when_no_other_was_examined() -> None:
+    situation = a_game().with_battlefield("Wastes", "Sol Ring").build()
+    sources = available_sources(situation.game, situation.deck, paying_for=None)
+    requirement = Requirement.of(M("{2}"), phyrexian_life=0)
+    found = choose_payment(requirement, [], sources, [], life_budget=39, limit=1)
+    assert found is not None
+    payment, _ = found
+    assert [s.name for s in payment.sources] == ["Wastes", "Sol Ring"]
+
+
 # @spec PAY-041
 def test_a_permanent_with_several_mana_abilities_pays_through_any_of_them() -> None:
     situation = a_game().with_battlefield("Caves of Koilos").build()
@@ -434,6 +491,17 @@ def test_a_named_source_is_used_first_and_the_rest_is_paid_automatically() -> No
     assert paid.sacrificed == ("Lotus Petal",)
     assert paid.tapped == ("Forest",)
     assert situation.names_in(Zone.GRAVEYARD) == ["Lotus Petal"]
+
+
+# @spec PAY-030
+def test_pool_mana_and_a_named_source_s_mana_are_spent_together() -> None:
+    situation = a_game().with_battlefield("Sol Ring", "Forest").with_pool("{G}").build()
+    paid, problems = pay(
+        situation, "{2}{G}", instructions=PayInstructions(with_sources=(PayWith("Sol Ring"),))
+    )
+    assert problems == []
+    assert paid is not None
+    assert tapped_names(situation) == ["Sol Ring"]
 
 
 # @spec PAY-031
@@ -512,7 +580,7 @@ def test_life_named_in_pay_is_paid_as_part_of_the_cost() -> None:
     situation = a_game().with_battlefield("Forest").build()
     paid, _ = pay(situation, "{G}", instructions=PayInstructions(life=3))
     assert paid is not None
-    assert situation.game.life == 37
+    assert (situation.game.life, tapped_names(situation)) == (37, ["Forest"])
 
 
 # @spec PAY-039

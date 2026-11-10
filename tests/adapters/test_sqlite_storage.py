@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from mtg_goldfishing.adapters.sqlite import SqliteStores
+from mtg_goldfishing.adapters.sqlite.database import DEFAULT_BUSY_TIMEOUT
 from mtg_goldfishing.application.ports import GameRecords, StoredGame
 from mtg_goldfishing.domain.game.model import GameResult, GameStatus, Result
 from tests.support.builders import a_game
@@ -208,6 +209,11 @@ def test_a_write_to_another_game_waits_at_most_for_the_open_write_and_is_saved(
     writer.join()
 
     assert saved is True
+
+
+# @spec STOR-009
+def test_a_write_waits_up_to_a_busy_timeout_of_five_seconds() -> None:
+    assert DEFAULT_BUSY_TIMEOUT == 5.0
 
 
 # @spec STOR-011

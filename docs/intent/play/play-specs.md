@@ -61,7 +61,7 @@ Design: `play-design.md`. Prefix: `PLAY`.
 - [x] **PLAY-037**: When a delta has `move`, the game shall find each named card among the hand, battlefield, graveyard, exile and command zone, in that order, move it to the stated destination, and the outcome shall state the zone it came from.
 - [x] **PLAY-038**: The game shall never take a card from the library on account of a delta's `move` key.
 - [x] **PLAY-039**: When a delta has `discard`, the game shall move the named cards from the hand to the graveyard.
-- [x] **PLAY-040**: When a delta has `fetch`, the game shall take the named cards out of the library, shuffle the library, and then put each card in its stated destination, so that cards fetched to `library_top` or `library_bottom` are placed after the shuffle.
+- [x] **PLAY-040**: When a delta has `fetch`, the game shall take the named cards out of the library, shuffle the library, and then put each card in its stated destination, so that cards fetched to `library_top` or `library_bottom` are placed after the shuffle, each such list placed top to bottom with its first-named card topmost.
 - [x] **PLAY-041**: If a delta's `fetch` names a card that is not in the library, then the call shall return an error.
 - [x] **PLAY-042**: When a delta has `draw`, the game shall move that many cards from the top of the library to the hand and the outcome shall list exactly the cards drawn.
 - [x] **PLAY-043**: When a delta has `life`, the game shall change the agent's life by the signed amount.
@@ -86,14 +86,14 @@ Design: `play-design.md`. Prefix: `PLAY`.
 
 ## Pending choices
 
-- [x] **PLAY-056**: When a delta has `look`, the game shall reveal up to `n` cards from the stated end of the library, in order starting from that end, create a pending choice holding them and the `rest` destination, and set the game's status to `pending_choice`.
+- [x] **PLAY-056**: When a delta has `look`, the game shall reveal up to `n` cards from the stated end of the library (the top when no end is stated), in order starting from that end, create a pending choice holding them and the `rest` destination, and set the game's status to `pending_choice`.
 - [x] **PLAY-057**: If a delta's `look` gives no `rest`, then the call shall return an error.
-- [x] **PLAY-058**: When a delta has `search`, the game shall reveal the library's cards sorted by name, limited to cards whose name or type line contains `filter` ignoring case when a filter is given, create a pending choice holding them, and set the game's status to `pending_choice`.
+- [x] **PLAY-058**: When a delta has `search`, the game shall reveal the library's cards sorted by name, limited to cards whose name, or any face's name or type line, contains `filter`, ignoring case, when a filter is given, create a pending choice holding them, and set the game's status to `pending_choice`.
 - [x] **PLAY-059**: When a `look` or `search` would reveal no cards, the game shall create no pending choice, and the outcome shall be `OK` and state that there was nothing to reveal.
 - [x] **PLAY-060**: When a `search` reveals no cards, the game shall still shuffle the library.
 - [x] **PLAY-061**: When a `look` or `search` creates a pending choice, the outcome shall have status `CHOICE` and list the choice id and the revealed cards.
 - [x] **PLAY-062**: When `choose` is called with the pending choice's id, the game shall move each selected revealed card to the destination it is listed under and set the game's status to `active`.
-- [x] **PLAY-063**: When `choose` resolves a `look`, the game shall move every revealed card not selected to the `rest` destination, in `rest_order` when given and otherwise in the order revealed.
+- [x] **PLAY-063**: When `choose` resolves a `look`, the game shall move every revealed card not selected to the `rest` destination, in `rest_order` when given (listed top to bottom), and otherwise so that cards returned to the end they were looked at from keep their order, and cards sent elsewhere go in the order revealed.
 - [x] **PLAY-064**: When `choose` resolves a `search`, the game shall leave unselected cards in the library and shuffle the library before placing any selected card on the top or bottom of the library.
 - [x] **PLAY-065**: When `choose` selects several cards to `library_top`, the game shall place them with the first-named card on top and above any unselected cards that also go to the top.
 - [x] **PLAY-066**: If `choose` gives a choice id other than the pending choice's, or names a card that was not revealed, then `choose` shall return an error and change nothing.

@@ -62,9 +62,10 @@ def choose(
 ) -> Result:
     """Place each selected revealed card; for a look, the rest go to the look's destination.
 
-    For a library list, list order is top to bottom. Cards selected to the top of the library
-    go above any of a look's rest that also go to the top. After a search the library is
-    shuffled before any selected card is put on its top or bottom.
+    For a library list, list order is top to bottom. Without a `rest_order`, a look's rest
+    returned to the end it was looked at from keeps its order there. Cards selected to the top
+    of the library go above any of a look's rest that also go to the top. After a search the
+    library is shuffled before any selected card is put on its top or bottom.
     """
     pending = game.pending_choice
     if pending is None or not isinstance(choice_id, str) or choice_id.strip() != pending.choice_id:
@@ -95,7 +96,10 @@ def choose(
         if isinstance(ordered, Error):
             return Refusal.error(ordered)
         named = {card.id for card in ordered}
-        rest = ordered + [card for card in unselected if card.id not in named]
+        unnamed = [card for card in unselected if card.id not in named]
+        if pending.from_bottom and pending.rest is Destination.LIBRARY_BOTTOM:
+            unnamed.reverse()
+        rest = ordered + unnamed
         events.extend(place_all(changed, deck, rest, pending.rest))
         for destination, cards in selected:
             events.extend(place_all(changed, deck, cards, destination))

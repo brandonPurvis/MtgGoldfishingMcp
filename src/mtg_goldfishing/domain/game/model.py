@@ -151,6 +151,7 @@ class PendingChoice:
     kind: str
     revealed: list[str]
     rest: Destination | None
+    from_bottom: bool = False
 
 
 @dataclass(frozen=True)
