@@ -91,7 +91,7 @@ Every tool except `get_log` responds with plain text:
 
 ### Digest
 
-In a contested game a response begins with one line for each change other seats made since the calling seat's previous call, oldest first, each in its public form (see `game`):
+In a contested game a response begins with one line for each change other seats made since the calling seat's digest baseline — its previous response that carried a digest (see `application`) — oldest first, each in its public form (see `game`). A seat's first response covers the other seats' changes since the game began. For example: For example:
 
 ```
 S2 #53: cast Swords to Plowshares (s3), targeting Llanowar Elves
@@ -99,7 +99,7 @@ S3 #54: passed automatically: no untapped permanents
 S2 #54: s3 resolved: Llanowar Elves exiled; S1 life +1
 ```
 
-A change that caused several things lists them on its line, separated by `;`. A response with nothing new has no digest lines. A goldfish game's responses never have them.
+A change that caused several things lists them on its line, separated by `;`. A response with nothing new has no digest lines. A `get_log` response is JSON and carries no digest; what happened before it is shown by the seat's next text response. A goldfish game's responses never have them.
 
 **Status** is one of:
 

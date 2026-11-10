@@ -36,7 +36,7 @@ In a contested game each seat has its own seat id, and every view the service gi
 
 ### The service keeps the stack's order, not its meaning
 
-In a contested game a play or effect is held on a **stack** with the delta its controller stated, so that other seats can respond before it resolves. The service asks the other seats in turn order, at a few response windows, and applies the newest held delta once everyone has passed. It never works out what a card does: a counterspell is a delta that moves the countered card; a spell whose target vanished is restated by its controller.
+In a contested game a play or effect is held on a **stack** with the delta its controller stated, so that other seats can respond before it resolves. The service asks the other seats in turn order, at a few response windows, and applies the newest held delta once everyone has passed. It never works out what a card does: a counterspell is a delta that counters the held item; a spell whose target vanished is restated by its controller.
 
 ### Checks are advisory, structure is not
 

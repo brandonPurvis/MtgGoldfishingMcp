@@ -26,9 +26,11 @@ LogEntry {
   turn: int                  // 0 during mulligans
   step: Step | null          // step the game was in when the call was made; null during mulligans
   tool: string
-  arguments: object          // the call's arguments as received, JSON-string objects and lists decoded
+  arguments: object          // the call's arguments as received, JSON-string objects and lists decoded;
+                             //   `game_id` holds the game id (see Seat Ids in Records)
   outcome: object | null     // what the tool produced that the fields below do not carry:
-                             //   new_game: opening hand        mulligan: new hand, cards bottomed
+                             //   new_game: opening hand (contested: every seat's, by seat number)
+                             //   mulligan: new hand, cards bottomed
                              //   choose: where each revealed card went
                              //   attack: attackers, blocked, targets; on the entry that enters
                              //           combat_damage: damage per attacker
@@ -49,7 +51,7 @@ LogEntry {
   notices: [string]          // notices first raised by this call
 
   // contested games only
-  seat: int                  // the acting seat's number
+  seat: int | null           // the acting seat's number; null on new_game's entry, which no seat makes
   active: int | null         // the active seat's number when the call was made
   table_turn: int
   round: int
@@ -64,6 +66,8 @@ LogEntry {
 
 In a contested game `turn` is the active seat's own turn number, as its status line shows it; `table_turn` and `round` place the entry in the game as a whole. For a call whose item goes on the stack, `delta` and `paid` record what was stated and paid when the call was applied, and the item's resolution is recorded in `resolved` on the entry of whichever call caused it.
 
+A contested game's `new_game` is made by whoever starts the game, before any seat acts. Its entry has a null `seat`, holds every seat's opening hand in `outcome`, and has no public events: it is in no seat's digest.
+
 `reason` is the agent's own explanation of the play and is what makes a log useful for analysis; it is stored verbatim.
 
 ## Reminders
@@ -72,7 +76,7 @@ Each reminder issued (see `turn`) is recorded on the log entry of the call that 
 
 ## Turn Snapshots
 
-Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn.
+Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn. A turn that ends because its active seat was eliminated (see `turn`) never enters `cleanup`; its snapshot is written when the turn ends, describing that seat as elimination left it.
 
 ```
 TurnSnapshot {
@@ -112,11 +116,12 @@ CallRecord {
   id: int
   time: timestamp
   game_id: string | null     // the game the supplied id names; as supplied when it names none
-  seat: int | null           // contested games only: the calling seat's number
+  seat: int | null           // contested games only: the calling seat's number; null for new_game
   tool: string
-  arguments: object          // as received, JSON-string objects and lists decoded
+  arguments: object          // as received, JSON-string objects and lists decoded;
+                             //   `game_id` holds the game id (see Seat Ids in Records)
   status: "OK" | "REJECTED" | "ERROR" | "CHOICE"
-  response: string           // exactly what was returned
+  response: string           // what was returned (see Seat Ids in Records for new_game)
   is_override: bool          // the call carried an override
   change: int | null         // the game's change number after the call
 }
@@ -145,11 +150,20 @@ Returns JSON, unlike every other tool, because its reader is a program. Any seat
 }
 ```
 
+In a contested game the header's `turn` is the tested seat's own turn count, the number its status line shows, so that a deck's turn numbers read the same in both kinds of game; `table_turn` beside it is the table turn number.
+
 `since` returns only entries with a sequence number greater than it, calls whose `change` is greater than it, and snapshots written by those entries. `include_snapshots` defaults to true. `include_calls` defaults to false. `get_log` is accepted in every game status.
 
 Because a refused or read-only call carries the change number it was made at, a reader that polls with `since` set to the change number it last saw does not receive calls made at that same change number; a full read includes them.
 
-Seat ids are never part of the records' content: a record names seats by number.
+## Seat Ids in Records
+
+A seat id is the whole of a seat's access control, and `get_log` is open to every seat. So no record ever contains an opposing seat's seat id, and every record names seats by number.
+
+- The `game_id` argument of a call made with an opposing seat's seat id is stored, in the call record and in the log entry, as the game id; the record's `seat` says which seat called.
+- The stored response of a contested game's `new_game`, which lists every seat's seat id for whoever starts the game, has each opposing seat's seat id replaced by the redaction mark `[redacted]`. The response returned to the caller is not changed.
+
+The tested seat's seat id is the game id and is stored as such. An id that names no game or seat is stored as supplied.
 
 A `get_log` call that cannot be answered — an unknown game, a malformed argument — is answered like any other tool's error, in the text format (see `tools`), not as JSON.
 
@@ -163,9 +177,13 @@ A `get_log` call that cannot be answered — an unknown game, a malformed argume
 | Window for answering a reminder | The rest of the same turn | The same step only | A reminder met while `attack` passes through the beginning of combat could never be answered within its step; an agent that resolves a trigger a step late has still resolved it. |
 | One log sequence for entries and calls | The game's change number | Separate counters; timestamps | One number orders everything about a game and is the number the agent already sees. |
 | Snapshot timing | At cleanup | At the start of each turn | The end of the turn is when "what was left unused" is known. |
+| A turn ended by its active seat's elimination | Snapshot when the turn ends | No snapshot | Every table turn then has a snapshot, and the lives and eliminations it records show how the turn ended. |
 | `payable` definition | Payable with all sources untapped | Payable with what was untapped at cleanup | The question is whether the card was stuck, not whether mana was left over. |
 | Statistics | None computed | Summary figures per game | Non-goal; analysis is done elsewhere from these records. |
 | Records of a contested game | One log for the game, every entry and call naming its seat | A log per seat | Analysis of the tested deck needs what the opposition did, in order; one change number already orders every seat's calls. |
+| Seat ids in call records | An opposing seat's seat id is never stored: the `game_id` argument becomes the game id beside the seat number, and the stored `new_game` response is redacted | Store every call verbatim | `get_log` is open to every seat, and a verbatim record would hand each seat every other seat's id, and with it the power to act as that seat and see its hand. |
+| Who made a contested game's `new_game` | No seat: a null `seat` on its entry and call record | The tested seat | The game is started by its caller, who may be an orchestrator playing no seat; the entry holds every seat's opening hand and belongs in no seat's digest. |
+| The header's `turn` in a contested game | The tested seat's own turn count, with `table_turn` beside it | The table turn number | The record judges the tested deck; its turn numbers then mean the same as in a goldfish game. |
 | Contested-only fields in a goldfish game | Left out | Present with fixed values | A goldfish game's records keep the shape readers already rely on. |
 | Reading the log during a contested game | Any seat, whole record | Refused to seats until the game ends; filtered to the seat's view | The service hides in its views and does not police agents (tenet *It's the agent's simulation*). |
 | Where a resolution is recorded | On the entry of the call that caused it | On the entry that put the item on the stack | Entries are append-only; the resolution happens later and is part of what that later call did. |

@@ -62,7 +62,8 @@ tests/
   e2e/            # the real process over HTTP; marked e2e, run by CI but not before commits
   support/        # builders shared by tests, and the test composition root
 features/         # behave feature files and steps, in-process
-  http/           # contested scenarios run against the real process, one client per seat
+  http/           # contested scenarios run against the real process, one client per seat;
+                  # run by CI but not before commits
 ```
 
 ## Domain Model Shape
@@ -101,11 +102,11 @@ In a contested game an outcome also carries a **digest** and is rendered for the
 Outcome {
   ...
   seat: int | None             // the calling seat, in a contested game
-  digest: [{ seat, change, events: [Event] }]   // other seats' public events since this seat's previous call
+  digest: [{ seat, change, events: [Event] }]   // other seats' public events since this seat's digest baseline
 }
 ```
 
-The digest is assembled by the use case from records: the log entries with a change number greater than the one on the calling seat's previous call record, made by other seats, each with its public events. Events of the calling seat's own call are its outcome, not its digest. The public events themselves were chosen by the domain when the entries were written; the application only selects entries.
+The digest is assembled by the use case from records: the log entries made by other seats with a change number greater than the calling seat's **digest baseline**, each with its public events. The baseline is the change number on the seat's most recent call record whose response carried a digest. Every response to a seat of a contested game carries one, even when it has no lines, except a `get_log` response, which is JSON for a program: a `get_log` call is given no digest and does not move the baseline, so a seat that reads the log misses nothing in its next response. A seat with no such call record has no baseline, and its first digest covers the other seats' public events since the game began. The entry of `new_game` is made by no seat and is in no digest (see `records`). Events of the calling seat's own call are its outcome, not its digest. The public events themselves were chosen by the domain when the entries were written; the application only selects entries.
 
 ## Ports
 
@@ -115,7 +116,7 @@ Interfaces owned by the application and implemented by adapters. Each port is an
 |---|---|---|
 | `GameRepository` | Load and save games | get a game by id; find the game and seat number a seat id names; save a game, failing if the stored game has changed since it was loaded |
 | `DeckRepository` | Keep loaded decks | get a loaded deck by id; add a loaded deck, leaving an existing one with the same id in place |
-| `RecordStore` | Keep and return records | append a log entry; add a snapshot; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give the change number on a seat's most recent call record |
+| `RecordStore` | Keep and return records | append a log entry; add a snapshot; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give a seat's digest baseline: the change number on its most recent call record for a tool other than `get_log` |
 | `CardCatalog` | Supply card data by exact name | look up a set of names, returning for each: a card, not found, or unavailable; optionally refreshing |
 | `UnitOfWork` | Make one call's saves atomic | begin; commit; roll back — spanning `GameRepository`, `DeckRepository` and `RecordStore` |
 | `GameLocks` | Apply one game's calls one at a time | hold a game's lock for the length of a call |
@@ -139,7 +140,7 @@ The application never constructs or looks up an implementation of a port. `Servi
 
 Because every implementation inherits from its port, a class that does not implement every operation of its port fails when it is built, and a reader sees on the class line which port it serves.
 
-`Renderer` is a port because a call record holds the response exactly as returned and is saved in the same unit of work as the change it records, so the use case needs the text before it commits. The text itself is written by the MCP adapter, which implements the port; the application only carries it. The text kept in the call record equals the response for every tool except a successful `get_log`, whose record keeps a one-line note of the export's size.
+`Renderer` is a port because a call record holds the response exactly as returned and is saved in the same unit of work as the change it records, so the use case needs the text before it commits. The text itself is written by the MCP adapter, which implements the port; the application only carries it. The text kept in the call record equals the response for every tool except a successful `get_log`, whose record keeps a one-line note of the export's size, and a contested game's `new_game`, whose record keeps the response with each opposing seat's seat id redacted (see `records`).
 
 ## What a Use Case Does
 
@@ -154,12 +155,12 @@ For a tool that changes a game:
 7. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this). A card definition given with the call does not skip the lookup: its fields replace the fetched ones it names.
 8. Call the domain operation, as the calling seat.
 9. If applied: build the log entry and any snapshots, and save game, entry and snapshots in one unit of work.
-10. In a contested game: assemble the calling seat's digest.
+10. In a contested game, for every tool but `get_log`: assemble the calling seat's digest.
 11. Whatever happened: render the outcome through `Renderer` and add the call record with that text, in the unit of work of step 9 or in its own if step 9 saved nothing.
 12. If applied: announce through `GameChanges` that the game changed, after the unit of work has committed.
 13. Return the outcome and its rendered text.
 
-Read-only use cases (`get_state`, `get_log`) do steps 1–3, 5, 10, 11 and 13. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`. `new_game` asks `IdSource` for the game id and one seat id for each opposing seat.
+Read-only use cases (`get_state`, `get_log`) do steps 1–3, 5, 10, 11 and 13; `get_log` has no digest, so step 10 does nothing for it. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`. `new_game` asks `IdSource` for the game id and one seat id for each opposing seat.
 
 ### `wait`
 
@@ -174,7 +175,7 @@ wait(game_id, timeout?)
 3. Release the lock and wait through `GameChanges` for a change after the loaded change number, up to what remains of the timeout. On a change, go back to step 2. On timeout, go to step 4.
 4. Under the game's lock: assemble the digest, render an outcome saying what the calling seat is asked to do — or, on timeout, which seat the game is waiting on and for what — and add the call record. Return.
 
-`timeout` is in seconds, default 30, at most 60; a larger value is an error. In a goldfish game the only seat is always the seat to act, so `wait` returns at once.
+`timeout` is in seconds, default 30, from 1 to 60; a value below 1 or above 60 is an error. In a goldfish game the only seat is always the seat to act, so `wait` returns at once.
 
 A call whose arguments the MCP adapter cannot shape at all (a missing parameter, a number where a list belongs) is still handed to the application, which answers it with an `ERROR` outcome — carrying the game summary when the call names an existing game — and adds its call record.
 
@@ -193,7 +194,7 @@ If anything fails unexpectedly, the unit of work is rolled back, a call record i
 | Contract | An adapter keeps its port's promises | One test suite per port, run once per adapter implementing it. |
 | Feature | A scenario of play works end to end as an agent sees it | behave, driving the MCP adapter's tool functions in-process over in-memory adapters; assertions read the response text and the game. Contested scenarios drive each seat by its own seat id. |
 | End to end | The wiring is right | Start the real process, play a short goldfish game over HTTP against SQLite. |
-| Contested end to end | Seats played by separate clients work over the network | behave scenarios in `features/http` start the real process with SQLite and drive each seat through its own MCP client over HTTP, so `wait` and seats acting at once are exercised for real. |
+| Contested end to end | Seats played by separate clients work over the network | behave scenarios in `features/http` start the real process with SQLite and drive each seat through its own MCP client over HTTP, so `wait` and seats acting at once are exercised for real. Like `tests/e2e`, they are run by CI and not before commits. |
 | Architecture | The dependency rule holds | Inspect imports. |
 
 Conventions that keep tests readable:
@@ -213,7 +214,10 @@ Conventions that keep tests readable:
 | How implementations are plugged in | Constructor injection from a hand-written composition root | A dependency-injection container library | The whole object graph stays in plain code a reader can follow, with no extra dependency and no wiring resolved at runtime. |
 | How `wait` learns of changes | A `GameChanges` port, announced after commit | Polling the repository; a stream per seat | Polling wastes calls and adds latency; announcing after commit means a woken seat always reads the change. |
 | Holding the lock while waiting | Never | Hold it and release on change | A waiting seat holding the game's lock would stop the seat it waits on from acting. |
-| Where the digest is assembled | The use case, from log entries after the seat's previous call record | Kept on the game per seat | The records already hold every change in order; keeping a digest on the game would grow its state and change it on read-only calls. |
+| Where the digest is assembled | The use case, from log entries after the seat's digest baseline | Kept on the game per seat | The records already hold every change in order; keeping a digest on the game would grow its state and change it on read-only calls. |
+| What moves a seat's digest baseline | Only a call whose response carried a digest; `get_log` does not | Every call the seat makes | A `get_log` response is JSON with no digest lines; if it moved the baseline, the changes made since the seat's last text response would never be shown to it. |
+| The range of `wait`'s timeout | 1 to 60 seconds, anything else an error | Clamp to the range; allow 0 as a poll | A clamped value hides a caller's mistake; a zero wait is `get_state`, which already answers at once. |
+| When the HTTP scenarios run | In CI, not before commits | Before every commit | They start a real process and several clients, which is too slow for the checks run before each commit; the in-process scenarios cover the same flows there. |
 | How refusals travel | Return values | Exceptions | Refusals are the normal, expected result of a rule check; modelling them as values makes "refused, nothing changed" visible in every signature. |
 | How a refused operation leaves the game untouched | Operations work on a copy and return it only when applied | Mutate and undo; validate fully before mutating | Guaranteed by construction, with no undo logic to get wrong. |
 | Response text and log entry | Both built from one typed outcome | Log the response text; build each separately | Text is for agents and changes with wording; the log is data. Deriving both from typed events keeps them consistent without tying one to the other's format. |

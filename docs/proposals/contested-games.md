@@ -42,7 +42,7 @@ Goldfish games remain available and unchanged, because they remain the best meas
 
 - A `play` or an `effect` in a contested game goes onto the **stack** carrying the delta its controller stated. It **resolves** once every other seat has passed on it, newest first. The service keeps the order and applies the deltas; it still does not work out what any card does. This replaces the HLD non-goal "does not manage the stack" with "keeps the stack's order but does not resolve cards".
 - A response is itself a `play` or `effect`, goes on top of the stack and opens its own response window.
-- A countered item's delta is discarded: the counter's delta moves the countered card.
+- A countered item's delta is discarded: a counterspell is a delta that counters the held item, and a countered spell's card goes to its owner's graveyard unless that delta moves it elsewhere.
 - **A held delta applies as sent** when nothing resolved above it. When something did resolve above it, its controller receives a pending choice to **confirm or restate** the delta, because the board it was written against has changed. Example: a seat casts an Aura on its creature; in response, an opposing seat destroys the creature; the Aura's controller restates the delta as "the Aura to the graveyard".
 - Triggered abilities are still recorded by their controller with `effect`, as today, and can be responded to like any other stack item.
 
@@ -106,66 +106,66 @@ Goldfish games remain available and unchanged, because they remain the best meas
 Every flow below has at least one behave scenario that drives the service through its tools, with in-memory adapters, one seat id per seat. The flows marked **(HTTP)** also run as end-to-end scenarios against the real process with SQLite, with a separate client for each seat. Each scenario cites the EARS IDs it checks, so the scenarios are written test-first once the specs exist.
 
 ### Starting a game
-1. A contested game starts with one, two or three opposing seats, and each seat receives its own seat id. **(HTTP)**
-2. The same decks and seed give the same turn order and the same opening hands every time.
-3. The tested seat's opening hand and draws for a seed are the same in a goldfish game and in a contested game.
-4. `new_game` fixes the tested seat's position in turn order; the other seats are ordered by the seed.
-5. Starting life is set per seat; a seat with none given starts at 40.
-6. An opposing seat may use the tested seat's own deck (a mirror match).
-7. Every seat takes its own mulligans and sees only its own hand; turn 1 begins once every seat has kept.
+1. A contested game starts with one, two or three opposing seats, and each seat receives its own seat id. **(HTTP)** (GAME-056, GAME-074, GAME-077, APP-061)
+2. The same decks and seed give the same turn order and the same opening hands every time. (GAME-080, GAME-082, GAME-087)
+3. The tested seat's opening hand and draws for a seed are the same in a goldfish game and in a contested game. (GAME-063, GAME-083, GAME-085, GAME-086)
+4. `new_game` fixes the tested seat's position in turn order; the other seats are ordered by the seed. (GAME-081, GAME-073)
+5. Starting life is set per seat; a seat with none given starts at 40. (GAME-066, GAME-067, GAME-068)
+6. An opposing seat may use the tested seat's own deck (a mirror match). (GAME-057)
+7. Every seat takes its own mulligans and sees only its own hand; turn 1 begins once every seat has kept. (GAME-102, GAME-103, GAME-105, GAME-106, GAME-107, GAME-088)
 
 ### Turns
-8. Turns pass from seat to seat in turn order; `T<n>` counts the viewing seat's own turns; a round is one turn for each seat still in the game.
-9. A turn limit in a contested game counts rounds.
-10. A call from a seat that has nothing to do is an error.
-11. A step trigger of a permanent controlled by a seat other than the active one becomes a reminder for that seat, and the game waits on it.
+8. Turns pass from seat to seat in turn order; `T<n>` counts the viewing seat's own turns; a round is one turn for each seat still in the game. (TURN-031, TURN-033, TURN-040, TOOL-042)
+9. A turn limit in a contested game counts rounds. (GAME-144, TURN-025)
+10. A call from a seat that has nothing to do is an error. (GAME-118, APP-056, TOOL-050)
+11. A step trigger of a permanent controlled by a seat other than the active one becomes a reminder for that seat, and the game waits on it. (TURN-048, TURN-051, TURN-052, GAME-111, READ-034)
 
 ### What a seat sees
-12. A seat's responses and state show its own hand and library, every public zone, and only the sizes of other seats' hands and libraries.
-13. Every response to a seat begins with a digest of the other seats' public events since its last call, and the digest holds no hidden information. **(HTTP)**
-14. Any seat may read the log at any time.
+12. A seat's responses and state show its own hand and library, every public zone, and only the sizes of other seats' hands and libraries. (GAME-088, GAME-089, GAME-121, GAME-122, APP-035, TOOL-051)
+13. Every response to a seat begins with a digest of the other seats' public events since its last call, and the digest holds no hidden information. **(HTTP)** (APP-036, APP-037, GAME-091, REC-040, TOOL-035, TOOL-037)
+14. Any seat may read the log at any time. (GAME-114, REC-055)
 
 ### The stack and response windows
-15. A spell with no responses resolves with the delta it was cast with, once every other seat has passed.
-16. A counterspell cast in response resolves first and moves the countered card; the countered spell's delta is not applied. **(HTTP)**
-17. A response restarts the asking from the seat after the responder, including the original caster; items resolve newest first.
-18. A held delta applies as sent when nothing resolved above it; when something did, its controller confirms or restates it.
-19. A seat with no untapped permanents is passed automatically, and the automatic pass is reported.
-20. After attackers are declared, a window opens in which another seat may remove an attacker.
-21. In the end step, a window opens in which a seat may act at the end of another seat's turn.
-22. A triggered ability recorded with `effect` goes on the stack and can be responded to.
-23. An event trigger of a seat that is not taking its turn is recorded with `effect` at that seat's next window.
+15. A spell with no responses resolves with the delta it was cast with, once every other seat has passed. (STACK-003, STACK-014, STACK-016, STACK-024)
+16. A counterspell cast in response resolves first and counters the held spell; the countered spell's delta is not applied. **(HTTP)** (STACK-030, STACK-031, STACK-039)
+17. A response restarts the asking from the seat after the responder, including the original caster; items resolve newest first. (STACK-039, STACK-035, STACK-050)
+18. A held delta applies as sent when nothing resolved above it; when something did, its controller confirms or restates it. (STACK-023, STACK-024, STACK-025, STACK-026, STACK-027)
+19. A seat with no untapped permanents is passed automatically, and the automatic pass is reported. (STACK-046, STACK-047, STACK-048, REC-037)
+20. After attackers are declared, a window opens in which another seat may remove an attacker. (STACK-036, STACK-044, CMBT-034)
+21. In the end step, a window opens in which a seat may act at the end of another seat's turn. (STACK-037, STACK-045, TURN-056)
+22. A triggered ability recorded with `effect` goes on the stack and can be responded to. (STACK-007)
+23. An event trigger of a seat that is not taking its turn is recorded with `effect` at that seat's next window. (STACK-056, STACK-057)
 
 ### Effects across seats
-24. An effect that requires another seat to discard or sacrifice gives that seat a pending choice, and the game waits for its answer.
-25. Looking at another seat's hand shows those cards to the looking seat only.
-26. A delta may destroy or exile another seat's permanent and change any seat's life.
-27. A delta may change control of a permanent; owner and controller are kept separately.
-28. A delta that reaches into another seat's hand or library is refused.
+24. An effect that requires another seat to discard or sacrifice gives that seat a pending choice, and the game waits for its answer. (PLAY-097, PLAY-098, PLAY-099, GAME-109)
+25. Looking at another seat's hand shows those cards to the looking seat only. (PLAY-102, PLAY-103, GAME-090)
+26. A delta may destroy or exile another seat's permanent and change any seat's life. (PLAY-087, PLAY-088, PLAY-091, PLAY-092, PLAY-095)
+27. A delta may change control of a permanent; owner and controller are kept separately. (PLAY-094, GAME-100, GAME-101)
+28. A delta that reaches into another seat's hand or library is refused. (PLAY-079, GAME-096)
 
 ### Combat
-29. `attack` names a seat for each attacker, and each attacked seat declares blockers through a pending choice. **(HTTP)**
-30. The attacking seat states what happens to creatures in combat; the service adds up combat damage to seats and commander damage per seat.
+29. `attack` names a seat for each attacker, and each attacked seat declares blockers through a pending choice. **(HTTP)** (CMBT-030, CMBT-031, CMBT-037, CMBT-039)
+30. The attacking seat states what happens to creatures in combat; the service adds up combat damage to seats and commander damage per seat. (CMBT-051, CMBT-061, CMBT-062)
 
 ### Elimination and the end of a game
-31. A seat at 0 life is eliminated: the cards it owns leave the game, permanents it controlled but did not own return to their owners, and it takes no more turns and is skipped by response windows.
-32. A seat dealt 21 combat damage by one commander is eliminated.
-33. An opposing seat may concede, which eliminates it.
-34. A notice is raised when the tested seat is eliminated, and when every opponent of the tested seat is eliminated.
-35. Only the tested seat may call `end_game`, and it may do so at any time, including while the game waits on another seat.
+31. A seat at 0 life is eliminated: the cards it owns leave the game, permanents it controlled but did not own return to their owners, and it takes no more turns and is skipped by response windows. (GAME-129, GAME-132, GAME-133, GAME-136, TURN-031, STACK-062)
+32. A seat dealt 21 combat damage by one commander is eliminated. (GAME-130, CMBT-062, CMBT-065)
+33. An opposing seat may concede, which eliminates it. (GAME-131)
+34. A notice is raised when the tested seat is eliminated, and when every opponent of the tested seat is eliminated. (GAME-142, GAME-143)
+35. Only the tested seat may call `end_game`, and it may do so at any time, including while the game waits on another seat. (GAME-045, GAME-131, GAME-148)
 
 ### Coordination
-36. `wait` returns when the seat has something to do, with what is asked of it. **(HTTP)**
-37. `wait` times out and names the seat the game is waiting on.
-38. A resend is recognised against the sending seat's own most recent change, even when another seat acted in between. **(HTTP)**
-39. A changing call with a stale `after` is an error.
-40. A full game played by four seats, each through its own client, produces one complete log. **(HTTP)**
+36. `wait` returns when the seat has something to do, with what is asked of it. **(HTTP)** (APP-063, APP-064)
+37. `wait` times out and names the seat the game is waiting on. (APP-066)
+38. A resend is recognised against the sending seat's own most recent change, even when another seat acted in between. **(HTTP)** (GAME-036, GAME-126, APP-055)
+39. A changing call with a stale `after` is an error. (GAME-037, GAME-127)
+40. A full game played by four seats, each through its own client, produces one complete log. **(HTTP)** (REC-027, APP-015, APP-077)
 
 ### Records
-41. Every log entry and call record names the seat that made it, and the record holds the opposing seats' deck ids.
+41. Every log entry and call record names the seat that made it, and the record holds the opposing seats' deck ids. (REC-028, REC-052, REC-056)
 
 ### Goldfish games
-42. A goldfish game's tested seat id is its game id, and its responses show no digest, stack or response window.
+42. A goldfish game's tested seat id is its game id, and its responses show no digest, stack or response window. (GAME-076, APP-040, TOOL-039, STACK-001)
 
 ## Alternatives considered
 

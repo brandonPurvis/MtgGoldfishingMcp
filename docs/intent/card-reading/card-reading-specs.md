@@ -39,6 +39,7 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-024**: When an ability adds mana but its cost neither taps nor sacrifices the permanent, the card reader shall give that ability no reading.
 - [x] **READ-025**: When mana is added by a triggered ability rather than an activated one, the card reader shall give that ability no reading.
 - [x] **READ-026**: When a card has produced colors but an ability of it has no reading, the card reader shall report that ability as unread.
+- [ ] **READ-045**: When no mana symbols or counts can be extracted from an ability that adds mana and the card has no produced colors, the card reader shall give that ability no reading.
 
 ## Reporting
 
@@ -46,14 +47,19 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 
 ## Step triggers
 
-- [x] **READ-028**: When a face's rules text contains a beginning-of-upkeep phrase that applies to the controller (`At the beginning of your upkeep`, `of each upkeep`, `of each player's upkeep`), the card reader shall read a step trigger for `upkeep`.
-- [x] **READ-029**: When a face's rules text contains a beginning-of-draw-step phrase that applies to the controller, the card reader shall read a step trigger for `draw`.
+- [x] **READ-028**: When a face's rules text contains a beginning-of-upkeep phrase that applies on its controller's turn (`At the beginning of your upkeep`, `of each upkeep`, `of each player's upkeep`), the card reader shall read a step trigger for `upkeep`.
+- [x] **READ-029**: When a face's rules text contains a beginning-of-draw-step phrase that applies on its controller's turn (`At the beginning of your draw step`, `of each player's draw step`), the card reader shall read a step trigger for `draw`.
 - [x] **READ-030**: When a face's rules text contains `At the beginning of your precombat main phase` or `of your first main phase`, the card reader shall read a step trigger for `main1`.
 - [x] **READ-031**: When a face's rules text contains `At the beginning of combat on your turn` or `of each combat`, the card reader shall read a step trigger for `begin_combat`.
 - [x] **READ-032**: When a face's rules text contains `At the beginning of your postcombat main phase` or `of your second main phase`, the card reader shall read a step trigger for `main2`.
-- [x] **READ-033**: When a face's rules text contains a beginning-of-end-step phrase that applies to the controller (`At the beginning of your end step`, `of each end step`, `of each player's end step`, `of the end step`), the card reader shall read a step trigger for `end`.
-- [x] **READ-034**: When a beginning-of-step phrase names only opponents, the card reader shall read no step trigger from it.
-- [x] **READ-035**: When a face has several triggers for the same step, the card reader shall read that step once.
+- [x] **READ-033**: When a face's rules text contains a beginning-of-end-step phrase that applies on its controller's turn (`At the beginning of your end step`, `of each end step`, `of each player's end step`, `of the end step`), the card reader shall read a step trigger for `end`.
+- [ ] **READ-034**: When a face's rules text contains a beginning-of-step phrase that names only opponents (`of each opponent's upkeep`, `of each opponent's draw step`, `of each opponent's end step`), the card reader shall read a step trigger for that step (`upkeep`, `draw` or `end`) whose turns are `opponents`.
+- [ ] **READ-035**: When a face has several triggers for the same step and the same `whose` (`controller`, `each` or `opponents`), the card reader shall read that step-and-`whose` pair once, and shall read triggers for the same step that differ in `whose` as separate step triggers.
+- [ ] **READ-046**: The card reader shall record on every step trigger reading whose turns the trigger happens on: `controller`, `each` or `opponents`.
+- [ ] **READ-047**: When a beginning-of-step phrase names the controller's own step or turn (`At the beginning of your upkeep`, `of your draw step`, `of your precombat main phase`, `of your first main phase`, `of combat on your turn`, `of your postcombat main phase`, `of your second main phase`, `of your end step`), the card reader shall read the step trigger's `whose` as `controller`.
+- [ ] **READ-048**: When a beginning-of-step phrase names every turn (`of each upkeep`, `of each player's upkeep`, `of each player's draw step`, `of each combat`, `of each end step`, `of each player's end step`, `of the end step`), the card reader shall read the step trigger's `whose` as `each`.
+- [x] **READ-049**: The card reader shall attach no assumptions to a step trigger reading.
+- [x] **READ-050**: When a beginning-of-step phrase stands inside the text of another effect as a delayed trigger (`at the beginning of the next end step` in a spell's text), the card reader shall read it as a step trigger in the same way as a standing one.
 
 ## Haste, vigilance and flash
 
@@ -69,3 +75,4 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-041**: When a face's rules text says without condition that the permanent enters tapped, the card reader shall read the permanent as entering tapped.
 - [x] **READ-042**: When a face's rules text says the permanent enters tapped subject to a condition or a choice, the card reader shall read it as entering untapped and add an assumption that quotes the condition.
 - [x] **READ-043**: When a face's rules text says nothing about entering tapped, the card reader shall read the permanent as entering untapped with no assumption.
+- [x] **READ-051**: When a face's rules text says the permanent enters tapped and adds only that it does not untap (`This land enters tapped and doesn't untap during your untap step.`), the card reader shall read the permanent as entering tapped with no assumption.

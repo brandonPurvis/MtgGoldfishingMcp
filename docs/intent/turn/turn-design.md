@@ -38,9 +38,9 @@ The active seat may stop in any step. Stopping in a step with an automatic actio
 
 A turn belongs to the active seat. When the active seat leaves `cleanup`, its turn ends and the next seat in turn order that is still in the game becomes the active seat and begins its turn by entering `untap`. In a goldfish game the next seat is the same seat.
 
-A **round** begins whenever the first seat in turn order that is still in the game begins a turn. The status line's `T<n>` is the number of turns the viewing seat has begun, so a seat's turn numbers mean the same in a goldfish game and a contested one; records also keep the table turn number and the round.
+The first turn of a game begins round 1. A new **round** begins when the turn passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only one left. The status line's `T<n>` is the number of turns the viewing seat has begun, so a seat's turn numbers mean the same in a goldfish game and a contested one; records also keep the table turn number and the round.
 
-When the active seat is eliminated during its turn (see `game`), its turn ends: the declared attack and any pending `blocks` choices are discarded, other seats' items still on the stack are asked about and resolve as usual, and once the stack is empty every mana pool empties and the next seat begins its turn as below.
+When the active seat is eliminated during its turn (see `game`), its turn ends: the declared attack and any pending `blocks` choices are discarded, other seats' items still on the stack are asked about and resolve as usual, and once the stack is empty the turn's snapshot is written as at cleanup (see `records`), every mana pool empties and the next seat begins its turn as below.
 
 ### Beginning another seat's turn
 
@@ -77,7 +77,7 @@ T7 upkeep · Hand 4 · Lands 6 (6 untapped) · ... · #42
 
 Reminders are found from the step-trigger readings of the face in play of each permanent on the battlefield. One reminder is issued per permanent, to the seat that controls it; several permanents with the same name and controller are listed once with a count (`Rhystic Study ×2`).
 
-A reminder for the active seat is not enforced: it may advance straight on. A reminder for another seat makes that seat a seat to act (see `game`): it records the trigger with `effect`, which goes on the stack, or declines with `pass` (see `stack`). Several seats' reminders are answered one seat at a time, in turn order from the active seat. Once they are answered and the stack is empty, the active seat is the seat to act again and continues with `advance`.
+A reminder for the active seat is not enforced: it may advance straight on. A reminder for another seat makes that seat a seat to act (see `game`): it records the trigger with `effect`, which goes on the stack, or calls `pass` (see `stack`). Several seats' reminders are taken one seat at a time, in turn order from the active seat. Once every reminded seat has recorded its trigger or passed and the stack is empty, the active seat is the seat to act again and continues with `advance`.
 
 ### Stopping at the end step
 
@@ -122,6 +122,7 @@ An additional combat (see `combat`) moves the game back to `declare_attackers` w
 | Imaginary opponents' turns | Do not exist | Model three empty turns | Nothing happens in them that the service tracks. |
 | How far an advance goes in a contested game | To the end of the active seat's turn; the next turn proceeds to its first main step in the same call | The caller's `to` crossing into other seats' turns | A seat must not move the game through another seat's turn; proceeding to the next main step spares the new active seat calls for steps with nothing to do. |
 | Another seat's step triggers | A reminder that makes that seat a seat to act | Listed to the active seat only; not reminded | The trigger is the other seat's to record, and it can only record when it is a seat to act. |
+| When a round begins | When turn order wraps: the turn passes to a seat earlier in turn order than the one whose turn just ended | Whenever the first seat still in the game begins a turn | When the first seat is eliminated during its own turn, the seat after it becomes the first seat still in the game and would begin a new round after a round of one turn. Counting the wrap keeps a round one turn for each seat still in the game. |
 | What `T<n>` counts | The viewing seat's own turns | The table turn number | "Turn 7" then means the same for a deck in a goldfish game and in a contested one. |
 | Turn limit in a contested game | In rounds | In table turns; in the tested seat's turns | A round is the unit of a multiplayer game. |
 | Until-end-of-turn effects | Not tracked | Expire them at cleanup | The service does not know what effects are in force; the agent accounts for them. |
