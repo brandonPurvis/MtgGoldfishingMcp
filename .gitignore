@@ -12,3 +12,6 @@ build/
 data/
 .claude/settings.local.json
 .idea/
+
+# agent worktrees
+.claude/worktrees/
