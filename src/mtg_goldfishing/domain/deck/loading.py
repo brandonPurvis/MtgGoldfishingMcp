@@ -165,8 +165,8 @@ class _Resolved:
 def _fetched(name: str, lookups: Mapping[str, CardLookup]) -> Card | LookupStatus:
     """The card the catalog gave for a name, or why there is none.
 
-    A cached card kept after a failed refresh counts as found; a name the catalog did not
-    answer for counts as unavailable.
+    A cached card kept after a failed refresh counts as found (and is named as not
+    refreshed); a name the catalog did not answer for counts as unavailable.
     """
     lookup = lookups.get(name)
     if lookup is None:
@@ -437,6 +437,20 @@ def deck_report(deck: LoadedDeck) -> DeckReport:
     )
 
 
+def _not_refreshed(lookups: Mapping[str, CardLookup]) -> tuple[str, ...]:
+    """The cards the catalog kept on their cached data because it could not fetch them again."""
+    return tuple(
+        sorted(
+            {
+                lookup.card.name
+                for lookup in lookups.values()
+                if lookup.card is not None and lookup.status is not LookupStatus.FOUND
+            },
+            key=_by_name,
+        )
+    )
+
+
 # Loading
 
 
@@ -454,7 +468,7 @@ class DeckLoad:
 
 # @spec DECK-006, DECK-008, DECK-010, DECK-012, DECK-018, DECK-019, DECK-020
 # @spec DECK-027, DECK-028, DECK-029, DECK-030, DECK-031, DECK-032, DECK-033, DECK-034
-# @spec DECK-035, DECK-036
+# @spec DECK-035, DECK-036, DECK-038
 def load_deck(
     request: DeckRequest,
     lookups: Mapping[str, CardLookup],
@@ -496,6 +510,6 @@ def load_deck(
         deck.card_count,
         deck.commanders,
         already_loaded=held is not None,
-        report=deck_report(deck),
+        report=replace(deck_report(deck), not_refreshed=_not_refreshed(lookups)),
     )
     return DeckLoad(deck, summary, () if judged is None else (judged,))

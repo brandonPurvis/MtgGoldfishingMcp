@@ -866,6 +866,17 @@ def test_an_effect_whose_source_names_a_permanent_answers_its_reminder() -> None
     assert result.game.reminders[0].answered
 
 
+# @spec REC-009, REC-010
+def test_an_effect_answers_the_reminder_of_a_permanent_no_longer_on_the_battlefield() -> None:
+    situation = a_game().in_step(Step.UPKEEP).with_battlefield("Phyrexian Arena").build()
+    arena = situation.named("Phyrexian Arena")
+    situation.game.reminders.append(Reminder(arena.id, "Phyrexian Arena", Step.UPKEEP))
+    arena.zone = Zone.GRAVEYARD
+    result = effect(situation.game, situation.deck, source="Phyrexian Arena", delta={"life": -1})
+    assert isinstance(result, Applied)
+    assert result.game.reminders[0].answered
+
+
 def test_an_effect_whose_source_names_no_permanent_answers_no_reminder() -> None:
     situation = a_game().in_step(Step.UPKEEP).with_battlefield("Phyrexian Arena").build()
     situation.game.reminders.append(Reminder("c1", "Phyrexian Arena", Step.UPKEEP))

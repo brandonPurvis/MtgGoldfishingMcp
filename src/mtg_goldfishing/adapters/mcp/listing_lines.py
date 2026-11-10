@@ -190,6 +190,7 @@ def report_lines(report: DeckReport) -> list[str]:
                 for k in report.keywords_with_assumptions
             ],
         ),
+        ("Not refreshed (cached data kept)", list(report.not_refreshed)),
     ]
     return [f"{title}: {', '.join(items)}" for title, items in parts if items]
 

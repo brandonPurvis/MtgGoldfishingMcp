@@ -66,7 +66,7 @@ def _remind(game: Game, deck: LoadedDeck, step: Step) -> ReminderIssued | None:
         if step in reading_of(deck, card).step_triggers:
             name = face_name(deck, card)
             counts[name] = counts.get(name, 0) + 1
-            game.reminders.append(Reminder(card.id, name, step))
+            game.reminders.append(Reminder(card.id, name, step, card_name=card.name))
     if not counts:
         return None
     return ReminderIssued(step, tuple(counts.items()))
@@ -90,6 +90,7 @@ def enter_step(
         game.land_drops_used = 0
         game.turn_stats = TurnStats()
         game.reminders = []
+        game.tapped_by_attacks = []
     walk.entered.append(EnteredStep(game.turn, step))
     if step is Step.UNTAP:
         walk.events.extend(examine_turn_limit(game))

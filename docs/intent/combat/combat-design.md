@@ -31,10 +31,10 @@ Names follow the usual rules (see `game`): a name given twice means two differen
 | Game is in | `attack` |
 |---|---|
 | `main1`, `begin_combat` | Moves the game to `declare_attackers`, doing what `advance` would on the way, and declares. Reminders for `begin_combat` are listed in the response; the attack is declared regardless. |
-| `declare_attackers` | Declares. |
+| `declare_attackers`, or `declare_blockers` with no attack declared | Declares, staying in the current step. |
 | `declare_attackers` or `declare_blockers`, with an attack already declared | Replaces the declaration. Attackers tapped by the earlier declaration stay tapped and are not refused for being tapped. |
 | `untap`, `upkeep`, `draw` | Rule check: combat this early skips the first main step. With an override, proceeds as from `main1`. |
-| `combat_damage` or later | Rule check: combat is over for this turn. With an override this is an additional combat: the game returns to `declare_attackers` of the current turn (see `turn`) and declares. |
+| `combat_damage` or later | Rule check: combat is over for this turn. With an override this is an additional combat: the game returns to `declare_attackers` of the current turn (see `turn`) and declares. Creatures tapped by an earlier declaration this turn are not refused for being tapped. |
 
 An empty `attackers` list is accepted: it declares no attack, and clears an earlier declaration.
 
@@ -48,14 +48,14 @@ Each attacker is tapped unless it has vigilance: its own, granted by another per
 
 Errors:
 
-- an attacker that is not on the battlefield;
+- an attacker that is not on the battlefield, naming the zone it is in when it is elsewhere;
 - an entry in `blocked`, `damage`, `vigilance` or `haste` that is not among the attackers;
 - a `commander_target` outside 0–2, or a `commander_target` map naming something that is not an attacking commander.
 
 Rule checks, overridable:
 
 - an attacker whose type line (for a token, its `types`) does not include `Creature`;
-- an attacker that is tapped, other than by this turn's earlier declaration;
+- an attacker that is tapped, other than by an earlier attack declaration this turn;
 - an attacker that entered the battlefield this turn and has no haste — its own, granted, or listed in `haste`;
 - an attacker whose power is not a number (`*`, or absent) with no entry in `damage`;
 - the two timing checks in the table above.

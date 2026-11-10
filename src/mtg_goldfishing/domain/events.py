@@ -164,7 +164,8 @@ class DeckReport:
     abilities read with assumptions, mana abilities not read, mana abilities the auto
     payment system will not use on its own (they sacrifice or carry another cost), cards
     granting haste or vigilance, cards read as entering tapped, cards assumed to enter
-    untapped, and haste, vigilance or flash readings made with assumptions.
+    untapped, and haste, vigilance or flash readings made with assumptions. `not_refreshed`
+    names the cards a refresh could not fetch again, whose cached data the deck was built from.
     """
 
     definitions_applied: tuple[str, ...] = ()
@@ -175,6 +176,7 @@ class DeckReport:
     enters_tapped: tuple[EntersTappedReport, ...] = ()
     assumed_untapped: tuple[EntersTappedReport, ...] = ()
     keywords_with_assumptions: tuple[KeywordReport, ...] = ()
+    not_refreshed: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

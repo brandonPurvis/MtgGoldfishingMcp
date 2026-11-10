@@ -24,6 +24,7 @@ Design: `card-data-design.md`. Prefix: `CARD`.
 - [x] **CARD-012**: If no card returned by Scryfall matches a requested name, then the Scryfall adapter shall report that name as not found.
 - [x] **CARD-013**: If a request to Scryfall fails with a network error, exceeds 10 seconds, or returns a non-success status other than not-found, then the Scryfall adapter shall report the names in that request as unavailable, distinct from not found.
 - [x] **CARD-014**: If a request to Scryfall returns a rate-limit or server-error status, then the Scryfall adapter shall retry that request once after one second before reporting its names as unavailable.
+- [x] **CARD-020**: If Scryfall returns a card for a requested name that the card model cannot hold, then the Scryfall adapter shall report that name as unavailable and store nothing in the cache for it.
 
 ## Cache
 

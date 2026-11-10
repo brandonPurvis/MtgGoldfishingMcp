@@ -262,6 +262,12 @@ def test_a_basic_land_type_gives_its_tap_ability_without_rules_text() -> None:
     assert the_ability_of(forest) == ManaAbility(produces=Fixed(mana("{G}")), text="{T}: Add {G}.")
 
 
+# @spec READ-003, READ-015
+def test_wastes_reads_its_colorless_mana_ability_from_its_rules_text() -> None:
+    wastes = a_card("Wastes", "{T}: Add {C}.", "Basic Land")
+    assert the_ability_of(wastes) == ManaAbility(produces=Fixed(mana("{C}")), text="{T}: Add {C}.")
+
+
 # @spec READ-015, READ-016
 def test_each_basic_land_type_gives_its_own_tap_ability() -> None:
     hallowed_fountain = a_card(

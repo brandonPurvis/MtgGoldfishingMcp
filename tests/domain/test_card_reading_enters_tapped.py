@@ -41,6 +41,16 @@ def test_a_creature_that_says_it_enters_tapped_enters_tapped() -> None:
     assert enters_tapped_of(card) == EntersTappedReading(tapped=True)
 
 
+# @spec READ-041
+def test_entering_tapped_and_not_untapping_during_the_untap_step_enters_tapped() -> None:
+    card = a_card(
+        "Sleepy Land",
+        "This land enters tapped and doesn't untap during your untap step.\n{T}: Add {C}{C}.",
+        "Land",
+    )
+    assert enters_tapped_of(card) == EntersTappedReading(tapped=True)
+
+
 # @spec READ-042
 def test_entering_tapped_unless_a_condition_holds_is_read_as_untapped_with_the_condition() -> None:
     glacial_fortress = a_card(

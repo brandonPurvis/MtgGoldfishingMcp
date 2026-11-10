@@ -85,7 +85,7 @@ Pairings between two commanders (partner, background, and similar) are not check
 
 The id is `d` followed by the first ten hexadecimal characters of a SHA-256 hash over a canonical form of the deck: the commander names sorted, the other entries as `(count, name)` sorted by name using the canonical card names, the definitions sorted by name with their fields in a fixed order, and the resolved card data of every card. Formatting, line order, letter case and comments do not affect the id. Definitions and card data do.
 
-A loaded deck never changes once created. Every `load_deck` call resolves the cards, runs the deck checks and computes the id afresh; if a loaded deck with that id exists it is returned as it is, otherwise one is created. A deck that failed its checks needs its `override` on every call. With `refresh`, card data is fetched again first: if any card's data has changed, the contents hash differently and the result is a new loaded deck with a new id, and the earlier one, with any games on it, is untouched.
+A loaded deck never changes once created. Every `load_deck` call resolves the cards, runs the deck checks and computes the id afresh; if a loaded deck with that id exists it is returned as it is, otherwise one is created. A deck that failed its checks needs its `override` on every call. With `refresh`, card data is fetched again first: if any card's data has changed, the contents hash differently and the result is a new loaded deck with a new id, and the earlier one, with any games on it, is untouched. A card the catalog could not fetch again keeps its cached data: the deck is built from that data and the response names the card as not refreshed.
 
 If two different decks would ever produce the same id, the newer one's id is lengthened, two characters at a time, until it is unique.
 
@@ -100,7 +100,7 @@ The `override` reason given when a loaded deck is created is recorded on it. A l
 
 ## Response
 
-On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
+On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
 
 ```
 OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.

@@ -53,6 +53,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-032**: The deck component shall never alter a loaded deck after it has been created.
 - [x] **DECK-033**: When `load_deck` is called with `refresh` and a card's fetched data has changed, `load_deck` shall create a loaded deck with a new id and leave every existing loaded deck unchanged.
 - [x] **DECK-034**: If a newly computed deck id is already held by a loaded deck with different contents, then `load_deck` shall lengthen the new id two hexadecimal characters at a time until it is unique.
+- [x] **DECK-038**: When `load_deck` is called with `refresh` and the card catalog could not fetch some cards again, `load_deck` shall build the deck from the cards' cached data and the outcome shall name those cards as not refreshed.
 - [x] **DECK-035**: The loaded deck shall hold its id, commanders, entries, resolved card data, readings, and any overridden deck checks with their reasons.
 
 ## Response

@@ -24,7 +24,7 @@ from mtg_goldfishing.domain.events import (
 from mtg_goldfishing.domain.game.cards_in_play import card_of, reading_of
 from mtg_goldfishing.domain.game.model import CardInstance, Destination, Game, Zone
 from mtg_goldfishing.domain.game.movement import move
-from mtg_goldfishing.domain.game.naming import is_instance_id, matches, resolve_one
+from mtg_goldfishing.domain.game.naming import is_instance_id, resolve_one
 from mtg_goldfishing.domain.game.notices import examine_end_conditions
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
 from mtg_goldfishing.domain.mana import ManaString
@@ -46,6 +46,7 @@ from mtg_goldfishing.domain.play.arguments import (
 from mtg_goldfishing.domain.play.delta import apply_delta
 from mtg_goldfishing.domain.play.expectations import compare
 from mtg_goldfishing.domain.reading.reader import read_card
+from mtg_goldfishing.domain.records.reminders import names_reminded_permanent
 
 OUTSIDE = "outside"
 _FROM_ZONES = {
@@ -345,11 +346,16 @@ def play(
 # ---------------------------------------------------------------------------------- effect
 
 
-def _answer_reminders(game: Game, changed: Game, deck: LoadedDeck, source: str) -> None:
-    """An effect whose source names a permanent answers that permanent's reminders this turn."""
-    named = {card.id for card in game.battlefield if matches(deck, card, source)}
+# @spec REC-009, REC-010
+def _answer_reminders(changed: Game, source: str) -> None:
+    """An effect whose source names a reminded permanent answers its reminders this turn."""
     for reminder in changed.reminders:
-        if reminder.instance_id in named:
+        if names_reminded_permanent(
+            source,
+            card_name=reminder.card_name,
+            face=reminder.name,
+            instance_id=reminder.instance_id,
+        ):
             reminder.answered = True
 
 
@@ -400,7 +406,7 @@ def effect(
         problems.add(applied)
     else:
         events.extend(applied)
-    _answer_reminders(game, changed, deck, source)
+    _answer_reminders(changed, source)
     return _finish(
         changed,
         deck,

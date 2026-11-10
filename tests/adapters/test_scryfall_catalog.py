@@ -263,6 +263,7 @@ def test_a_name_scryfall_reports_not_found_is_not_found(setup: Setup) -> None:
     assert result == CardLookup(LookupStatus.NOT_FOUND)
 
 
+# @spec CARD-020
 def test_a_returned_card_the_card_model_cannot_hold_leaves_its_name_unavailable(
     setup: Setup,
 ) -> None:
@@ -270,6 +271,15 @@ def test_a_returned_card_the_card_model_cannot_hold_leaves_its_name_unavailable(
     setup.scryfall.answer_with("Cultivate", broken)
 
     assert setup.catalog.look_up(["Cultivate"])["Cultivate"].status is LookupStatus.UNAVAILABLE
+
+
+# @spec CARD-020
+def test_a_returned_card_the_card_model_cannot_hold_is_not_cached(setup: Setup) -> None:
+    broken = recorded_scryfall_card("Cultivate") | {"mana_cost": "{Q}"}
+    setup.scryfall.answer_with("Cultivate", broken)
+    setup.catalog.look_up(["Cultivate"])
+
+    assert setup.cache.get("Cultivate") is None
 
 
 # Failures
