@@ -35,7 +35,7 @@ from mtg_goldfishing.domain.game.seats import SeatId
 from mtg_goldfishing.domain.records.model import CallRecord
 from tests.support.builders import Situation
 from tests.support.card_data import recorded_cards
-from tests.support.decks import ATRAXA, a_deck_list
+from tests.support.decks import ATRAXA, OMNATH, a_deck_list, an_opposing_deck_list
 from tests.support.rendering import PlainRenderer
 
 GAME_ID = "gtest000001"
@@ -95,6 +95,34 @@ class ServiceHarness:
     def started_game(self, **arguments: object) -> Answer:
         """Start a game on the standard test deck through the service."""
         return self.service.new_game({"deck_id": self.loaded_deck_id(), **arguments})
+
+    def loaded_opposing_deck_id(self) -> str:
+        """Load the opposing test deck list (Omnath) through the service and return its id."""
+        answer = self.service.load_deck(
+            {"cards": an_opposing_deck_list().text(), "commander": OMNATH}
+        )
+        summary = answer.outcome.summary
+        deck_id = getattr(summary, "deck_id", None)
+        assert isinstance(deck_id, str), answer
+        return deck_id
+
+    def started_contested_game(self, opposing: int = 1, **arguments: object) -> str:
+        """Start a contested game through the service: the standard test deck against
+        `opposing` seats on the opposing test deck. Returns the game id."""
+        opponent = self.loaded_opposing_deck_id()
+        answer = self.service.new_game(
+            {"deck_id": self.loaded_deck_id(), "opponents": [opponent] * opposing, **arguments}
+        )
+        game_id = getattr(answer.outcome.game, "game_id", None)
+        assert isinstance(game_id, str), answer
+        return game_id
+
+    def seat_id(self, game_id: str, number: int) -> str:
+        """The seat id of the seat with this seat number."""
+        for seat in self.game(game_id).seats:
+            if seat.number.value == number:
+                return seat.seat_id.value
+        raise KeyError(number)
 
 
 # @spec APP-051
