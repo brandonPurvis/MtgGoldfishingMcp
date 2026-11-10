@@ -529,3 +529,18 @@ def test_a_malformed_pay_argument_is_an_error_not_an_exception() -> None:
     assert isinstance(read_pay({"with": 3}), Error)
     assert isinstance(read_pay({"cost": "{Q}"}), Error)
     assert isinstance(read_pay("Forest"), Error)
+
+
+# @spec PAY-043
+def test_the_auto_payment_system_taps_no_source_the_payment_could_do_without() -> None:
+    situation = (
+        a_game()
+        .with_battlefield("Wastes", "Wastes", "Wastes", "Wastes", "Wastes")
+        .with_battlefield("Forest", "Island", "Plains")
+        .build()
+    )
+    paid, problems = pay(situation, "{3}{W}")
+    assert problems == []
+    assert paid is not None
+    assert len(paid.tapped) == 4
+    assert str(situation.game.mana_pool) == "{}"

@@ -207,7 +207,7 @@ def score_key(
     return (-castable, -len(colors), -mana, kinds, tuple(sorted(s.number for s in sources)))
 
 
-# @spec PAY-018, PAY-022, PAY-023, PAY-024, PAY-025, PAY-026, PAY-027, PAY-028, PAY-029
+# @spec PAY-043, PAY-018, PAY-022, PAY-023, PAY-024, PAY-025, PAY-026, PAY-027, PAY-028, PAY-029
 # @spec PAY-041
 def choose_payment(
     requirement: Requirement,
@@ -232,6 +232,7 @@ def choose_payment(
     slots = [(g, a) for g, group in enumerate(groups) for a in range(group.abilities)]
     used = [[0] * group.abilities for group in groups]
     best: tuple[ScoreKey, SourcePayment] | None = None
+    wasteful: tuple[ScoreKey, SourcePayment] | None = None
     examined = 0
 
     def chosen() -> list[Source]:
@@ -245,14 +246,18 @@ def choose_payment(
         return rest
 
     def search(start: int) -> None:
-        nonlocal best, examined
+        nonlocal best, wasteful, examined
         if examined >= limit:
             return
-        payment = pay_from(requirement, pool, chosen(), life_budget=life_budget)
+        sources = chosen()
+        payment = pay_from(requirement, pool, sources, life_budget=life_budget)
         if payment is not None:
             examined += 1
             key = score_key(payment, available, pool, others, life_budget)
-            if best is None or key < best[0]:
+            if _taps_a_spare_source(requirement, pool, sources, life_budget):
+                if wasteful is None or key < wasteful[0]:
+                    wasteful = (key, payment)
+            elif best is None or key < best[0]:
                 best = (key, payment)
             return
         for s in range(start, len(slots)):
@@ -267,4 +272,16 @@ def choose_payment(
                 return
 
     search(0)
-    return (best[1], best[0]) if best else None
+    found = best or wasteful
+    return (found[1], found[0]) if found else None
+
+
+def _taps_a_spare_source(
+    requirement: Requirement, pool: Sequence[Unit], sources: Sequence[Source], life_budget: int
+) -> bool:
+    """Whether the payment would still be made with one of its sources left out."""
+    return any(
+        pay_from(requirement, pool, [*sources[:i], *sources[i + 1 :]], life_budget=life_budget)
+        is not None
+        for i in range(len(sources))
+    )

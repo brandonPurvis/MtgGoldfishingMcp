@@ -61,7 +61,7 @@ A source whose ability itself costs mana (a signet's `{1}, {T}: Add {W}{U}`) is 
 
 ## The Auto Payment System
 
-Given a cost and the game state, it considers every way of paying the cost from the pool and available sources, and picks one by these rules in order. Each rule only breaks ties left by the one before.
+Given a cost and the game state, it considers every way of paying the cost from the pool and available sources, and picks one by these rules in order. Each rule only breaks ties left by the one before. Only payments that tap no source they could do without are considered: surplus mana left in the pool counts as mana still available, so a payment that taps an extra source would otherwise tie with one that does not.
 
 1. **Life for Phyrexian symbols.** Each Phyrexian symbol is paid with 2 life whenever the agent's life would stay at 1 or more and a valid payment remains; otherwise with mana. When paying every Phyrexian symbol with life leaves no valid payment, fewer are paid with life, as many as still allow one.
 2. **Most other cards still castable.** Count the cards that could each be cast, one at a time, from what would remain: every non-land card in hand other than the one being played, and each commander in the command zone at its current tax, each taken at its plain mana cost with X as 0. A multi-face card counts if any of its faces that has a mana cost could be cast. The payment leaving the highest count wins.

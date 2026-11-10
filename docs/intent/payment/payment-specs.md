@@ -43,6 +43,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 - [x] **PAY-027**: When valid payments are equal on every other rule, the auto payment system shall choose the payment using the mana sources with the lowest instance ids.
 - [x] **PAY-028**: The auto payment system shall produce the same payment for the same game state and cost on every run and every machine.
 - [x] **PAY-029**: The auto payment system shall examine at most 20,000 valid payments in a fixed order when choosing among them, and shall use the best payment examined when that limit is reached.
+- [x] **PAY-043**: The auto payment system shall choose only among payments that tap no mana source the payment could do without.
 - [x] **PAY-041**: When a permanent has more than one mana ability the auto payment system may use, the auto payment system shall consider paying with any one of them, and shall use at most one ability of a permanent in a payment.
 
 ## Agent-directed payment
