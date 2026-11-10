@@ -11,11 +11,11 @@ The service itself: the keeper of game state, randomness, checks and logs.
 _Avoid_: Ledger, MTG Ledger
 
 **Agent**:
-The AI player that makes every decision in a game and tells the service what each card does.
+The AI that makes every decision for the seat or seats it plays and tells the service what each card does.
 _Avoid_: Player, user, client
 
 **Player brief**:
-The instructions that tell an agent how to play a goldfish game through the service's tools.
+The instructions that tell an agent how to play a seat through the service's tools.
 _Avoid_: Tester brief, prompt
 
 ### Decks and cards
@@ -51,31 +51,71 @@ _Avoid_: Caveat, heuristic, warning
 ### A game
 
 **Goldfish game**:
-A Commander game played by one agent against three imaginary opponents who take no actions.
+A Commander game with no opposing seats, in which the tested seat plays against three imaginary opponents.
 _Avoid_: Test game, simulation, solitaire
 
+**Contested game**:
+A Commander game between the tested seat and one to three opposing seats, with no imaginary opponents.
+_Avoid_: Multiplayer game, versus game, match
+
+**Seat**:
+One player's place in a game, with its own zones, life, mana pool, land drop and commander tax, played by an agent.
+_Avoid_: Player, side, opponent slot
+
+**Tested seat**:
+The seat whose deck the game is judging; every game has exactly one.
+_Avoid_: Hero, home seat, main seat
+
+**Opposing seat**:
+A seat backed by a loaded deck that plays against the tested seat in a contested game.
+_Avoid_: Opponent deck, enemy, AI opponent
+
+**Imaginary opponent**:
+One of the three opponents of a goldfish game, which can be dealt damage but has no cards and takes no actions.
+_Avoid_: Dummy, phantom opponent
+
+**Seat id**:
+The unguessable id naming one seat of one game; a call made with it acts as that seat and sees what that seat may see.
+_Avoid_: Player token, seat key
+
 **Seed**:
-The number that fixes every shuffle of a game, so that the same loaded deck and seed give the same game.
+The number that fixes every shuffle of a game and the order of its seats, so that the same loaded decks and seed give the same game.
 _Avoid_: Random state, salt
 
 **Card instance**:
 One physical card or token in one game, with its own instance id, zone and tapped state.
 _Avoid_: Card object, game card
 
+**Owner**:
+The seat whose deck a card instance came from, or whose effect created a token.
+_Avoid_: Deck holder
+
+**Controller**:
+The seat that currently controls a permanent or an item on the stack; its owner unless an effect has changed it.
+_Avoid_: Holder, user
+
 **Zone**:
 Where a card instance is: library, hand, battlefield, graveyard, exile or the command zone.
 _Avoid_: Area, pile, location
+
+**Round**:
+One turn for each seat still in the game.
+_Avoid_: Cycle, go-around
+
+**Elimination**:
+A seat leaving a contested game, at 0 life, at 21 damage from one commander, or by conceding; it takes no more turns and the cards it owns leave the game.
+_Avoid_: Death, knockout, loss
 
 **Change number**:
 The count of accepted changes to a game, shown on every response and used to recognise a call that was sent twice.
 _Avoid_: Sequence id, version, revision
 
 **Resend**:
-A call that repeats the game's most recent accepted change and is answered with that change's original response instead of being applied again.
+A call that repeats the sending seat's most recent accepted change and is answered with that change's original response instead of being applied again.
 _Avoid_: Retry, duplicate, replay
 
 **End condition**:
-A state that would normally end a game, such as 120 damage dealt or a turn limit reached.
+A state that would normally end a game, such as 120 damage dealt, the tested seat or all its opponents eliminated, or a turn limit reached.
 _Avoid_: Win condition, game over
 
 **Notice**:
@@ -85,7 +125,7 @@ _Avoid_: Alert, warning
 ### Playing
 
 **Delta**:
-The agent's statement of where things end up after a play or effect: cards moved, tapped, drawn or created, mana added, life and damage changed.
+The agent's statement of where things end up after a play or effect: cards moved, tapped, drawn or created, control changed, mana added, life and damage changed.
 _Avoid_: Diff, patch, effect description
 
 **Destination**:
@@ -93,7 +133,7 @@ A place a delta can send a card: a zone, the battlefield tapped, or the top or b
 _Avoid_: Target, to-zone
 
 **Pending choice**:
-A look or search that has revealed cards and waits for the agent to say where they go.
+A decision the game waits on from one seat: where cards revealed by a look or search go, or what another seat's effect requires of it, such as blockers, a discard or a sacrifice.
 _Avoid_: Prompt, open decision
 
 **Refusal**:
@@ -115,6 +155,32 @@ _Avoid_: Force, bypass
 **Expectation**:
 A value the agent believes will hold after its call, compared with the real state and reported when it differs.
 _Avoid_: Assertion, check
+
+### Between seats
+
+**Stack**:
+The plays and effects of a contested game that have been made but not yet resolved, newest on top, each holding the delta its controller stated.
+_Avoid_: Queue, chain, pending plays
+
+**Resolve**:
+To apply the delta of the newest item on the stack, once every other seat has passed on it.
+_Avoid_: Execute, commit
+
+**Response window**:
+A point at which the seats of a contested game are asked, one at a time in turn order, whether they respond before the game goes on.
+_Avoid_: Priority window, response phase
+
+**Pass**:
+A seat's answer to a response window that it does nothing.
+_Avoid_: Skip, decline
+
+**Automatic pass**:
+A pass the service makes for a seat that has no untapped permanents.
+_Avoid_: Auto-skip, implicit pass
+
+**Digest**:
+The short account, at the start of a seat's response, of the other seats' public events since that seat's last call.
+_Avoid_: Feed, recap, catch-up
 
 ### Mana and payment
 
@@ -145,21 +211,21 @@ A beginning-of-step ability of a permanent, such as "At the beginning of your up
 _Avoid_: Step-based trigger, upkeep trigger, timed trigger
 
 **Reminder**:
-The service's notice to the agent that a permanent has a step trigger in the step just entered.
+The service's notice to a seat that a permanent it controls has a step trigger in the step just entered.
 _Avoid_: Trigger alert, prompt
 
 **Land drop**:
-The one land the agent may play each turn.
+The one land a seat may play on each of its turns.
 _Avoid_: Land play, land per turn
 
 **Declared attack**:
-The attackers, blocked attackers and damage the agent has declared for the current combat, applied on entering combat damage.
+The attackers, what each one attacks, which are blocked, and the damage the attacking seat has declared for the current combat, applied on entering combat damage.
 _Avoid_: Combat plan, attack declaration
 
 ### Records
 
 **Log entry**:
-The record of one accepted change to a game, with the agent's choices and reasons.
+The record of one accepted change to a game, with the acting seat's choices and reasons.
 _Avoid_: History row, journal line
 
 **Turn snapshot**:
