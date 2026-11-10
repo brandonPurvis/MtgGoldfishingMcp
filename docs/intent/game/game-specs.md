@@ -19,10 +19,10 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [ ] **GAME-058**: If `new_game` is called with more than three entries in `opponents`, then `new_game` shall return an error and create nothing.
 - [ ] **GAME-059**: If `new_game` is called with an entry of `opponents` that names no loaded deck, then `new_game` shall return an error and create nothing.
 - [ ] **GAME-060**: When a contested game is created, each seat shall hold its own commanders in the command zone and every other card of its deck in its own library, and the game shall have status `mulligan`, table turn 0, round 0, no step and no active seat.
-- [ ] **GAME-061**: In every game, each seat shall have its own hand, library, graveyard, exile, command zone, life total, mana pool, land drops used, commander cast counts and mulligan count, none of them shared with another seat.
+- [x] **GAME-061**: In every game, each seat shall have its own hand, library, graveyard, exile, command zone, life total, mana pool, land drops used, commander cast counts and mulligan count, none of them shared with another seat.
 - [ ] **GAME-062**: When a contested game is created, the game shall assign instance ids `c1`, `c2`, … seat by seat, the tested seat first and then the opposing seats in the order `opponents` lists their decks, and within each seat to commanders first and then to the remaining cards, each group ordered by lower-cased card name compared character by character, with copies of one card adjacent.
 - [ ] **GAME-063**: When a goldfish game and a contested game are created with the same `deck_id`, the tested seat's cards shall have the same instance ids in both games.
-- [ ] **GAME-064**: When a token or a card from outside the game is created during a goldfish game or a contested game, the game shall give it the instance number one higher than the highest instance number ever issued in that game, counted across every seat, never reusing the number of a card that has left the game.
+- [x] **GAME-064**: When a token or a card from outside the game is created during a goldfish game or a contested game, the game shall give it the instance number one higher than the highest instance number ever issued in that game, counted across every seat, never reusing the number of a card that has left the game.
 - [ ] **GAME-065**: When a contested game is created, the game shall shuffle each seat's library and deal seven cards from it to that seat's hand.
 - [ ] **GAME-066**: When `new_game` is called with `starting_life` as a single number, for a goldfish game or a contested game, every seat shall start with that life total.
 - [ ] **GAME-067**: When `new_game` for a contested game is called with `starting_life` as a list, the tested seat shall start with the first value and each opposing seat with the following values in `opponents` order.
@@ -37,7 +37,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 ## Seat ids, seat numbers and turn order
 
-- [ ] **GAME-076**: In every game, goldfish or contested, the tested seat's seat id shall be the game id.
+- [x] **GAME-076**: In every game, goldfish or contested, the tested seat's seat id shall be the game id.
 - [ ] **GAME-077**: When a contested game is created, each opposing seat shall receive its own random, unguessable seat id of the same format as a game id (`g` followed by ten random characters), obtained from the same id source as the game id and different from the game id and from every other seat's seat id.
 - [ ] **GAME-078**: When a game tool is called with a seat id, the game shall apply the call as that seat and show only what that seat may see.
 - [ ] **GAME-079**: In every game, a seat's seat number shall be its place in turn order counted from 1, and outcomes shall name seats to one another by seat number (`S2`), never by seat id.
@@ -51,8 +51,8 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-011**: When two goldfish games are created from the same loaded deck with the same seed and receive the same sequence of calls, the games shall hold identical state after every call.
 - [x] **GAME-012**: In every game, the service shall never include the order of any seat's library, or the identity of a library card that has not been drawn, fetched or revealed, in any tool response or record.
 - [ ] **GAME-083**: When an opposing seat's library is shuffled in a contested game, the game shall order it by the same Fisher–Yates shuffle as the tested seat's, with the generator seeded with the integer value of the SHA-256 hash of the text `<seed>:<shuffle_key>:<n>`, where `shuffle_key` is `o1`, `o2` or `o3` for the first, second or third entry of `opponents` and `n` is the number of shuffles of that seat's own library already performed.
-- [ ] **GAME-084**: In every game, a seat's library shall be in ascending order of instance number (`c2` before `c10`) before that seat's first shuffle.
-- [ ] **GAME-085**: In a contested game, a shuffle of one seat's library shall not change the result of any other seat's shuffles: each seat counts its own shuffles and no other seat's.
+- [x] **GAME-084**: In every game, a seat's library shall be in ascending order of instance number (`c2` before `c10`) before that seat's first shuffle.
+- [x] **GAME-085**: In a contested game, a shuffle of one seat's library shall not change the result of any other seat's shuffles: each seat counts its own shuffles and no other seat's.
 - [ ] **GAME-086**: When a goldfish game and a contested game are created with the same `deck_id` and the same seed, the tested seat's opening hand and the order of its library shall be the same in both games.
 - [ ] **GAME-087**: When two contested games are created with the same `deck_id`, `opponents`, `position` and seed and receive the same sequence of calls from the same seats, the games shall hold identical state after every call.
 
@@ -88,13 +88,13 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [ ] **GAME-097**: In a contested game, when a card name is given for a card in a public zone or on the stack, the game shall resolve it, within the one zone the operation is looking in, among the cards the acting seat controls before any other seat's, and then among the other seats' cards seat by seat in turn order starting from the seat after the acting seat (an operation that looks in several zones takes them in its own order first, PLAY-087), applying the choice among several matching instances (untapped for tapping or paying, tapped for untapping, then lowest instance id) only within the first seat that has a match.
 - [ ] **GAME-098**: In a contested game, an instance id given in a tool argument shall name that card instance whichever seat owns or controls it, subject to the zone the operation expects.
 - [ ] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
-- [ ] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
-- [ ] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
+- [x] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
+- [x] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
 
 ## Mulligan
 
 - [x] **GAME-021**: When a seat calls `mulligan` with `keep` false, in a goldfish game or a contested game, the game shall return that seat's hand to its library, shuffle that library, deal that seat seven cards, and increase that seat's mulligan count by one.
-- [ ] **GAME-151**: When a seat calls `mulligan` with `keep` false, in a goldfish game or a contested game, the game shall put the cards of that seat's hand on the bottom of its library in ascending order of instance number, leaving the cards already in the library in the order they hold, before it shuffles that library.
+- [x] **GAME-151**: When a seat calls `mulligan` with `keep` false, in a goldfish game or a contested game, the game shall put the cards of that seat's hand on the bottom of its library in ascending order of instance number, leaving the cards already in the library in the order they hold, before it shuffles that library.
 - [x] **GAME-022**: When a seat calls `mulligan` with `keep` true after `k` mulligans of its own, in a goldfish game or a contested game, the game shall require `bottom` to name exactly `max(0, k − 1)` cards, capped at seven.
 - [x] **GAME-023**: When a seat calls `mulligan` with `keep` true and a valid `bottom`, in a goldfish game or a contested game, the game shall put the named cards from that seat's hand on the bottom of that seat's library in the order given.
 - [x] **GAME-024**: If a seat calls `mulligan` with `keep` true and `bottom` names a different number of cards than required and no `override` is given, in a goldfish game or a contested game, then `mulligan` shall fail a rule check and change nothing.
@@ -103,9 +103,9 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-027**: When the tested seat keeps in a goldfish game, the game shall set its status to `active` and proceed through the untap, upkeep and draw steps of turn 1 to `main1`, performing each step's automatic action.
 - [x] **GAME-028**: When the tested seat keeps in a goldfish game, the outcome shall show any card drawn in the turn 1 draw step.
 - [ ] **GAME-102**: While a contested game's status is `mulligan`, the game shall accept `mulligan` from every seat that has not kept, in any order among the seats.
-- [ ] **GAME-103**: When a seat calls `mulligan` in a contested game, the game shall change only that seat's hand, library, mulligan count and kept state.
+- [x] **GAME-103**: When a seat calls `mulligan` in a contested game, the game shall change only that seat's hand, library, mulligan count and kept state.
 - [ ] **GAME-104**: If a seat that has already kept calls `mulligan` in a contested game, then `mulligan` shall return an error and change nothing.
-- [ ] **GAME-105**: When a seat keeps in a contested game while another seat has not kept, the game shall stay in status `mulligan` with no active seat and no step.
+- [x] **GAME-105**: When a seat keeps in a contested game while another seat has not kept, the game shall stay in status `mulligan` with no active seat and no step.
 - [ ] **GAME-106**: When the last seat still in the game that had not kept keeps in a contested game, the game shall set its status to `active`, make the first seat in turn order that is still in the game the active seat, and proceed through that seat's untap, upkeep and draw steps to its `main1` exactly as an `advance` to `main1` would, stopping where a reminder stops it.
 - [ ] **GAME-107**: When the last seat to keep keeps in a contested game, the outcome shall show what the start of the first turn did, and shall name the card the first seat drew only when the calling seat is the seat that drew it.
 - [ ] **GAME-158**: While a contested game's status is `mulligan`, the game shall accept `end_game` from an opposing seat as its concession and eliminate that seat, whether or not it has kept.
@@ -167,7 +167,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [ ] **GAME-138**: When a call causes a seat's elimination in a contested game, the outcome of that call shall say which seat was eliminated and why (life, commander damage or conceding).
 - [ ] **GAME-169**: When a seat eliminated in a contested game has both life 0 or less and 21 or more combat damage from one commander at the same check, the outcome shall give life as the reason, as the log entry does (REC-077).
 - [ ] **GAME-139**: When several seats meet an elimination condition at the same check in a contested game, the game shall apply their eliminations one seat at a time in turn order starting from the active seat.
-- [ ] **GAME-140**: In a goldfish game, the game shall never eliminate the tested seat.
+- [x] **GAME-140**: In a goldfish game, the game shall never eliminate the tested seat.
 - [ ] **GAME-141**: In a contested game, the game shall not eliminate a seat for attempting to draw from a library with too few cards.
 
 ## Notices

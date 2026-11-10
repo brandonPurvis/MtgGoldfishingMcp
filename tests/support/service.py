@@ -31,6 +31,7 @@ from mtg_goldfishing.application.ports import (
 from mtg_goldfishing.application.service import Service
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId
 from mtg_goldfishing.domain.records.model import CallRecord
 from tests.support.builders import Situation
 from tests.support.card_data import recorded_cards
@@ -52,9 +53,13 @@ class ServiceHarness:
     clock: FixedClock
 
     def holding(self, situation: Situation, game_id: str = GAME_ID) -> str:
-        """Store a built game and its deck, as if the game had been started earlier."""
+        """Store a built game and its deck, as if the game had been started earlier.
+
+        The game id is also its tested seat's seat id.
+        """
         game = situation.game
         game.game_id = game_id
+        game.tested.seat_id = SeatId(game_id)
         self.stores.decks.add(situation.deck)
         self.stores.games.add(game)
         return game_id

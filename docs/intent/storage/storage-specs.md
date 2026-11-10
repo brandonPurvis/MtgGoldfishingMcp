@@ -13,11 +13,11 @@ Design: `storage-design.md`. Prefix: `STOR`.
 
 ## Seats
 
-- [ ] **STOR-016**: When a new game, goldfish or contested, is first saved, the SQLite adapter shall write one `seats` row per seat of the game, holding the seat id, game id, seat number, deck id and whether it is the tested seat, in the same transaction as the game.
-- [ ] **STOR-017**: The `seats` row of a game's tested seat shall have the game id as its seat id, so that a goldfish game has exactly one `seats` row, keyed by its game id.
-- [ ] **STOR-018**: When asked through `GameRepository` for the game and seat number a seat id names, the SQLite adapter shall answer from the `seats` table by its key, without reading any game's JSON document to search for the seat.
-- [ ] **STOR-019**: If the id given to `GameRepository` names no seat of any stored game, then the SQLite adapter shall report that it names none.
-- [ ] **STOR-020**: The SQLite adapter shall not change or delete a `seats` row after writing it.
+- [x] **STOR-016**: When a new game, goldfish or contested, is first saved, the SQLite adapter shall write one `seats` row per seat of the game, holding the seat id, game id, seat number, deck id and whether it is the tested seat, in the same transaction as the game.
+- [x] **STOR-017**: The `seats` row of a game's tested seat shall have the game id as its seat id, so that a goldfish game has exactly one `seats` row, keyed by its game id.
+- [x] **STOR-018**: When asked through `GameRepository` for the game and seat number a seat id names, the SQLite adapter shall answer from the `seats` table by its key, without reading any game's JSON document to search for the seat.
+- [x] **STOR-019**: If the id given to `GameRepository` names no seat of any stored game, then the SQLite adapter shall report that it names none.
+- [x] **STOR-020**: The SQLite adapter shall not change or delete a `seats` row after writing it.
 
 ## Transactions
 
@@ -36,7 +36,7 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-012**: When asked for a game's records after a given change number, the SQLite adapter shall return only log entries with a greater sequence number, call records with a greater change number, and snapshots written by those entries.
 - [ ] **STOR-021**: The SQLite adapter shall store with each call record the seat number the call record carries, or null when it carries none: every call record of a goldfish game (whose records name no seat, although its `seats` row has seat number 1), a contested game's `new_game`, and a call whose id names no seat.
 - [ ] **STOR-022**: When asked through `RecordStore` for a seat's digest baseline, the SQLite adapter shall return the change number of the latest-stored call record with that game id and seat number whose tool is not `get_log`, or report that the seat has none.
-- [ ] **STOR-023**: The SQLite adapter shall keep an index on the game id and seat number columns of `calls`.
+- [x] **STOR-023**: The SQLite adapter shall keep an index on the game id and seat number columns of `calls`.
 - [ ] **STOR-028**: The SQLite adapter shall key each stored turn snapshot by game id and table turn number, which in a goldfish game is the turn number, so that the snapshots of different seats' turns in a contested game never replace one another.
 - [ ] **STOR-029**: If the SQLite adapter is asked to add a snapshot whose game id and table turn number already have a stored snapshot, then it shall raise an exception and write nothing, neither replacing the stored snapshot nor ignoring the new one silently.
 
@@ -44,7 +44,7 @@ Design: `storage-design.md`. Prefix: `STOR`.
 
 - [x] **STOR-013**: When the service starts against a database with an older schema version, the SQLite adapter shall apply forward migrations to reach the current schema version before serving.
 - [x] **STOR-014**: If the service starts against a database with a newer schema version than it supports, then the service shall exit with a message naming both versions and change nothing.
-- [ ] **STOR-024**: When the service starts against a database whose schema predates seats, the migration shall create the `seats` table with one row for the tested seat of every existing game, keyed by that game's id.
-- [ ] **STOR-025**: When the service starts against a database whose schema predates seats, the migration shall add the nullable seat number column to `calls`, leaving it null on every existing call record.
-- [ ] **STOR-026**: When the service starts against a database whose schema predates seats, the migration shall rewrite each stored game document into the seat-holding shape (one tested seat holding the zones, life, mana pool and other per-seat state, with pooled damage and commander damage kept as the goldfish game's imaginary-opponent tallies).
-- [ ] **STOR-027**: When a goldfish game stored before the seats migration is loaded after it, the game shall accept the same calls with the same results, status line and change number as before the migration.
+- [x] **STOR-024**: When the service starts against a database whose schema predates seats, the migration shall create the `seats` table with one row for the tested seat of every existing game, keyed by that game's id.
+- [x] **STOR-025**: When the service starts against a database whose schema predates seats, the migration shall add the nullable seat number column to `calls`, leaving it null on every existing call record.
+- [x] **STOR-026**: When the service starts against a database whose schema predates seats, the migration shall rewrite each stored game document into the seat-holding shape (one tested seat holding the zones, life, mana pool and other per-seat state, with pooled damage and commander damage kept as the goldfish game's imaginary-opponent tallies).
+- [x] **STOR-027**: When a goldfish game stored before the seats migration is loaded after it, the game shall accept the same calls with the same results, status line and change number as before the migration.

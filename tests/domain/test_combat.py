@@ -18,25 +18,25 @@ from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.builders import GameBuilder, Situation, a_game
+from tests.support.builders import TESTED, GameBuilder, Situation, a_game
 from tests.support.library import card
 
 
 def declared(situation: Situation, **arguments: object) -> Applied:
-    result = attack(situation.game, situation.deck, **arguments)  # type: ignore[arg-type]
+    result = attack(situation.game, situation.deck, TESTED, **arguments)  # type: ignore[arg-type]
     assert isinstance(result, Applied), result
     situation.game = result.game
     return result
 
 
 def refused(situation: Situation, **arguments: object) -> Refusal:
-    result = attack(situation.game, situation.deck, **arguments)  # type: ignore[arg-type]
+    result = attack(situation.game, situation.deck, TESTED, **arguments)  # type: ignore[arg-type]
     assert isinstance(result, Refusal), result
     return result
 
 
 def to_damage(situation: Situation) -> Applied:
-    result = advance(situation.game, situation.deck, to="combat_damage")
+    result = advance(situation.game, situation.deck, TESTED, to="combat_damage")
     assert isinstance(result, Applied), result
     situation.game = result.game
     return result
@@ -277,7 +277,7 @@ def test_an_additional_combat_does_not_refuse_creatures_tapped_by_the_first_decl
 def test_a_creature_tapped_by_last_turns_attack_and_tapped_again_is_refused() -> None:
     situation = bears().with_library("Forest").build()
     declared(situation, attackers=["Grizzly Bears"])
-    moved = advance(situation.game, situation.deck, to="main1")
+    moved = advance(situation.game, situation.deck, TESTED, to="main1")
     assert isinstance(moved, Applied), moved
     situation.game = moved.game
     situation.game.instance("c1").tapped = True
@@ -333,7 +333,7 @@ def test_unblocked_attackers_deal_power_adjusted_by_counters() -> None:
     )
     declared(situation, attackers=["Grizzly Bears", "Goblin Guide"])
     to_damage(situation)
-    assert situation.game.damage_dealt == 5
+    assert situation.game.imaginary_opponents.damage_dealt == 5
 
 
 # @spec CMBT-022
@@ -341,7 +341,7 @@ def test_a_damage_entry_replaces_the_default_damage() -> None:
     situation = bears().build()
     declared(situation, attackers=["Grizzly Bears"], damage={"Grizzly Bears": 7})
     to_damage(situation)
-    assert situation.game.damage_dealt == 7
+    assert situation.game.imaginary_opponents.damage_dealt == 7
 
 
 # @spec CMBT-024
@@ -349,7 +349,7 @@ def test_a_commander_also_deals_commander_damage_to_its_target() -> None:
     situation = a_game().with_commander("Atraxa, Praetors' Voice", zone=_battlefield()).build()
     declared(situation, attackers=["Atraxa, Praetors' Voice"], commander_target=2)
     to_damage(situation)
-    assert situation.game.commander_damage["c1"] == [0, 0, 4]
+    assert situation.game.imaginary_opponents.commander_damage["c1"] == [0, 0, 4]
 
 
 # @spec CMBT-024
@@ -357,7 +357,7 @@ def test_a_commander_attacks_opponent_zero_by_default() -> None:
     situation = a_game().with_commander("Atraxa, Praetors' Voice", zone=_battlefield()).build()
     declared(situation, attackers=["Atraxa, Praetors' Voice"])
     to_damage(situation)
-    assert situation.game.commander_damage["c1"] == [4, 0, 0]
+    assert situation.game.imaginary_opponents.commander_damage["c1"] == [4, 0, 0]
 
 
 # @spec CMBT-024
@@ -373,7 +373,10 @@ def test_one_commander_target_number_applies_to_every_attacking_commander() -> N
         commander_target=1,
     )
     to_damage(situation)
-    assert [situation.game.commander_damage[c] for c in ("c1", "c2")] == [[0, 1, 0], [0, 2, 0]]
+    assert [situation.game.imaginary_opponents.commander_damage[c] for c in ("c1", "c2")] == [
+        [0, 1, 0],
+        [0, 2, 0],
+    ]
 
 
 # @spec CMBT-025
@@ -381,7 +384,7 @@ def test_blocked_attackers_deal_no_damage_to_opponents() -> None:
     situation = bears().with_battlefield("Goblin Guide").build()
     declared(situation, attackers=["Grizzly Bears", "Goblin Guide"], blocked=["Goblin Guide"])
     to_damage(situation)
-    assert situation.game.damage_dealt == 2
+    assert situation.game.imaginary_opponents.damage_dealt == 2
 
 
 # @spec CMBT-026
@@ -397,7 +400,7 @@ def test_combat_damage_clears_the_attack_and_reports_each_attacker() -> None:
 def test_entering_combat_damage_without_an_attack_changes_no_total() -> None:
     situation = bears().build()
     to_damage(situation)
-    assert situation.game.damage_dealt == 0
+    assert situation.game.imaginary_opponents.damage_dealt == 0
 
 
 def test_the_declaration_reports_attackers_blocked_and_targets() -> None:

@@ -9,7 +9,8 @@ from enum import Enum
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Error, ErrorKind, InstanceChosen
 from mtg_goldfishing.domain.game.cards_in_play import names_of
-from mtg_goldfishing.domain.game.model import CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.model import HIDDEN_ZONES, CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 _INSTANCE_ID = re.compile(r"^c\d+$", re.IGNORECASE)
 
@@ -47,9 +48,20 @@ def _differ(cards: Sequence[CardInstance]) -> bool:
     )
 
 
-def _missing(game: Game, deck: LoadedDeck, name: str, zones: Sequence[Zone]) -> Error:
+def _visible_to(card: CardInstance, seat: SeatNumber) -> bool:
+    """Whether a seat may see the card: in a public zone, or in its own hand or library."""
+    return card.zone not in HIDDEN_ZONES or card.owner == seat
+
+
+def _missing(
+    game: Game, deck: LoadedDeck, seat: SeatNumber, name: str, zones: Sequence[Zone]
+) -> Error:
     elsewhere = next(
-        (c.zone.value for c in game.cards if c.zone not in zones and matches(deck, c, name)),
+        (
+            c.zone.value
+            for c in game.cards
+            if c.zone not in zones and _visible_to(c, seat) and matches(deck, c, name)
+        ),
         None,
     )
     return Error(
@@ -60,27 +72,43 @@ def _missing(game: Game, deck: LoadedDeck, name: str, zones: Sequence[Zone]) -> 
     )
 
 
+def _searched(game: Game, seat: SeatNumber, zone: Zone) -> list[SeatNumber]:
+    """Whose cards a zone is searched among, in order.
+
+    A hidden zone holds only the acting seat's own cards; a public zone holds the cards the
+    acting seat controls first, then every other seat's in turn order from the next seat.
+    """
+    if zone in HIDDEN_ZONES:
+        return [seat]
+    return [seat, *(other.number for other in game.others_from(seat))]
+
+
 # @spec GAME-013, GAME-014, GAME-015, GAME-016, GAME-017, GAME-018
 def resolve(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     names: Sequence[str],
     zones: Sequence[Zone],
+    *,
     purpose: Purpose = Purpose.ANY,
 ) -> tuple[list[CardInstance], list[InstanceChosen]] | Error:
-    """Resolve each name to a different instance in the expected zones, in zone order.
+    """Resolve each name to a different instance in the expected zones, for the acting seat.
 
-    Instance ids are resolved first; each name then takes a matching instance no id or
-    earlier name has taken, so a name given more than once means that many different
-    instances. When the matching instances differ from one another, the chosen instance
-    is reported by id. The result follows the order of the names given.
+    Zones are searched in the order given, and within a zone the acting seat's cards come
+    before other seats' (see `_searched`). Instance ids are resolved first; each name then
+    takes a matching instance no id or earlier name has taken, so a name given more than
+    once means that many different instances. When the matching instances differ from one
+    another, the chosen instance is reported by id. The result follows the order of the
+    names given.
     """
 
     def candidates_for(name: str) -> list[CardInstance]:
         return [
             card
             for zone in zones
-            for card in sorted(game.in_zone(zone), key=lambda c: _preference(c, purpose))
+            for whose in _searched(game, seat, zone)
+            for card in sorted(game.in_zone(zone, whose), key=lambda c: _preference(c, purpose))
             if matches(deck, card, name)
         ]
 
@@ -94,7 +122,7 @@ def resolve(
             return Error(ErrorKind.INSTANCE_REPEATED, subject=key)
         found = candidates_for(name)
         if not found:
-            return _missing(game, deck, name, zones)
+            return _missing(game, deck, seat, name, zones)
         picks[position] = found[0]
         taken.add(key)
     named_by_id = set(taken)
@@ -104,7 +132,7 @@ def resolve(
             continue
         candidates = candidates_for(name)
         if not candidates:
-            return _missing(game, deck, name, zones)
+            return _missing(game, deck, seat, name, zones)
         free = [card for card in candidates if card.id not in taken]
         if not free:
             wanted = name.strip().casefold()
@@ -126,11 +154,13 @@ def resolve(
 def resolve_one(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     name: str,
     zones: Sequence[Zone],
+    *,
     purpose: Purpose = Purpose.ANY,
 ) -> tuple[CardInstance, list[InstanceChosen]] | Error:
-    found = resolve(game, deck, [name], zones, purpose)
+    found = resolve(game, deck, seat, [name], zones, purpose=purpose)
     if isinstance(found, Error):
         return found
     cards, reported = found

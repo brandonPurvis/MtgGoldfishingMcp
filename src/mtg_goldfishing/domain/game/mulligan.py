@@ -16,6 +16,7 @@ from mtg_goldfishing.domain.game.model import OPENING_HAND, Destination, Game, G
 from mtg_goldfishing.domain.game.movement import draw
 from mtg_goldfishing.domain.game.naming import resolve
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.shuffling import shuffle_library
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import Walk, walk_to
@@ -26,20 +27,35 @@ def cards_to_bottom(mulligans: int) -> int:
     return min(OPENING_HAND, max(0, mulligans - 1))
 
 
-def _take_mulligan(game: Game) -> Applied:
-    for card in game.hand:
-        card.zone = Zone.LIBRARY
-        game.library.append(card.id)
-    shuffle_library(game)
-    draw(game, OPENING_HAND)
-    game.mulligans += 1
-    return Applied(game, MulliganTaken(game.mulligans, tuple(c.name for c in game.hand)))
+# @spec GAME-151
+def _take_mulligan(game: Game, seat: SeatNumber) -> Applied:
+    """The seat's hand to the bottom of its library in instance order, a shuffle, seven more."""
+    taking = game.seat(seat)
+    for card in game.hand_of(seat):
+        game.put(card, Destination.LIBRARY_BOTTOM)
+    shuffle_library(game, seat)
+    draw(game, seat, OPENING_HAND)
+    taking.mulligans += 1
+    hand = tuple(c.name for c in game.hand_of(seat))
+    return Applied(game, MulliganTaken(taking.mulligans, hand))
+
+
+def _start(game: Game, deck: LoadedDeck) -> Walk:
+    """Start a game every seat has kept: the first seat in turn order still in the game
+    takes the first turn, through its untap, upkeep and draw steps to its first main step."""
+    game.status = GameStatus.ACTIVE
+    game.active = next(seat.number for seat in game.seats if seat.in_game)
+    walk = Walk()
+    walk_to(game, deck, Step.MAIN1, walk)
+    return walk
 
 
 # @spec GAME-021, GAME-022, GAME-023, GAME-024, GAME-025, GAME-026, GAME-027, GAME-028
+# @spec GAME-103, GAME-105, APP-031
 def mulligan(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     keep: object,
     bottom: object = None,
@@ -55,13 +71,14 @@ def mulligan(
     if not keep:
         if bottom is not None:
             return Refusal.error(Error(ErrorKind.BOTTOM_WITHOUT_KEEP))
-        return _take_mulligan(changed)
+        return _take_mulligan(changed, seat)
     names: list[str] = list(bottom or [])
-    found = resolve(changed, deck, names, [Zone.HAND])
+    found = resolve(changed, deck, seat, names, [Zone.HAND])
     if isinstance(found, Error):
         return Refusal.error(Error(ErrorKind.BOTTOM_NOT_IN_HAND, subject=found.subject))
     problems = Problems()
-    required = cards_to_bottom(changed.mulligans)
+    keeping = changed.seat(seat)
+    required = cards_to_bottom(keeping.mulligans)
     if len(names) != required:
         problems.add(FailedCheck(CheckKind.BOTTOM_COUNT, number=len(names), expected=required))
     judged = problems.judge(override)
@@ -69,12 +86,15 @@ def mulligan(
         return judged
     for card in found[0]:
         changed.put(card, Destination.LIBRARY_BOTTOM)
-    kept = tuple(c.name for c in changed.hand)
-    changed.status = GameStatus.ACTIVE
-    walk = Walk()
-    walk_to(changed, deck, Step.MAIN1, walk)
+    keeping.kept = True
+    summary = HandKept(
+        tuple(c.name for c in found[0]), tuple(c.name for c in changed.hand_of(seat))
+    )
+    if not all(other.kept for other in changed.seats if other.in_game):
+        return Applied(changed, summary, (judged,) if judged is not None else ())
+    walk = _start(changed, deck)
     events: list[Event] = [walk.summary]
     if judged is not None:
         events.append(judged)
     events.extend(walk.events)
-    return Applied(changed, HandKept(tuple(c.name for c in found[0]), kept), tuple(events))
+    return Applied(changed, summary, tuple(events))

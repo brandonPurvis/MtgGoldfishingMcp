@@ -8,6 +8,7 @@ from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import NoticeKind
 from mtg_goldfishing.domain.game.cards_in_play import is_land
 from mtg_goldfishing.domain.game.model import OPPONENTS, Game, GameStatus
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.steps import Step
 
 
@@ -37,29 +38,37 @@ class GameSummary:
     notices: tuple[NoticeKind, ...]
 
 
-def summarize(game: Game, deck: LoadedDeck) -> GameSummary:
-    lands = [card for card in game.battlefield if is_land(deck, card)]
+def summarize(game: Game, deck: LoadedDeck, seat: SeatNumber) -> GameSummary:
+    """The game as one seat's status line shows it: that seat's own turn count, zones, pool,
+    life and commanders, and a goldfish game's damage to its imaginary opponents."""
+    shown = game.seat(seat)
+    imaginary = game.imaginary
+    lands = [card for card in game.battlefield_of(seat) if is_land(deck, card)]
     return GameSummary(
         game_id=game.game_id,
         status=game.status,
-        turn=game.turn,
+        turn=shown.turns,
         step=game.step,
-        hand=len(game.hand),
+        hand=len(game.hand_of(seat)),
         lands=len(lands),
         untapped_lands=sum(1 for card in lands if not card.tapped),
-        pool=str(game.mana_pool),
-        life=game.life,
-        damage_dealt=game.damage_dealt,
+        pool=str(shown.mana_pool),
+        life=shown.life,
+        damage_dealt=imaginary.damage_dealt if imaginary else 0,
         commanders=tuple(
             CommanderStatus(
                 name=commander.name,
-                damage=tuple(game.commander_damage.get(commander.id, [0] * OPPONENTS)),
-                tax=game.commander_tax(commander),
+                damage=tuple(
+                    imaginary.commander_damage.get(commander.id, [0] * OPPONENTS)
+                    if imaginary
+                    else ()
+                ),
+                tax=shown.commander_tax(commander),
             )
-            for commander in game.commanders
+            for commander in game.commanders_of(seat)
         ),
         change=game.change,
-        mulligans=game.mulligans,
+        mulligans=shown.mulligans,
         result=game.result.outcome.value if game.result else None,
         notices=tuple(game.notices),
     )

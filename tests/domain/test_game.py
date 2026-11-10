@@ -36,7 +36,7 @@ from mtg_goldfishing.domain.game.notices import examine_end_conditions, examine_
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
 from mtg_goldfishing.domain.game.shuffling import shuffled
 from mtg_goldfishing.domain.steps import Step
-from tests.support.builders import a_deck, a_game
+from tests.support.builders import TESTED, a_deck, a_game
 
 FORTY_CARDS = ("Forest",) * 20 + ("Island",) * 10 + ("Cultivate", "Ponder") * 5
 
@@ -60,9 +60,14 @@ def applied(result: object) -> Applied:
 # @spec GAME-001
 def test_a_new_game_puts_commanders_in_the_command_zone_and_the_rest_in_the_library() -> None:
     game = started()
-    assert [c.name for c in game.in_zone(Zone.COMMAND)] == ["Atraxa, Praetors' Voice"]
-    assert len(game.library) + len(game.hand) == 40
-    assert (game.life, game.status, game.turn, game.step) == (40, GameStatus.MULLIGAN, 0, None)
+    assert [c.name for c in game.in_zone(Zone.COMMAND, TESTED)] == ["Atraxa, Praetors' Voice"]
+    assert len(game.tested.library) + len(game.hand_of(TESTED)) == 40
+    assert (game.tested.life, game.status, game.turn, game.step) == (
+        40,
+        GameStatus.MULLIGAN,
+        0,
+        None,
+    )
 
 
 # @spec GAME-002
@@ -82,8 +87,8 @@ def test_instance_ids_go_to_commanders_first_then_cards_by_lower_cased_name() ->
 # @spec GAME-003
 def test_a_new_game_deals_seven_cards_from_a_shuffled_library() -> None:
     game = started()
-    assert len(game.hand) == 7
-    assert game.shuffles == 1
+    assert len(game.hand_of(TESTED)) == 7
+    assert game.tested.shuffles == 1
 
 
 # @spec GAME-005
@@ -91,7 +96,9 @@ def test_a_new_game_reports_its_id_seed_and_opening_hand() -> None:
     result = applied(
         new_game(a_deck(*FORTY_CARDS), deck_id="dtest", game_id="gabcdefghij", seed=11)
     )
-    assert result.summary == GameStarted("gabcdefghij", 11, tuple(c.name for c in result.game.hand))
+    assert result.summary == GameStarted(
+        "gabcdefghij", 11, tuple(c.name for c in result.game.hand_of(TESTED))
+    )
 
 
 # @spec GAME-007
@@ -141,8 +148,8 @@ def test_the_shuffle_gives_the_golden_order_for_a_fixed_library_seed_and_count()
 def test_the_same_deck_and_seed_give_the_same_game() -> None:
     first, second = started(seed=99), started(seed=99)
     assert first == second
-    first_kept = applied(mulligan(first, a_deck(*FORTY_CARDS), keep=False))
-    second_kept = applied(mulligan(second, a_deck(*FORTY_CARDS), keep=False))
+    first_kept = applied(mulligan(first, a_deck(*FORTY_CARDS), TESTED, keep=False))
+    second_kept = applied(mulligan(second, a_deck(*FORTY_CARDS), TESTED, keep=False))
     assert first_kept.game == second_kept.game
 
 
@@ -153,7 +160,7 @@ def test_the_same_deck_and_seed_give_the_same_game() -> None:
 @pytest.mark.parametrize("name", ["Forest", "forest", "  FOREST ", "c1"])
 def test_a_card_can_be_named_by_name_ignoring_case_or_by_instance_id(name: str) -> None:
     situation = a_game().with_battlefield("Forest").build()
-    found = resolve(situation.game, situation.deck, [name], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, [name], [Zone.BATTLEFIELD])
     assert not isinstance(found, Error)
     assert [c.id for c in found[0]] == ["c1"]
 
@@ -161,15 +168,24 @@ def test_a_card_can_be_named_by_name_ignoring_case_or_by_instance_id(name: str) 
 # @spec GAME-013
 def test_a_card_can_be_named_by_one_of_its_faces() -> None:
     situation = a_game().with_hand("Fire // Ice").build()
-    found = resolve(situation.game, situation.deck, ["ice"], [Zone.HAND])
+    found = resolve(situation.game, situation.deck, TESTED, ["ice"], [Zone.HAND])
     assert not isinstance(found, Error)
 
 
 # @spec GAME-014
 def test_an_untapped_instance_is_chosen_for_tapping_and_a_tapped_one_for_untapping() -> None:
     situation = a_game().with_battlefield("Forest", tapped=True).with_battlefield("Forest").build()
-    tap = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD], Purpose.TAP)
-    untap = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD], Purpose.UNTAP)
+    tap = resolve(
+        situation.game, situation.deck, TESTED, ["Forest"], [Zone.BATTLEFIELD], purpose=Purpose.TAP
+    )
+    untap = resolve(
+        situation.game,
+        situation.deck,
+        TESTED,
+        ["Forest"],
+        [Zone.BATTLEFIELD],
+        purpose=Purpose.UNTAP,
+    )
     assert not isinstance(tap, Error)
     assert not isinstance(untap, Error)
     assert (tap[0][0].id, untap[0][0].id) == ("c2", "c1")
@@ -178,7 +194,7 @@ def test_an_untapped_instance_is_chosen_for_tapping_and_a_tapped_one_for_untappi
 # @spec GAME-014
 def test_otherwise_the_lowest_instance_id_is_chosen() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["Forest"], [Zone.BATTLEFIELD])
     assert not isinstance(found, Error)
     assert found[0][0].id == "c1"
 
@@ -186,7 +202,9 @@ def test_otherwise_the_lowest_instance_id_is_chosen() -> None:
 # @spec GAME-015
 def test_the_chosen_instance_is_reported_when_the_matching_instances_differ() -> None:
     situation = a_game().with_battlefield("Forest", tapped=True).with_battlefield("Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD], Purpose.TAP)
+    found = resolve(
+        situation.game, situation.deck, TESTED, ["Forest"], [Zone.BATTLEFIELD], purpose=Purpose.TAP
+    )
     assert not isinstance(found, Error)
     assert found[1] == [InstanceChosen("Forest", "c2")]
 
@@ -194,7 +212,7 @@ def test_the_chosen_instance_is_reported_when_the_matching_instances_differ() ->
 # @spec GAME-015
 def test_no_instance_is_reported_when_the_matching_instances_are_alike() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["Forest"], [Zone.BATTLEFIELD])
     assert not isinstance(found, Error)
     assert found[1] == []
 
@@ -202,7 +220,7 @@ def test_no_instance_is_reported_when_the_matching_instances_are_alike() -> None
 # @spec GAME-016
 def test_a_name_not_in_the_expected_zone_is_an_error_saying_where_it_is() -> None:
     situation = a_game().with_hand("Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["Forest"], [Zone.BATTLEFIELD])
     assert found == Error(
         ErrorKind.CARD_NOT_IN_ZONE, subject="Forest", zone="battlefield", found_in="hand"
     )
@@ -211,7 +229,9 @@ def test_a_name_not_in_the_expected_zone_is_an_error_saying_where_it_is() -> Non
 # @spec GAME-017
 def test_a_name_given_twice_means_two_different_instances() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest", "Forest"], [Zone.BATTLEFIELD])
+    found = resolve(
+        situation.game, situation.deck, TESTED, ["Forest", "Forest"], [Zone.BATTLEFIELD]
+    )
     assert not isinstance(found, Error)
     assert [c.id for c in found[0]] == ["c1", "c2"]
 
@@ -219,7 +239,7 @@ def test_a_name_given_twice_means_two_different_instances() -> None:
 # @spec GAME-017
 def test_an_instance_id_is_resolved_before_a_name_given_earlier_in_the_list() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest", "c1"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["Forest", "c1"], [Zone.BATTLEFIELD])
     assert not isinstance(found, Error)
     assert [c.id for c in found[0]] == ["c2", "c1"]
 
@@ -227,7 +247,7 @@ def test_an_instance_id_is_resolved_before_a_name_given_earlier_in_the_list() ->
 # @spec GAME-018
 def test_a_name_with_every_match_already_named_by_id_is_an_error() -> None:
     situation = a_game().with_battlefield("Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest", "c1"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["Forest", "c1"], [Zone.BATTLEFIELD])
     assert isinstance(found, Error)
     assert found.kind is ErrorKind.TOO_FEW_MATCHING
 
@@ -235,7 +255,9 @@ def test_a_name_with_every_match_already_named_by_id_is_an_error() -> None:
 # @spec GAME-018
 def test_a_name_given_more_times_than_there_are_instances_is_an_error() -> None:
     situation = a_game().with_battlefield("Forest").build()
-    found = resolve(situation.game, situation.deck, ["Forest", "Forest"], [Zone.BATTLEFIELD])
+    found = resolve(
+        situation.game, situation.deck, TESTED, ["Forest", "Forest"], [Zone.BATTLEFIELD]
+    )
     assert isinstance(found, Error)
     assert found.kind is ErrorKind.TOO_FEW_MATCHING
 
@@ -243,7 +265,7 @@ def test_a_name_given_more_times_than_there_are_instances_is_an_error() -> None:
 # @spec GAME-018
 def test_an_instance_id_given_twice_is_an_error() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
-    found = resolve(situation.game, situation.deck, ["c1", "C1"], [Zone.BATTLEFIELD])
+    found = resolve(situation.game, situation.deck, TESTED, ["c1", "C1"], [Zone.BATTLEFIELD])
     assert found == Error(ErrorKind.INSTANCE_REPEATED, subject="c1")
 
 
@@ -253,11 +275,11 @@ def test_an_instance_id_given_twice_is_an_error() -> None:
 # @spec GAME-021
 def test_taking_a_mulligan_reshuffles_and_deals_seven_new_cards() -> None:
     game = started()
-    result = applied(mulligan(game, a_deck(*FORTY_CARDS), keep=False))
-    assert result.game.mulligans == 1
-    assert len(result.game.hand) == 7
-    assert result.game.shuffles == 2
-    assert result.summary == MulliganTaken(1, tuple(c.name for c in result.game.hand))
+    result = applied(mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=False))
+    assert result.game.tested.mulligans == 1
+    assert len(result.game.hand_of(TESTED)) == 7
+    assert result.game.tested.shuffles == 2
+    assert result.summary == MulliganTaken(1, tuple(c.name for c in result.game.hand_of(TESTED)))
 
 
 # @spec GAME-022, GAME-024
@@ -266,9 +288,9 @@ def test_keeping_requires_bottoming_one_fewer_card_than_mulligans_taken(
     mulligans: int, required: int
 ) -> None:
     game = started()
-    game.mulligans = mulligans
-    wrong = [c.name for c in game.hand][: required + 1]
-    result = mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=wrong)
+    game.tested.mulligans = mulligans
+    wrong = [c.name for c in game.hand_of(TESTED)][: required + 1]
+    result = mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=wrong)
     assert isinstance(result, Refusal)
     assert [(c.kind, c.expected) for c in result.checks] == [(CheckKind.BOTTOM_COUNT, required)]
 
@@ -276,8 +298,8 @@ def test_keeping_requires_bottoming_one_fewer_card_than_mulligans_taken(
 # @spec GAME-022
 def test_the_number_of_cards_to_bottom_is_capped_at_seven() -> None:
     game = started()
-    game.mulligans = 9
-    result = mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=[])
+    game.tested.mulligans = 9
+    result = mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=[])
     assert isinstance(result, Refusal)
     assert result.checks[0].expected == 7
 
@@ -285,30 +307,32 @@ def test_the_number_of_cards_to_bottom_is_capped_at_seven() -> None:
 # @spec GAME-023
 def test_keeping_puts_the_bottomed_cards_on_the_bottom_in_the_order_given() -> None:
     game = started()
-    game.mulligans = 3
-    hand_ids = [c.id for c in game.hand]
+    game.tested.mulligans = 3
+    hand_ids = [c.id for c in game.hand_of(TESTED)]
     result = applied(
-        mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=[hand_ids[3], hand_ids[0]])
+        mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=[hand_ids[3], hand_ids[0]])
     )
-    assert result.game.library[-2:] == [hand_ids[3], hand_ids[0]]
+    assert result.game.tested.library[-2:] == [hand_ids[3], hand_ids[0]]
 
 
 # @spec GAME-025
 def test_keeping_with_the_wrong_number_bottomed_and_an_override_bottoms_as_given() -> None:
     game = started()
-    first = game.hand[0].id
+    first = game.hand_of(TESTED)[0].id
     result = applied(
-        mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=[first], override="Serum Powder")
+        mulligan(
+            game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=[first], override="Serum Powder"
+        )
     )
-    assert result.game.library[-1] == first
+    assert result.game.tested.library[-1] == first
 
 
 # @spec GAME-026
 def test_bottoming_a_card_not_in_hand_is_an_error() -> None:
     game = started()
-    game.mulligans = 2
-    library_card = game.library[0]
-    result = mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=[library_card])
+    game.tested.mulligans = 2
+    library_card = game.tested.library[0]
+    result = mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=[library_card])
     assert isinstance(result, Refusal)
     assert result.errors[0].kind is ErrorKind.BOTTOM_NOT_IN_HAND
 
@@ -316,21 +340,23 @@ def test_bottoming_a_card_not_in_hand_is_an_error() -> None:
 # @spec GAME-026
 def test_giving_bottom_with_a_mulligan_is_an_error() -> None:
     game = started()
-    result = mulligan(game, a_deck(*FORTY_CARDS), keep=False, bottom=[game.hand[0].id])
+    result = mulligan(
+        game, a_deck(*FORTY_CARDS), TESTED, keep=False, bottom=[game.hand_of(TESTED)[0].id]
+    )
     assert result == Refusal.error(Error(ErrorKind.BOTTOM_WITHOUT_KEEP))
 
 
 # @spec GAME-027, GAME-028
 def test_keeping_starts_turn_one_in_the_first_main_step_having_drawn_a_card() -> None:
     game = started()
-    top = game.instance(game.library[0]).name
-    result = applied(mulligan(game, a_deck(*FORTY_CARDS), keep=True))
+    top = game.instance(game.tested.library[0]).name
+    result = applied(mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True))
     assert (result.game.status, result.game.turn, result.game.step) == (
         GameStatus.ACTIVE,
         1,
         Step.MAIN1,
     )
-    assert len(result.game.hand) == 8
+    assert len(result.game.hand_of(TESTED)) == 8
     assert CardsDrawn((top,)) in result.events
     assert isinstance(result.summary, HandKept)
 
@@ -338,15 +364,15 @@ def test_keeping_starts_turn_one_in_the_first_main_step_having_drawn_a_card() ->
 # @spec GAME-027
 def test_keeping_without_a_first_turn_draw_draws_nothing() -> None:
     game = started(draw_first_turn=False)
-    result = applied(mulligan(game, a_deck(*FORTY_CARDS), keep=True))
-    assert len(result.game.hand) == 7
+    result = applied(mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True))
+    assert len(result.game.hand_of(TESTED)) == 7
 
 
 # @spec APP-007
 def test_a_refused_mulligan_leaves_the_game_unchanged() -> None:
     game = started()
     before = game.copy()
-    mulligan(game, a_deck(*FORTY_CARDS), keep=True, bottom=["Nonexistent"])
+    mulligan(game, a_deck(*FORTY_CARDS), TESTED, keep=True, bottom=["Nonexistent"])
     assert game == before
 
 
@@ -365,7 +391,7 @@ def test_the_summary_listing_shows_each_permanent_with_what_was_read_of_it() -> 
         .with_commander("Atraxa, Praetors' Voice")
         .build()
     )
-    listing = list_state(situation.game, situation.deck, "summary")
+    listing = list_state(situation.game, situation.deck, TESTED, "summary")
     assert not isinstance(listing, Error)
     assert listing.hand == ("Cultivate",)
     assert listing.graveyard == ("Ponder",)
@@ -386,7 +412,7 @@ def test_the_full_listing_adds_exile_library_size_commanders_and_payments() -> N
         .with_library("Forest", "Island")
         .build()
     )
-    listing = list_state(situation.game, situation.deck, "full")
+    listing = list_state(situation.game, situation.deck, TESTED, "full")
     assert not isinstance(listing, Error)
     assert listing.exile == ("Ponder",)
     assert listing.library_size == 2
@@ -398,7 +424,7 @@ def test_the_full_listing_adds_exile_library_size_commanders_and_payments() -> N
 # @spec GAME-012
 def test_no_listing_reveals_the_library() -> None:
     situation = a_game().with_library("Forest", "Island").build()
-    listing = list_state(situation.game, situation.deck, "full")
+    listing = list_state(situation.game, situation.deck, TESTED, "full")
     assert "Forest" not in repr(listing)
 
 
@@ -406,7 +432,7 @@ def test_no_listing_reveals_the_library() -> None:
 def test_listing_the_state_changes_nothing() -> None:
     situation = a_game().with_battlefield("Forest").build()
     before = situation.game.copy()
-    list_state(situation.game, situation.deck, "full")
+    list_state(situation.game, situation.deck, TESTED, "full")
     assert situation.game == before
 
 
@@ -416,7 +442,10 @@ def test_listing_the_state_changes_nothing() -> None:
 def _accepted() -> Applied:
     situation = a_game().build()
     return accept_change(
-        Applied(situation.game.copy(), CardsDrawn(())), "advance", {"to": "main2", "after": 0}
+        Applied(situation.game.copy(), CardsDrawn(())),
+        TESTED,
+        "advance",
+        {"to": "main2", "after": 0},
     )
 
 
@@ -424,20 +453,20 @@ def _accepted() -> Applied:
 def test_an_accepted_call_increases_the_change_number_and_is_remembered() -> None:
     result = _accepted()
     assert result.game.change == 1
-    assert result.game.last_change is not None
-    assert result.game.last_change.arguments == {"to": "main2"}
+    assert result.game.tested.last_change is not None
+    assert result.game.tested.last_change.arguments == {"to": "main2"}
 
 
 # @spec GAME-035
 @pytest.mark.parametrize("after", [None, 1])
 def test_a_call_following_the_current_change_or_giving_none_is_applied(after: int | None) -> None:
-    assert follow_change(_accepted().game, "play", {"card": "Forest"}, after) is None
+    assert follow_change(_accepted().game, TESTED, "play", {"card": "Forest"}, after) is None
 
 
 # @spec GAME-036
 def test_a_resent_call_is_answered_with_the_original_events_and_not_applied() -> None:
     game = _accepted().game
-    result = follow_change(game, "advance", {"to": "main2", "after": 0}, 0)
+    result = follow_change(game, TESTED, "advance", {"to": "main2", "after": 0}, 0)
     assert isinstance(result, Resent)
     assert result.summary == CardsDrawn(())
     assert result.events[-1] == AlreadyApplied(1)
@@ -446,14 +475,14 @@ def test_a_resent_call_is_answered_with_the_original_events_and_not_applied() ->
 # @spec GAME-037
 def test_a_call_after_a_stale_change_number_is_an_error_naming_the_current_one() -> None:
     game = _accepted().game
-    result = follow_change(game, "play", {"card": "Forest"}, 0)
+    result = follow_change(game, TESTED, "play", {"card": "Forest"}, 0)
     assert result == Refusal.error(Error(ErrorKind.STALE_CHANGE, number=1))
 
 
 # @spec GAME-034
 def test_a_refused_call_leaves_the_change_number_alone() -> None:
     game = _accepted().game
-    follow_change(game, "play", {"card": "Forest"}, 7)
+    follow_change(game, TESTED, "play", {"card": "Forest"}, 7)
     assert game.change == 1
 
 
@@ -463,7 +492,7 @@ def test_a_refused_call_leaves_the_change_number_alone() -> None:
 # @spec GAME-038
 def test_reaching_120_damage_raises_the_damage_notice_once() -> None:
     game = a_game().build().game
-    game.damage_dealt = 120
+    game.imaginary_opponents.damage_dealt = 120
     assert examine_end_conditions(game) == [NoticeRaised(NoticeKind.DAMAGE)]
     assert examine_end_conditions(game) == []
 
@@ -471,9 +500,9 @@ def test_reaching_120_damage_raises_the_damage_notice_once() -> None:
 # @spec GAME-039
 def test_21_commander_damage_to_each_opponent_raises_the_commander_damage_notice() -> None:
     game = a_game().with_commander("Atraxa, Praetors' Voice").build().game
-    game.commander_damage["c1"] = [21, 21, 20]
+    game.imaginary_opponents.commander_damage["c1"] = [21, 21, 20]
     assert examine_end_conditions(game) == []
-    game.commander_damage["c1"] = [21, 21, 21]
+    game.imaginary_opponents.commander_damage["c1"] = [21, 21, 21]
     assert examine_end_conditions(game) == [NoticeRaised(NoticeKind.COMMANDER_DAMAGE)]
 
 
@@ -492,7 +521,7 @@ def test_life_reaching_zero_raises_the_life_notice() -> None:
 # @spec GAME-042
 def test_drawing_from_a_short_library_draws_what_is_there_and_raises_a_notice() -> None:
     game = a_game().with_library("Forest").build().game
-    events = draw(game, 3)
+    events = draw(game, TESTED, 3)
     assert events == [CardsDrawn(("Forest",)), NoticeRaised(NoticeKind.EMPTY_LIBRARY)]
 
 
@@ -500,7 +529,7 @@ def test_drawing_from_a_short_library_draws_what_is_there_and_raises_a_notice() 
 def test_a_notice_stays_after_its_condition_stops_holding_and_never_ends_the_game() -> None:
     game = a_game().with_life(0).build().game
     examine_end_conditions(game)
-    game.life = 10
+    game.tested.life = 10
     examine_end_conditions(game)
     assert game.notices == [NoticeKind.LIFE]
     assert game.status is GameStatus.ACTIVE
@@ -512,7 +541,7 @@ def test_a_notice_stays_after_its_condition_stops_holding_and_never_ends_the_gam
 # @spec GAME-045
 def test_ending_a_game_records_the_result_and_notes_without_any_condition() -> None:
     situation = a_game().build()
-    result = applied(end_game(situation.game, situation.deck, result="win", notes="fast"))
+    result = applied(end_game(situation.game, situation.deck, TESTED, result="win", notes="fast"))
     assert result.game.status is GameStatus.ENDED
     assert result.game.result is not None
     assert (result.game.result.outcome, result.game.result.notes) == (GameResult.WIN, "fast")
@@ -523,16 +552,16 @@ def test_ending_a_game_discards_a_pending_choice_and_a_declared_attack() -> None
 
     situation = a_game().build()
     situation.game.declared_attack = Attack(attackers=["c1"])
-    situation.game.pending_choice = PendingChoice("x1", "Ponder", "look", [], None)
-    result = applied(end_game(situation.game, situation.deck, result="loss", notes=""))
+    situation.game.pending = [PendingChoice("x1", TESTED, "Ponder", "look", [], None)]
+    result = applied(end_game(situation.game, situation.deck, TESTED, result="loss", notes=""))
     assert result.game.declared_attack is None
-    assert result.game.pending_choice is None
+    assert result.game.waiting_choice is None
 
 
 # @spec GAME-047
 def test_ending_with_an_unknown_result_is_an_error() -> None:
     situation = a_game().build()
-    result = end_game(situation.game, situation.deck, result="draw", notes="")
+    result = end_game(situation.game, situation.deck, TESTED, result="draw", notes="")
     assert isinstance(result, Refusal)
     assert result.errors[0].kind is ErrorKind.BAD_RESULT
 

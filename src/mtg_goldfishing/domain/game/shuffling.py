@@ -1,4 +1,5 @@
-"""Seeded shuffling: the nth shuffle of a game depends only on the seed, n and the library."""
+"""Seeded shuffling: a seat's nth shuffle depends only on the seed, its shuffle key, n and
+its library."""
 
 from __future__ import annotations
 
@@ -7,11 +8,17 @@ import random
 
 from mtg_goldfishing.domain.events import LibraryShuffled
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 
-def shuffled(items: list[str], seed: int, n: int) -> list[str]:
-    """A Fisher–Yates shuffle drawing only on the generator's basic uniform float."""
-    digest = hashlib.sha256(f"{seed}:{n}".encode()).hexdigest()
+def shuffled(items: list[str], seed: int, n: int, shuffle_key: str = "") -> list[str]:
+    """A Fisher–Yates shuffle drawing only on the generator's basic uniform float.
+
+    The generator is seeded from `<seed>:<n>` for the tested seat, whose shuffle key is
+    empty, and from `<seed>:<shuffle_key>:<n>` for an opposing seat.
+    """
+    text = f"{seed}:{n}" if not shuffle_key else f"{seed}:{shuffle_key}:{n}"
+    digest = hashlib.sha256(text.encode()).hexdigest()
     generator = random.Random(int(digest, 16))
     result = list(items)
     for i in range(len(result) - 1, 0, -1):
@@ -20,8 +27,12 @@ def shuffled(items: list[str], seed: int, n: int) -> list[str]:
     return result
 
 
-# @spec GAME-010
-def shuffle_library(game: Game) -> LibraryShuffled:
-    game.library = shuffled(game.library, game.seed, game.shuffles)
-    game.shuffles += 1
+# @spec GAME-010, GAME-083, GAME-085
+def shuffle_library(game: Game, seat: SeatNumber) -> LibraryShuffled:
+    """Shuffle one seat's library on its own stream, counting only that seat's shuffles."""
+    shuffling = game.seat(seat)
+    shuffling.library = shuffled(
+        shuffling.library, game.seed, shuffling.shuffles, shuffling.shuffle_key
+    )
+    shuffling.shuffles += 1
     return LibraryShuffled()

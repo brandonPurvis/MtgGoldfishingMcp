@@ -22,17 +22,17 @@ from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.mana import ManaPool
 from mtg_goldfishing.domain.steps import STEPS, Step
 from mtg_goldfishing.domain.turn import Walk, advance, return_to_declare_attackers
-from tests.support.builders import Situation, a_game
+from tests.support.builders import TESTED, Situation, a_game
 
 
 def advanced(situation: Situation, **arguments: object) -> Applied:
-    result = advance(situation.game, situation.deck, **arguments)  # type: ignore[arg-type]
+    result = advance(situation.game, situation.deck, TESTED, **arguments)  # type: ignore[arg-type]
     assert isinstance(result, Applied), result
     return result
 
 
 def refused(situation: Situation, **arguments: object) -> Refusal:
-    result = advance(situation.game, situation.deck, **arguments)  # type: ignore[arg-type]
+    result = advance(situation.game, situation.deck, TESTED, **arguments)  # type: ignore[arg-type]
     assert isinstance(result, Refusal), result
     return result
 
@@ -61,11 +61,11 @@ def test_entering_untap_starts_the_next_turn_with_everything_untapped() -> None:
         .with_land_drops_used(1)
         .build()
     )
-    situation.game.turn_stats.mana_spent = 5
+    situation.game.tested.turn_stats.mana_spent = 5
     game = advanced(situation).game
-    assert (game.turn, game.step, game.land_drops_used) == (5, Step.UNTAP, 0)
-    assert not any(card.tapped for card in game.battlefield)
-    assert game.turn_stats.mana_spent == 0
+    assert (game.turn, game.step, game.tested.land_drops_used) == (5, Step.UNTAP, 0)
+    assert not any(card.tapped for card in game.battlefield_of(TESTED))
+    assert game.tested.turn_stats.mana_spent == 0
 
 
 # @spec TURN-003
@@ -73,7 +73,7 @@ def test_entering_draw_draws_a_card() -> None:
     situation = a_game().in_step(Step.UPKEEP).with_library("Island", "Forest").build()
     result = advanced(situation)
     assert CardsDrawn(("Island",)) in result.events
-    assert [c.name for c in result.game.hand] == ["Island"]
+    assert [c.name for c in result.game.hand_of(TESTED)] == ["Island"]
 
 
 # @spec TURN-003
@@ -85,7 +85,7 @@ def test_turn_one_does_not_draw_when_the_first_turn_draw_is_off() -> None:
         .with_library("Island")
         .build()
     )
-    assert advanced(situation).game.hand == []
+    assert advanced(situation).game.hand_of(TESTED) == []
 
 
 # @spec TURN-004
@@ -98,7 +98,7 @@ def test_entering_cleanup_writes_the_turn_snapshot() -> None:
 # @spec TURN-005
 def test_leaving_a_step_empties_the_mana_pool() -> None:
     situation = a_game().in_step(Step.MAIN1).with_pool("{G}{G}").build()
-    assert advanced(situation).game.mana_pool == ManaPool()
+    assert advanced(situation).game.tested.mana_pool == ManaPool()
 
 
 # @spec TURN-006
@@ -215,21 +215,24 @@ def test_discarding_exactly_the_excess_discards_on_entering_cleanup() -> None:
     situation = a_game().in_step(Step.END).with_hand(*a_big_hand(8), "Forest").build()
     result = advanced(situation, discard=["Forest", "Ponder"])
     assert result.game.step is Step.CLEANUP
-    assert sorted(c.name for c in result.game.in_zone(Zone.GRAVEYARD)) == ["Forest", "Ponder"]
+    assert sorted(c.name for c in result.game.in_zone(Zone.GRAVEYARD, TESTED)) == [
+        "Forest",
+        "Ponder",
+    ]
 
 
 # @spec TURN-019
 def test_an_override_without_discard_enters_cleanup_keeping_every_card() -> None:
     situation = a_game().in_step(Step.END).with_hand(*a_big_hand(9)).build()
     result = advanced(situation, override="Reliquary Tower")
-    assert len(result.game.hand) == 9
+    assert len(result.game.hand_of(TESTED)) == 9
 
 
 # @spec TURN-020
 def test_an_override_with_discard_discards_exactly_the_cards_named() -> None:
     situation = a_game().in_step(Step.END).with_hand(*a_big_hand(9)).build()
     result = advanced(situation, discard=["Ponder"], override="madness")
-    assert len(result.game.hand) == 8
+    assert len(result.game.hand_of(TESTED)) == 8
 
 
 # @spec TURN-019, REC-006
@@ -319,4 +322,4 @@ def test_an_additional_combat_returns_to_declare_attackers_in_the_same_turn() ->
     situation.game.declared_attack = Attack(attackers=[])
     return_to_declare_attackers(situation.game, situation.deck, Walk())
     assert (situation.game.turn, situation.game.step) == (4, Step.DECLARE_ATTACKERS)
-    assert situation.game.mana_pool == ManaPool()
+    assert situation.game.tested.mana_pool == ManaPool()

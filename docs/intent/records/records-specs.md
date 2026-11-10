@@ -46,7 +46,7 @@ Design: `records-design.md`. Prefix: `REC`.
 
 - [x] **REC-011**: When a goldfish game enters `cleanup`, after any discard, the service shall write a snapshot for the turn holding the hand, the battlefield with tapped state and counters, the graveyard, the number of lands, mana available, mana spent, whether a land drop was made, life, damage dealt, commander damage to each of the three imaginary opponents and unanswered reminders.
 - [x] **REC-012**: In every game, when `end_game` ends the game during a turn that has no snapshot, the service shall write a snapshot for that turn.
-- [ ] **REC-070**: When `end_game` ends a game, goldfish or contested, while its status is `mulligan` (no turn has begun and there is no active seat), the service shall write no snapshot.
+- [x] **REC-070**: When `end_game` ends a game, goldfish or contested, while its status is `mulligan` (no turn has begun and there is no active seat), the service shall write no snapshot.
 - [x] **REC-013**: The service shall write at most one snapshot per turn of a goldfish game.
 - [x] **REC-014**: In every game, a snapshot shall mark each card in the described seat's hand `payable` when the mana cost of the card's first face, with X as 0 and each Phyrexian symbol paid with mana, could be paid if every mana source of that seat the auto payment system may use on its own were untapped, and shall mark every land `payable`.
 - [x] **REC-015**: In every game, a snapshot's `mana_available` shall be the most mana the described seat's mana sources the auto payment system may use on its own could make, counted when the game entered the turn's `main1`, ignoring tapped state and summoning sickness.

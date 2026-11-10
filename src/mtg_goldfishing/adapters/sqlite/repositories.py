@@ -17,11 +17,13 @@ from mtg_goldfishing.application.ports import (
     GameRecords,
     GameRepository,
     RecordStore,
+    SeatOfGame,
     StoredGame,
     UnitOfWork,
 )
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 
 Now = Callable[[], datetime]
@@ -32,9 +34,14 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-# @spec STOR-001, STOR-004, STOR-005, STOR-008
+# @spec STOR-001, STOR-004, STOR-005, STOR-008, STOR-016, STOR-017, STOR-018, STOR-019
+# @spec STOR-020
 class SqliteGameRepository(GameRepository):
-    """Each game is one row: its state as one JSON document and a version counter."""
+    """Each game is one row: its state as one JSON document and a version counter.
+
+    Each seat of a game is one `seats` row, written with the game and never changed, by
+    which a seat id finds its game without reading any game's document.
+    """
 
     def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
         self._database = database
@@ -51,6 +58,17 @@ class SqliteGameRepository(GameRepository):
         state, version = row
         return StoredGame(decode(state, Game), int(version))
 
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        row = (
+            self._database.connection()
+            .execute("SELECT game_id, seat_number FROM seats WHERE seat_id = ?", (seat_id.value,))
+            .fetchone()
+        )
+        if row is None:
+            return None
+        game_id, number = row
+        return SeatOfGame(str(game_id), SeatNumber(int(number)))
+
     def add(self, game: Game) -> None:
         now = self._now().isoformat()
         with self._database.writing() as connection:
@@ -58,6 +76,14 @@ class SqliteGameRepository(GameRepository):
                 "INSERT INTO games (game_id, deck_id, seed, status, result, state, version,"
                 " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
                 (*_copied_columns(game), now, now),
+            )
+            connection.executemany(
+                "INSERT INTO seats (seat_id, game_id, seat_number, deck_id, tested)"
+                " VALUES (?, ?, ?, ?, ?)",
+                [
+                    (seat.seat_id.value, game.game_id, seat.number.value, seat.deck_id, seat.tested)
+                    for seat in game.seats
+                ],
             )
 
     def save(self, game: Game, *, version: int) -> bool:
@@ -76,7 +102,7 @@ def _copied_columns(game: Game) -> tuple[str, str, int, str, str | None, str]:
     result = game.result.outcome.value if game.result else None
     return (
         game.game_id,
-        game.deck_id,
+        game.tested.deck_id,
         game.seed,
         game.status.value,
         result,

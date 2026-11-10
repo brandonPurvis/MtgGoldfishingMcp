@@ -8,13 +8,15 @@ from mtg_goldfishing.application.ports import (
     GameRecords,
     GameRepository,
     RecordStore,
+    SeatOfGame,
     StoredGame,
 )
 from mtg_goldfishing.domain.events import ErrorKind, Refused
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from mtg_goldfishing.domain.steps import Step
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
 
 
@@ -29,6 +31,9 @@ class ChangedByAnotherWriter(GameRepository):
         if stored is not None:
             self._inner.save(stored.game, version=stored.version)
         return stored
+
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
 
     def add(self, game: Game) -> None:
         self._inner.add(game)
@@ -107,7 +112,7 @@ def test_a_game_changed_since_it_was_loaded_is_an_error_asking_to_send_the_call_
 def test_a_game_changed_since_it_was_loaded_saves_nothing_of_the_call() -> None:
     harness = harness_whose_game_changes_underneath()
     harness.service.play({"game_id": GAME_ID, "card": "Forest"})
-    assert harness.game().hand[0].name == "Forest"
+    assert harness.game().hand_of(TESTED)[0].name == "Forest"
     assert harness.records().entries == ()
 
 

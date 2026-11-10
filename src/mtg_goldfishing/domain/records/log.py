@@ -26,7 +26,7 @@ from mtg_goldfishing.domain.events import (
     NoticeRaised,
     StepsEntered,
 )
-from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.model import Game, Reminder
 from mtg_goldfishing.domain.records.model import LogEntry, Payment, ReminderRecord
 
 DELTA_TOOLS = ("play", "effect", "choose")
@@ -121,13 +121,23 @@ def _delta(
     received = _mapping(arguments.get("delta"))
     moves = [e for e in reported if isinstance(e, CardMoved)]
     added: dict[str, object] = {
-        "shuffles": after.shuffles - before.shuffles if before else 0,
+        "shuffles": _shuffles(after) - _shuffles(before) if before else 0,
         "commander_redirected": [m.card for m in moves if m.commander_redirected],
         "tokens_gone": [m.card for m in moves if m.token_gone],
     }
     if received is None and not any(added.values()):
         return None
     return {**(received or {}), "added": added}
+
+
+def _shuffles(game: Game) -> int:
+    """The library shuffles of every seat so far."""
+    return sum(seat.shuffles for seat in game.seats)
+
+
+def _reminders(game: Game) -> list[Reminder]:
+    """Every seat's reminders of the current turn, seat by seat in turn order."""
+    return [reminder for seat in game.seats for reminder in seat.reminders]
 
 
 def _payment(reported: Sequence[Event]) -> Payment | None:
@@ -153,7 +163,7 @@ def _reminders_issued(before: Game | None, after: Game) -> tuple[ReminderRecord,
 
     A game keeps only the current turn's reminders, adding to them as steps are entered.
     """
-    kept = len(before.reminders) if before and before.turn == after.turn else 0
+    kept = len(_reminders(before)) if before and before.turn == after.turn else 0
     return tuple(
         ReminderRecord(
             card=reminder.name,
@@ -164,7 +174,7 @@ def _reminders_issued(before: Game | None, after: Game) -> tuple[ReminderRecord,
             or reminder.name,
             turn=after.turn,
         )
-        for reminder in after.reminders[kept:]
+        for reminder in _reminders(after)[kept:]
     )
 
 

@@ -1,7 +1,8 @@
-"""The game aggregate: one goldfish game, its card instances, zones and counters.
+"""The game aggregate: the table, its seats, their card instances and zones.
 
-`Game` is the one aggregate that changes. Operations never change the game they are given:
-they work on a copy and return it only when the call is applied.
+`Game` is the one aggregate that changes. A `Seat` is an entity inside it, reached through
+the game by its seat number. Operations never change the game they are given: they work on a
+copy and return it only when the call is applied.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from enum import Enum
 
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.events import Event, NoticeKind
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.mana import ManaPool, ManaString
 from mtg_goldfishing.domain.reading.model import CardReading
 from mtg_goldfishing.domain.steps import Step
@@ -43,6 +45,7 @@ class Zone(Enum):
 
 
 PUBLIC_ZONES = (Zone.BATTLEFIELD, Zone.GRAVEYARD, Zone.EXILE, Zone.COMMAND)
+HIDDEN_ZONES = (Zone.HAND, Zone.LIBRARY)
 
 
 class Destination(Enum):
@@ -114,11 +117,17 @@ class TokenSpec:
 
 @dataclass
 class CardInstance:
-    """One card or token in one game."""
+    """One card or token in one game.
+
+    Its owner is the seat whose deck it came from or whose effect created it; its controller
+    is its owner unless an effect has changed control.
+    """
 
     id: str
     name: str
     zone: Zone
+    owner: SeatNumber
+    controller: SeatNumber
     face: int = 0
     tapped: bool = False
     counters: dict[str, int] = field(default_factory=dict)
@@ -133,6 +142,11 @@ class CardInstance:
     def number(self) -> int:
         return int(self.id[1:])
 
+    @property
+    def zone_seat(self) -> SeatNumber:
+        """The seat whose zone the card is in: its controller on the battlefield, else its owner."""
+        return self.controller if self.zone is Zone.BATTLEFIELD else self.owner
+
 
 @dataclass
 class Attack:
@@ -146,7 +160,10 @@ class Attack:
 
 @dataclass
 class PendingChoice:
+    """A decision the game waits on from one seat: `seat` is the seat that answers it."""
+
     choice_id: str
+    seat: SeatNumber
     source: str
     kind: str
     revealed: list[str]
@@ -187,10 +204,13 @@ class Reminder:
 
 @dataclass
 class LastChange:
+    """A seat's most recent accepted change, and the change number it took."""
+
     tool: str
     arguments: dict[str, object]
     summary: Event
     events: tuple[Event, ...]
+    change: int
 
 
 @dataclass
@@ -199,41 +219,119 @@ class Result:
     notes: str
 
 
+# @spec GAME-061, PAY-044
 @dataclass
-class Game:
-    game_id: str
+class Seat:
+    """One player's place in a game: what that player has, apart from its cards.
+
+    The seat's cards are the game's card instances it owns; its library's order is kept here.
+    """
+
+    number: SeatNumber
+    seat_id: SeatId
     deck_id: str
-    seed: int
-    turn_limit: int | None = None
-    draw_first_turn: bool = True
-    status: GameStatus = GameStatus.MULLIGAN
-    turn: int = 0
-    step: Step | None = None
-    change: int = 0
-    last_change: LastChange | None = None
+    tested: bool
+    shuffle_key: str = ""
     life: int = STARTING_LIFE
+    eliminated: bool = False
+    kept: bool = False
+    mulligans: int = 0
+    shuffles: int = 0
+    turns: int = 0
     land_drops_used: int = 0
     turn_stats: TurnStats = field(default_factory=TurnStats)
     mana_pool: ManaPool = field(default_factory=ManaPool)
-    mulligans: int = 0
-    shuffles: int = 0
     commander_casts: dict[str, int] = field(default_factory=dict)
+    library: list[str] = field(default_factory=list)
+    last_change: LastChange | None = None
+    reminders: list[Reminder] = field(default_factory=list)
+
+    def commander_tax(self, commander: CardInstance) -> int:
+        return COMMANDER_TAX * self.commander_casts.get(commander.id, 0)
+
+    @property
+    def in_game(self) -> bool:
+        """Whether the seat is still in the game: not eliminated."""
+        return not self.eliminated
+
+
+@dataclass
+class ImaginaryOpponents:
+    """What a goldfish game keeps for its tested seat against the three imaginary opponents."""
+
     damage_dealt: int = 0
     commander_damage: dict[str, list[int]] = field(default_factory=dict)
-    cards: list[CardInstance] = field(default_factory=list)
-    library: list[str] = field(default_factory=list)
+
+
+# @spec APP-030, GAME-100
+@dataclass
+class Game:
+    """The table: what every seat shares, the seats in turn order, and every seat's cards.
+
+    `imaginary` holds a goldfish game's tallies; a game with opposing seats has none.
+    """
+
+    game_id: str
+    seed: int
+    seats: list[Seat]
+    turn_limit: int | None = None
+    draw_first_turn: bool = True
+    status: GameStatus = GameStatus.MULLIGAN
+    active: SeatNumber | None = None
+    turn: int = 0
+    round: int = 0
+    step: Step | None = None
+    change: int = 0
+    pending: list[PendingChoice] = field(default_factory=list)
     declared_attack: Attack | None = None
     tapped_by_attacks: list[str] = field(default_factory=list)  # this turn; reset on untap
-    pending_choice: PendingChoice | None = None
     notices: list[NoticeKind] = field(default_factory=list)
     result: Result | None = None
-    reminders: list[Reminder] = field(default_factory=list)
+    cards: list[CardInstance] = field(default_factory=list)
+    imaginary: ImaginaryOpponents | None = None
     snapshot_turns: list[int] = field(default_factory=list)
     next_instance: int = 1
     next_choice: int = 1
 
     def copy(self) -> Game:
         return copy.deepcopy(self)
+
+    # ------------------------------------------------------------------ seats
+
+    def seat(self, number: SeatNumber) -> Seat:
+        for seat in self.seats:
+            if seat.number == number:
+                return seat
+        raise KeyError(number)
+
+    def others_from(self, number: SeatNumber) -> list[Seat]:
+        """Every other seat, in turn order starting from the seat after `number`."""
+        at = next(i for i, seat in enumerate(self.seats) if seat.number == number)
+        return self.seats[at + 1 :] + self.seats[:at]
+
+    @property
+    def tested(self) -> Seat:
+        """The seat whose deck the game is judging."""
+        return next(seat for seat in self.seats if seat.tested)
+
+    @property
+    def active_seat(self) -> Seat:
+        """The seat whose turn it is; asking while no seat is active is a defect."""
+        if self.active is None:
+            raise LookupError("no seat is active")
+        return self.seat(self.active)
+
+    @property
+    def imaginary_opponents(self) -> ImaginaryOpponents:
+        """A goldfish game's tallies; asking a game with opposing seats for them is a defect."""
+        if self.imaginary is None:
+            raise LookupError("only a goldfish game has imaginary opponents")
+        return self.imaginary
+
+    @property
+    def waiting_choice(self) -> PendingChoice | None:
+        """The pending choice to be answered next: the oldest still waiting."""
+        return self.pending[0] if self.pending else None
 
     # ------------------------------------------------------------------ looking things up
 
@@ -247,28 +345,35 @@ class Game:
         lowered = instance_id.strip().lower()
         return next((card for card in self.cards if card.id == lowered), None)
 
-    def in_zone(self, zone: Zone) -> list[CardInstance]:
+    def in_zone(self, zone: Zone, seat: SeatNumber) -> list[CardInstance]:
+        """A seat's cards in a zone: the permanents it controls, elsewhere the cards it owns.
+
+        The library is in its own order, top first; every other zone in instance order.
+        """
         if zone is Zone.LIBRARY:
-            return [self.instance(instance_id) for instance_id in self.library]
-        return sorted((c for c in self.cards if c.zone is zone), key=lambda c: c.number)
+            return [self.instance(instance_id) for instance_id in self.seat(seat).library]
+        return sorted(
+            (c for c in self.cards if c.zone is zone and c.zone_seat == seat),
+            key=lambda c: c.number,
+        )
 
-    @property
-    def hand(self) -> list[CardInstance]:
-        return self.in_zone(Zone.HAND)
+    def hand_of(self, seat: SeatNumber) -> list[CardInstance]:
+        return self.in_zone(Zone.HAND, seat)
 
-    @property
-    def battlefield(self) -> list[CardInstance]:
-        return self.in_zone(Zone.BATTLEFIELD)
+    def battlefield_of(self, seat: SeatNumber) -> list[CardInstance]:
+        """The permanents a seat controls, whichever seat owns them."""
+        return self.in_zone(Zone.BATTLEFIELD, seat)
 
-    @property
-    def commanders(self) -> list[CardInstance]:
-        """The commanders, in name order."""
-        return sorted((c for c in self.cards if c.is_commander), key=lambda c: c.name.casefold())
+    def commanders_of(self, seat: SeatNumber) -> list[CardInstance]:
+        """A seat's own commanders, in name order."""
+        return sorted(
+            (c for c in self.cards if c.is_commander and c.owner == seat),
+            key=lambda c: c.name.casefold(),
+        )
 
-    def commander_tax(self, commander: CardInstance) -> int:
-        return COMMANDER_TAX * self.commander_casts.get(commander.id, 0)
-
+    # @spec GAME-064
     def new_instance_id(self) -> str:
+        """The next instance id of the game, counted across every seat and never reused."""
         instance_id = f"c{self.next_instance}"
         self.next_instance += 1
         return instance_id
@@ -280,16 +385,20 @@ class Game:
 
     # ------------------------------------------------------------------ changing zones
 
-    def take_from_library(self, instance_id: str) -> None:
-        self.library.remove(instance_id)
+    def take_from_library(self, card: CardInstance) -> None:
+        self.seat(card.owner).library.remove(card.id)
 
     def put(self, card: CardInstance, destination: Destination, *, tapped: bool = False) -> None:
-        """Put a card that is in no zone list into a destination, doing arrival bookkeeping."""
+        """Put a card that is in no zone list into a destination, doing arrival bookkeeping.
+
+        A card bound for a library goes to its owner's.
+        """
         card.zone = destination.zone
+        library = self.seat(card.owner).library
         if destination is Destination.LIBRARY_TOP:
-            self.library.insert(0, card.id)
+            library.insert(0, card.id)
         elif destination is Destination.LIBRARY_BOTTOM:
-            self.library.append(card.id)
+            library.append(card.id)
         if card.zone is Zone.BATTLEFIELD:
             card.entered_turn = self.turn
             card.tapped = tapped or destination is Destination.BATTLEFIELD_TAPPED

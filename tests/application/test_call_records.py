@@ -8,7 +8,7 @@ from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.domain.events import ErrorKind, Refused
 from mtg_goldfishing.domain.game.summary import summarize
 from mtg_goldfishing.domain.records.model import CallRecord
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.decks import ATRAXA, a_deck_list
 from tests.support.rendering import plain_text, size_note
 from tests.support.service import GAME_ID, ServiceHarness, a_service
@@ -120,7 +120,7 @@ def test_a_call_that_could_not_be_shaped_carries_the_summary_of_the_game_it_name
     answer = harness.service.malformed_call("play", {"game_id": GAME_ID, "card": 3}, ["card"])
     deck = harness.stores.decks.get("dtest")
     assert deck is not None
-    assert answer.outcome.game == summarize(harness.game(), deck)
+    assert answer.outcome.game == summarize(harness.game(), deck, TESTED)
 
 
 # @spec APP-027

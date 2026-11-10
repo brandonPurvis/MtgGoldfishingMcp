@@ -18,8 +18,6 @@ from mtg_goldfishing.domain.game.model import Game
 from tests.support.builders import a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
 
-not_built = pytest.mark.xfail(strict=True, reason="M2: seats inside the game are not built")
-
 # The seat model is reached untyped here, so the tests read the same before and after it exists.
 SeatNumber: Any = seats.SeatNumber
 SeatId: Any = seats.SeatId
@@ -56,7 +54,6 @@ def a_game_known_by_another_id() -> ServiceHarness:
 
 
 # @spec APP-053
-@not_built
 def test_a_changing_call_is_applied_to_the_game_whose_seat_its_id_names() -> None:
     harness = a_game_known_by_another_id()
 
@@ -68,7 +65,6 @@ def test_a_changing_call_is_applied_to_the_game_whose_seat_its_id_names() -> Non
 
 
 # @spec APP-053
-@not_built
 def test_a_read_only_call_is_answered_about_the_game_whose_seat_its_id_names() -> None:
     harness = a_game_known_by_another_id()
 
@@ -80,7 +76,6 @@ def test_a_read_only_call_is_answered_about_the_game_whose_seat_its_id_names() -
 
 
 # @spec APP-053
-@not_built
 def test_a_call_made_with_a_seat_id_is_recorded_under_the_game_it_names() -> None:
     harness = a_game_known_by_another_id()
 
@@ -91,7 +86,6 @@ def test_a_call_made_with_a_seat_id_is_recorded_under_the_game_it_names() -> Non
 
 
 # @spec APP-057
-@not_built
 def test_a_changing_call_acts_as_the_seat_its_id_names() -> None:
     harness = a_service()
     two_seats: Any = a_game().and_an_opposing_seat()
@@ -131,7 +125,6 @@ def test_a_call_whose_id_names_no_seat_changes_no_game() -> None:
 
 
 # @spec GAME-076
-@not_built
 def test_a_new_goldfish_game_s_tested_seat_is_named_by_the_game_id() -> None:
     harness = a_service(game_ids=("abcdefghij",))
     harness.started_game()
@@ -145,7 +138,6 @@ def test_a_new_goldfish_game_s_tested_seat_is_named_by_the_game_id() -> None:
 
 
 # @spec APP-045
-@not_built
 def test_the_game_repository_port_finds_the_game_and_seat_number_a_seat_id_names() -> None:
     assert "find_seat" in ports.GameRepository.__abstractmethods__
 

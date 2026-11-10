@@ -16,8 +16,8 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-007**: When a domain operation returns a refusal, in a goldfish game or a contested game, the game passed to the operation shall be unchanged.
 - [x] **APP-008**: The domain shall perform no input or output, read no clock, and draw no randomness other than from a seed passed to it.
 - [ ] **APP-029**: `Game` shall be the one aggregate that changes: the seats of a game, their card instances, zones and mana pools, the stack, the response window, the declared attack, the pending choices and the notices shall be reached and changed only through the `Game` they belong to.
-- [ ] **APP-030**: A seat shall be an entity inside its `Game`, identified by its seat number, and no port shall save or load a seat on its own.
-- [ ] **APP-031**: Every domain operation on a `Game` that a tool causes, in a goldfish game or a contested game, shall take the acting seat's seat number as an argument.
+- [x] **APP-030**: A seat shall be an entity inside its `Game`, identified by its seat number, and no port shall save or load a seat on its own.
+- [x] **APP-031**: Every domain operation on a `Game` that a tool causes, in a goldfish game or a contested game, shall take the acting seat's seat number as an argument.
 - [ ] **APP-032**: `SeatId`, `SeatNumber` and `StackItem` shall be domain value objects (immutable, compared by value, rejecting invalid values on construction).
 - [ ] **APP-033**: The filter that turns an event into its public form (what any seat may see of it) shall be a stateless domain service; no application or adapter code shall decide what is public.
 
@@ -43,7 +43,7 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-042**: Each port shall be an abstract base class defined in `application/ports.py`.
 - [x] **APP-043**: Every implementation of a port, in-memory adapters included, shall be a concrete class that inherits from the port it implements.
 - [x] **APP-044**: If a class inheriting from a port does not implement every operation of that port, then constructing an object of that class shall fail.
-- [ ] **APP-045**: `GameRepository` shall offer an operation that finds the game and seat number a seat id names, answering for a game id with that game and its tested seat's number, and reporting when the id names none.
+- [x] **APP-045**: `GameRepository` shall offer an operation that finds the game and seat number a seat id names, answering for a game id with that game and its tested seat's number, and reporting when the id names none.
 - [ ] **APP-046**: `RecordStore` shall offer an operation that gives a seat's digest baseline for a game: the change number on that seat's most recent call record for a tool other than `get_log`, reporting when the seat has no such call record.
 - [ ] **APP-092**: If `RecordStore` is asked to add a snapshot for a game and table turn that already has one, then it shall raise an exception and leave the stored snapshot as it was, a second snapshot for a table turn being a defect and never a replacement.
 - [ ] **APP-047**: `IdSource` shall supply seat ids as well as game ids and seeds.
@@ -71,11 +71,11 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-021**: If saving a game fails because the stored game changed since it was loaded, then the use case shall save nothing but the call record and return an `ERROR` outcome asking for the call to be sent again.
 - [x] **APP-022**: When a `play` call brings a card from outside the game, the use case shall resolve that card's data through `CardCatalog` before calling the domain, also when the call gives a card definition, which then replaces the fetched fields it names.
 - [x] **APP-023**: Use cases shall contain no rule of play: every decision about cards, zones, mana, steps or costs shall be made by the domain.
-- [ ] **APP-053**: When a use case handles a game-scoped call, it shall first find, through `GameRepository`, the game and seat number that the id given as `game_id` names, and act as that seat.
-- [ ] **APP-054**: If the id given as `game_id` to a game-scoped call names no seat of any game, then the use case shall return an `ERROR` outcome with no game summary and change no game.
+- [x] **APP-053**: When a use case handles a game-scoped call, it shall first find, through `GameRepository`, the game and seat number that the id given as `game_id` names, and act as that seat.
+- [x] **APP-054**: If the id given as `game_id` to a game-scoped call names no seat of any game, then the use case shall return an `ERROR` outcome with no game summary and change no game.
 - [ ] **APP-055**: When a changing call is a resend of the calling seat's most recent accepted change, the use case shall answer it as already applied before asking whether the calling seat may make the call now, so that a resend is answered even when the calling seat is no longer a seat to act.
 - [ ] **APP-056**: If, in a contested game, the domain answers that the calling seat may not make the call now (it is not a seat to act for that tool), then the use case shall return an `ERROR` outcome without calling the domain operation, saving nothing but the call record.
-- [ ] **APP-057**: When a use case calls a domain operation for a changing call, it shall pass the calling seat's seat number as the acting seat.
+- [x] **APP-057**: When a use case calls a domain operation for a changing call, it shall pass the calling seat's seat number as the acting seat.
 - [ ] **APP-058**: When a call other than `get_log` made with an id that names a seat of a contested game is answered, whether applied, answered as a resend, refused by the domain, refused because its arguments could not be shaped (APP-027), refused because the save lost a race (APP-021) or read-only, the use case shall assemble the calling seat's digest before rendering the outcome, so that every call record that moves a digest baseline holds a response that carried a digest.
 - [ ] **APP-082**: When a resend is answered in a contested game, the outcome shall hold the original change's summary and events with the already-applied statement, and a digest assembled at the time of the resend from the calling seat's digest baseline, not the digest of the original response.
 - [ ] **APP-083**: When a resend is answered, in a goldfish game or a contested game, the outcome's game summary shall describe the game as it stands when the resend is answered, not as it stood after the original change.

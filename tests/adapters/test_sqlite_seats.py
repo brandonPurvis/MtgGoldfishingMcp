@@ -22,8 +22,6 @@ from mtg_goldfishing.domain.game import seats
 from tests.support.builders import a_game
 from tests.support.card_data import recorded_cards
 
-not_built = pytest.mark.xfail(strict=True, reason="M2: seats inside the game are not built")
-
 # The seat model is reached untyped here, so the tests read the same before and after it exists.
 SeatNumber: Any = seats.SeatNumber
 SeatId: Any = seats.SeatId
@@ -122,7 +120,6 @@ SEAT_COLUMNS = "SELECT seat_id, game_id, seat_number, deck_id, tested FROM seats
 
 
 # @spec STOR-016, STOR-017
-@not_built
 def test_adding_a_goldfish_game_writes_one_seats_row_keyed_by_its_game_id(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -132,7 +129,6 @@ def test_adding_a_goldfish_game_writes_one_seats_row_keyed_by_its_game_id(
 
 
 # @spec STOR-016
-@not_built
 def test_adding_a_game_writes_a_seats_row_for_each_of_its_seats(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -147,7 +143,6 @@ def test_adding_a_game_writes_a_seats_row_for_each_of_its_seats(
 
 
 # @spec STOR-016
-@not_built
 def test_a_game_s_seats_rows_are_written_in_the_same_transaction_as_the_game(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -159,7 +154,6 @@ def test_a_game_s_seats_rows_are_written_in_the_same_transaction_as_the_game(
 
 
 # @spec STOR-018
-@not_built
 def test_a_seat_id_is_answered_from_the_seats_table_and_not_from_game_documents(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -178,7 +172,6 @@ def test_a_seat_id_is_answered_from_the_seats_table_and_not_from_game_documents(
 
 
 # @spec STOR-020
-@not_built
 def test_saving_a_game_leaves_its_seats_rows_as_they_were_written(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -193,7 +186,6 @@ def test_saving_a_game_leaves_its_seats_rows_as_they_were_written(
 
 
 # @spec STOR-023
-@not_built
 def test_calls_are_indexed_by_game_id_and_seat_number(stores: SqliteStores, path: Path) -> None:
     indexes = [str(name) for _, name, *_ in _query(path, "PRAGMA index_list('calls')")]
 
@@ -209,7 +201,6 @@ def test_calls_are_indexed_by_game_id_and_seat_number(stores: SqliteStores, path
 
 
 # @spec STOR-024
-@not_built
 def test_the_migration_gives_every_stored_game_a_seats_row_for_its_tested_seat(
     migrated: SqliteStores, path: Path
 ) -> None:
@@ -219,7 +210,6 @@ def test_the_migration_gives_every_stored_game_a_seats_row_for_its_tested_seat(
 
 
 # @spec STOR-025
-@not_built
 def test_the_migration_adds_a_seat_number_to_calls_left_null_on_stored_call_records(
     migrated: SqliteStores, path: Path
 ) -> None:
@@ -229,7 +219,6 @@ def test_the_migration_adds_a_seat_number_to_calls_left_null_on_stored_call_reco
 
 
 # @spec STOR-026
-@not_built
 def test_the_migration_moves_what_one_player_has_into_the_tested_seat(
     migrated: SqliteStores,
 ) -> None:
@@ -260,7 +249,6 @@ def test_the_migration_moves_what_one_player_has_into_the_tested_seat(
 
 
 # @spec STOR-026
-@not_built
 def test_the_migration_keeps_pooled_and_commander_damage_as_the_imaginary_opponents_tallies(
     migrated: SqliteStores,
 ) -> None:
@@ -275,7 +263,6 @@ def test_the_migration_keeps_pooled_and_commander_damage_as_the_imaginary_oppone
 
 
 # @spec STOR-026
-@not_built
 def test_the_migration_makes_the_tested_seat_owner_and_controller_of_every_card(
     migrated: SqliteStores,
 ) -> None:
@@ -290,7 +277,6 @@ def test_the_migration_makes_the_tested_seat_owner_and_controller_of_every_card(
 
 
 # @spec STOR-026
-@not_built
 def test_the_migration_keeps_the_table_s_turn_step_pending_choice_and_most_recent_change(
     migrated: SqliteStores,
 ) -> None:
@@ -316,7 +302,6 @@ def test_the_migration_keeps_the_table_s_turn_step_pending_choice_and_most_recen
 
 
 # @spec STOR-013, STOR-026
-@not_built
 def test_the_migration_keeps_the_version_counter_and_the_records_of_a_stored_game(
     migrated: SqliteStores, path: Path
 ) -> None:
@@ -336,7 +321,6 @@ def test_the_migration_keeps_the_version_counter_and_the_records_of_a_stored_gam
 
 
 # @spec STOR-027
-@not_built
 def test_a_goldfish_game_stored_before_seats_answers_every_later_call_as_it_did_before(
     migrated: SqliteStores, path: Path
 ) -> None:
@@ -352,7 +336,6 @@ def test_a_goldfish_game_stored_before_seats_answers_every_later_call_as_it_did_
 
 
 # @spec STOR-027
-@not_built
 def test_a_goldfish_game_stored_before_seats_keeps_its_change_number_and_status_line(
     migrated: SqliteStores, path: Path
 ) -> None:
