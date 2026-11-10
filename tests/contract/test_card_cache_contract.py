@@ -1,10 +1,12 @@
 """What every CardCache promises. Add another adapter's cache as one more fixture param."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import pytest
 
 from mtg_goldfishing.adapters.memory import InMemoryCardCache
+from mtg_goldfishing.adapters.sqlite import SqliteCardCache, SqliteDatabase
 from mtg_goldfishing.application.ports import CardCache
 from mtg_goldfishing.domain.cards import Card, Face
 from tests.support.card_data import recorded_card
@@ -12,11 +14,21 @@ from tests.support.card_data import recorded_card
 CacheFactory = Callable[[], CardCache]
 
 
-# @spec APP-012
-@pytest.fixture(params=[InMemoryCardCache], ids=["memory"])
-def new_cache(request: pytest.FixtureRequest) -> CacheFactory:
-    factory: CacheFactory = request.param
-    return factory
+# @spec APP-012, STOR-001
+@pytest.fixture(params=["memory", "sqlite"])
+def new_cache(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[CacheFactory]:
+    if request.param == "memory":
+        yield InMemoryCardCache
+        return
+    databases: list[SqliteDatabase] = []
+
+    def sqlite_cache() -> CardCache:
+        databases.append(SqliteDatabase(tmp_path / f"cache{len(databases)}.db"))
+        return SqliteCardCache(databases[-1])
+
+    yield sqlite_cache
+    for database in databases:
+        database.close()
 
 
 def _two_faced(name: str, *faces: str) -> Card:
