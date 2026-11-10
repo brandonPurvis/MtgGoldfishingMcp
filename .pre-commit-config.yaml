@@ -1,0 +1,27 @@
+# Runs before every commit. Install once with: uv run pre-commit install
+# Run by hand with:                         uv run pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: format (ruff)
+        entry: uv run ruff format --check
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: lint (ruff)
+        entry: uv run ruff check
+        language: system
+        types: [python]
+      - id: mypy
+        name: type check (mypy)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: pytest
+        name: unit tests (pytest)
+        entry: uv run pytest -m "not e2e"
+        language: system
+        types: [python]
+        pass_filenames: false
