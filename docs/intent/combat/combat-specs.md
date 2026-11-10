@@ -4,8 +4,10 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 
 ## When `attack` may be called
 
-- [x] **CMBT-001**: When the active seat calls `attack` while the game is in `main1` or `begin_combat`, in a goldfish game or a contested game, the game shall move to `declare_attackers`, performing the automatic actions and issuing the reminders of the steps entered, and store the declaration.
-- [x] **CMBT-002**: When `attack` moves the game through `begin_combat`, in a goldfish game or a contested game, the game shall declare the attack whether or not a reminder was issued for `begin_combat`, and the outcome shall list any such reminder.
+- [x] **CMBT-001**: When the active seat calls `attack` while the game is in `main1` or `begin_combat`, in a goldfish game or a contested game, the game shall move to `declare_attackers`, performing the automatic actions and issuing the reminders of the steps entered, and store the declaration, unless the move stops for another seat's reminder (CMBT-073).
+- [x] **CMBT-002**: When `attack` moves the game through `begin_combat`, in a goldfish game or a contested game, the game shall declare the attack whether or not a reminder was issued to the active seat for `begin_combat`, and the outcome shall list any such reminder.
+- [ ] **CMBT-073**: When an `attack` of a contested game, moving toward `declare_attackers`, enters a step before `declare_attackers` in which a reminder is issued to a seat other than the active seat, the game shall stop in that step with no attack declared and no attacker tapped, the reminded seat becoming the seat to act as it does when an `advance` stops (TURN-051).
+- [ ] **CMBT-078**: When an `attack` of a contested game stops undeclared for another seat's reminder (CMBT-073), the outcome shall be `OK`, say that the attack was not declared, and say to send `attack` again with the change number to pass as `after`.
 - [x] **CMBT-003**: When the active seat calls `attack` while the game is in `declare_attackers` in a goldfish game or a contested game, or in `declare_blockers` with no attack declared in a goldfish game, the game shall store the declaration without moving to another step.
 - [x] **CMBT-004**: When the tested seat calls `attack` in a goldfish game while the game is in `declare_attackers` or `declare_blockers` with an attack already declared, the game shall replace the earlier declaration; attackers tapped by the earlier declaration stay tapped and are not refused for being tapped.
 - [x] **CMBT-005**: If `attack` is called while the game is in `untap`, `upkeep` or `draw` and carries no `override`, in a goldfish game or a contested game, then `attack` shall fail a rule check.
@@ -19,7 +21,7 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 
 ## Declaring
 
-- [x] **CMBT-011**: When an attack is declared, in a goldfish game or a contested game, the game shall tap each attacker that has no vigilance of its own, none granted by a permanent's reading, including the attacker's own grant when it includes itself, and is not listed in `vigilance`.
+- [x] **CMBT-011**: When an attack is declared, in a goldfish game or a contested game, the game shall tap each attacker that has no vigilance of its own, none granted by the reading of a permanent controlled by the seat that controls the attacker (never by a permanent another seat controls), including the attacker's own grant when it includes itself, and is not listed in `vigilance`.
 - [x] **CMBT-012**: When an attack is declared, in a goldfish game or a contested game, the game shall leave untapped each attacker that has vigilance of its own, granted by a permanent's reading, including the attacker's own grant when it includes itself, or listed in `vigilance`.
 - [x] **CMBT-013**: The game, goldfish or contested, shall apply the `vigilance` and `haste` arguments of an `attack` call to that declaration only.
 - [ ] **CMBT-030**: When `attack` in a contested game gives `targets` as one seat number, every attacker shall attack that seat.
@@ -28,6 +30,8 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 - [ ] **CMBT-034**: When blocks are about to be requested in a contested game, the game shall remove from the declared attack every attacker that has left the battlefield since it was declared.
 - [ ] **CMBT-035**: When blocks are about to be requested in a contested game, the game shall remove from the declared attack every attacker whose controller has changed since it was declared.
 - [ ] **CMBT-036**: When blocks are about to be requested in a contested game, the game shall remove from the declared attack every attacker whose target seat has been eliminated.
+- [ ] **CMBT-074**: When a contested game enters `combat_damage`, an attacker whose controller has changed since it was declared shall deal no combat damage.
+- [ ] **CMBT-075**: When a contested game enters `combat_damage`, an attacker whose target seat has been eliminated shall deal no combat damage.
 
 ## Blocks in a contested game
 
@@ -48,8 +52,8 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 ## The result of combat between creatures
 
 - [ ] **CMBT-050**: In a contested game, the game shall not move, destroy or mark damage on any creature as a result of combat on its own: what happens to attacking and blocking creatures is only what a seat's delta states.
-- [ ] **CMBT-051**: When the attacking seat of a contested game states the result of combat between creatures with an `effect` that has `immediate` true, the game shall apply its delta at once as stated, to any seat's permanents that a delta may reach, without comparing it with the creatures' power or toughness.
-- [ ] **CMBT-052**: In a contested game, the game shall not take combat damage to seats from the attacking seat's combat-result `effect`: it adds that damage up itself on entering `combat_damage`.
+- [ ] **CMBT-051**: When the attacking seat of a contested game states the result of combat between creatures with an `effect` that has `immediate` true, the game shall apply it as any other immediate `effect`, with nothing marking it as a combat result: every key of its delta, `life` and `damage` included, is applied at once as stated, to any seat's permanents and life that a delta may reach, without comparing it with the creatures' power or toughness.
+- [ ] **CMBT-052**: When a contested game enters `combat_damage`, the game shall deal the declared attack's combat damage to seats in full whatever any earlier `effect` stated, neither reducing it by nor matching it against the `life` or `damage` key of an immediate `effect`.
 
 ## Refusals
 
@@ -58,16 +62,17 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 - [x] **CMBT-016**: If `commander_target` in a goldfish game is outside 0 to 2, or is a map naming something that is not an attacking commander, then `attack` shall return an error.
 - [x] **CMBT-017**: If an attacker's type line, or for a token its types, does not include `Creature`, in a goldfish game or a contested game, then `attack` shall fail a rule check.
 - [x] **CMBT-018**: If an attacker is tapped other than by an earlier attack declaration in the same turn, in a goldfish game or a contested game, then `attack` shall fail a rule check.
-- [x] **CMBT-019**: If an attacker entered the battlefield this turn and has no haste of its own, none granted by a permanent's reading, including the attacker's own grant when it includes itself, and is not listed in `haste`, in a goldfish game or a contested game, then `attack` shall fail a rule check.
+- [x] **CMBT-019**: If an attacker entered the battlefield during the current table turn (its `entered_turn` equals the table turn number, the count of turns begun by all seats) and has no haste of its own, none granted by the reading of a permanent controlled by the seat that controls the attacker (never by a permanent another seat controls), including the attacker's own grant when it includes itself, and is not listed in `haste`, in a goldfish game or a contested game, then `attack` shall fail a rule check.
 - [x] **CMBT-020**: If an attacker in a goldfish game that is not listed in `blocked` has a power that is not a number and `damage` has no entry for it, then `attack` shall fail a rule check.
 - [x] **CMBT-021**: When `attack` fails one or more rule checks and carries an `override` reason, in a goldfish game or a contested game, the game shall store the declaration and the outcome shall name the overridden checks.
-- [ ] **CMBT-053**: If `attack` names an attacker that is not on the battlefield but is in another zone, in a goldfish game or a contested game, then the error shall name the zone that card is in.
+- [ ] **CMBT-053**: If `attack` names an attacker that is not on the battlefield but is in another zone, in a goldfish game or a contested game, then the error shall name the zone that card is in, except that for a card in another seat's hand or library it shall say only what GAME-156 and GAME-157 allow (nothing for a name; a hidden zone of that seat, not which, for an instance id).
 - [ ] **CMBT-054**: If `attack` in a contested game gives `blocked`, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-055**: If `attack` in a contested game gives `commander_target`, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-056**: If `attack` in a goldfish game gives `targets`, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-057**: If `targets` in a contested game names something that is not among the attackers, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-058**: If `targets` in a contested game gives the attacking seat's own seat number, a seat number that is not in the game, or the seat number of an eliminated seat, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-059**: If `attack` in a contested game leaves an attacker without a target while the attacking seat has more than one opponent still in the game, then `attack` shall return an error and change nothing.
+- [ ] **CMBT-076**: If `attack` in a contested game names one or more attackers while the attacking seat has no opponent still in the game, then `attack` shall return an error and change nothing.
 - [ ] **CMBT-060**: If an attacker in a contested game has a power that is not a number and `damage` has no entry for it, then `attack` shall fail a rule check, whether or not the attacker is later blocked.
 
 ## Combat damage
@@ -80,7 +85,8 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 - [x] **CMBT-027**: When the game enters `combat_damage` with no declared attack, in a goldfish game or a contested game, the game shall change no damage total and no life total.
 - [ ] **CMBT-061**: When an attacker deals combat damage in a contested game, the game shall subtract that damage from the life of the seat the attacker attacks and from no other seat's.
 - [ ] **CMBT-062**: When an attacking commander deals combat damage in a contested game, the game shall also add that damage to that commander's damage against the seat it attacks, kept per commander per seat.
-- [ ] **CMBT-063**: When a contested game enters `combat_damage`, an attacker that was blocked and has a `damage` entry shall deal that entry's damage to the seat it attacks (the attacking seat's statement of trample damage).
+- [ ] **CMBT-063**: When a contested game enters `combat_damage`, an attacker that was blocked, has a `damage` entry and is on the battlefield at that moment shall deal that entry's damage in full to the seat it attacks (the attacking seat's statement of trample damage, given when the attack was declared), the game making no reduction for its blockers.
+- [ ] **CMBT-077**: When a contested game enters `combat_damage`, an attacker that was blocked and is no longer on the battlefield shall deal no damage to the seat it attacks, whether or not it has a `damage` entry.
 - [ ] **CMBT-064**: When a contested game enters `combat_damage`, an attacker that was blocked and has no `damage` entry shall deal no damage to the seat it attacks.
 - [ ] **CMBT-065**: When combat damage has been applied in a contested game, the game shall apply eliminations (a seat at 0 life or less, or dealt 21 or more by one commander) before the call's outcome is returned.
 - [ ] **CMBT-066**: When combat damage has been applied in a contested game, the outcome shall show each attacker's damage, the seat it was dealt to, and each damaged seat's new life total and commander damage.

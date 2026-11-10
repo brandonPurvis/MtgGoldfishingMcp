@@ -5,12 +5,12 @@ Design: `turn-design.md`. Prefix: `TURN`.
 ## Steps and automatic actions
 
 - [x] **TURN-001**: In every game, goldfish or contested, the game shall move through the steps of a turn in the order `untap`, `upkeep`, `draw`, `main1`, `begin_combat`, `declare_attackers`, `declare_blockers`, `combat_damage`, `end_combat`, `main2`, `end`, `cleanup`, with `untap` of the next turn following `cleanup`.
-- [x] **TURN-002**: When the game enters `untap`, in a goldfish game or a contested game, the game shall increase the table turn number and the active seat's own turn count by one, untap every permanent the active seat controls, set the active seat's land drops used to zero and reset the active seat's turn statistics.
-- [x] **TURN-003**: When the game enters `draw`, in a goldfish game or a contested game, the active seat shall draw one card, except on the first turn of the first seat in turn order in a game whose `draw_first_turn` is false.
+- [x] **TURN-002**: When the game enters `untap`, in a goldfish game or a contested game, the game shall increase the table turn number (the count of turns begun by all seats of the game) and the active seat's own turn count by one, untap every permanent the active seat controls, set the active seat's land drops used to zero and reset the active seat's turn statistics.
+- [x] **TURN-003**: When the game enters `draw`, in a goldfish game or a contested game, the active seat shall draw one card, except on the first turn of the game (table turn 1), whichever seat takes it, in a game whose `draw_first_turn` is false.
 - [x] **TURN-004**: When the game enters `cleanup`, in a goldfish game or a contested game, the game shall make any discard given with the advance from the active seat's hand and then write the turn's snapshot.
 - [x] **TURN-005**: When the game leaves any step, in a goldfish game or a contested game, the game shall empty every seat's mana pool.
 - [ ] **TURN-027**: When a contested game enters `untap`, the game shall leave unchanged the tapped state of permanents controlled by seats other than the active seat, and the land drops used and turn statistics of those seats.
-- [ ] **TURN-028**: When a seat other than the first seat in turn order enters the `draw` step of its first turn in a contested game whose `draw_first_turn` is false, that seat shall draw one card.
+- [ ] **TURN-028**: When a seat enters the `draw` step of its own first turn on a table turn later than the first, in a contested game whose `draw_first_turn` is false, that seat shall draw one card.
 - [ ] **TURN-029**: In every game, goldfish or contested, the game shall let the active seat stop in any step, including a step that has an automatic action, whose action has already been performed on entering it.
 - [ ] **TURN-030**: When the active seat makes changes while the game is stopped in `cleanup`, in a goldfish game or a contested game, the game shall not add those changes to the turn snapshot already written on entering `cleanup`.
 
@@ -21,8 +21,10 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [ ] **TURN-033**: When the turn of a contested game passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only seat still in the game, the game shall increase its round number by one; the first turn of the game shall begin round 1.
 - [ ] **TURN-034**: In a goldfish game, the round number shall equal the turn number.
 - [ ] **TURN-036**: When the active seat of a contested game is eliminated during its turn, the game shall discard the declared attack and every waiting pending choice of kind `blocks`.
-- [ ] **TURN-037**: When the active seat of a contested game is eliminated while other seats' items remain on the stack, the game shall go on asking the remaining seats about those items and resolving them, and shall begin the next seat's turn only once the stack is empty.
+- [ ] **TURN-037**: When the active seat of a contested game is eliminated while other seats' items remain on the stack or a pending choice waits, the game shall go on asking the remaining seats about those items, resolving them and waiting for those pending choices, and shall begin the next seat's turn only once the stack is empty and no pending choice waits.
 - [ ] **TURN-038**: When the turn of an eliminated active seat ends in a contested game, the game shall empty every seat's mana pool and the next seat in turn order still in the game shall begin its turn as it would after a `cleanup`: through `untap`, `upkeep` and `draw` to `main1`, stopping where a reminder stops it.
+- [ ] **TURN-061**: When the active seat of a contested game is eliminated while an `attack` or `end` response window is open, the game shall ask no further seat in that window and shall close it once the stack is empty, instead of beginning its asking again.
+- [ ] **TURN-062**: When a turn of a contested game ends and no seat is still in the game (every seat eliminated), the game shall begin no turn and shall have no active seat.
 
 ## Beginning another seat's turn
 
@@ -55,15 +57,22 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [ ] **TURN-049**: When a contested game enters a step, the game shall issue no reminder for a permanent controlled by a seat other than the active seat whose step trigger for that step is read as happening on its controller's turn only.
 - [ ] **TURN-050**: In a contested game, the game shall issue one reminder per reminded permanent, to the seat that controls that permanent at the moment the step is entered.
 - [ ] **TURN-051**: When a reminder is issued to a seat other than the active seat in a contested game, the advance shall stop in that step even when `to` names a later one, and the reminded seat shall become the seat to act.
-- [ ] **TURN-052**: When a seat other than the active seat is the seat to act because of a reminder in a contested game, the game shall accept from it an `effect` recording the trigger, which goes on the stack, or a `pass`, and after either call the game shall no longer wait on that seat for its reminders of that step.
+- [ ] **TURN-052**: When a seat other than the active seat is the seat to act because of a reminder in a contested game, the game shall go on waiting on that seat until each reminder issued to it in that step has been answered by an `effect` (TURN-063) or it calls `pass` (TURN-064).
+- [ ] **TURN-063**: When a seat that a contested game waits on for a reminder calls `effect` without `immediate` true and with a `source` naming a permanent it was reminded of in that step (by card name, the name of its face in play, or instance id, ignoring case), the game shall put the ability on the stack and count as answered that step's reminders for every such permanent the `source` names.
+- [ ] **TURN-064**: When a seat that a contested game waits on for a reminder calls `pass`, the game shall stop waiting on that seat for every reminder of that step still unanswered, however many there are.
+- [ ] **TURN-065**: When a seat that a contested game waits on for a reminder calls `play`, an `effect` with `immediate` true, or an `effect` with a `source` that names no permanent it was reminded of in that step, the game shall apply the call as it would from a seat asked in a response window and shall leave that seat's reminders waiting.
+- [ ] **TURN-066**: While a reminder waits for a seat other than the active seat in a contested game, the game shall ask no seat in a response window, make no automatic pass and resolve no stack item (STACK-070), so that every reminded seat can put its trigger on the stack before any of them resolves.
+- [ ] **TURN-067**: In a contested game, a reminder issued to the active seat shall not make the game wait on it: the active seat shall stay the seat to act with the same calls accepted from it as when no reminder is issued (`pass` not among them, STACK-054).
 - [ ] **TURN-053**: When reminders are issued to several seats other than the active seat in the same step of a contested game, the game shall wait on those seats one at a time, in turn order starting from the seat after the active seat.
-- [ ] **TURN-054**: When every seat other than the active seat that was issued a reminder in a step of a contested game has recorded its trigger with `effect` or called `pass`, and the stack is empty, the active seat shall be the seat to act again and shall continue with `advance`.
+- [ ] **TURN-054**: When every seat other than the active seat that was issued a reminder in a step of a contested game has answered each of its reminders or called `pass`, and the stack is empty, no pending choice waits and no response window is open, the active seat shall be the seat to act again and shall continue with `advance`; in `end`, where the end-step response window is open, that window's asking begins instead (STACK-083).
 - [ ] **TURN-055**: When permanents with the same name but different controllers are reminded in the same step of a contested game, the game shall issue each controller its own reminder and shall not combine them into one count.
 
 ## Stopping at the end step
 
-- [ ] **TURN-056**: When an advance enters `end` in a contested game, the advance shall stop in `end` for the end-step response window (other seats asked in turn order whether they respond), even when `to` names a later step.
-- [ ] **TURN-057**: When an advance stops in `end` of a contested game for the end-step response window, the outcome shall say that the other seats are being asked.
+- [ ] **TURN-056**: When an advance enters `end` in a contested game and the end-step response window (other seats asked in turn order whether they respond) is left waiting on a seat, the advance shall stop in `end`, even when `to` names a later step.
+- [ ] **TURN-057**: When an advance stops in `end` of a contested game for the end-step response window, the outcome shall say that the other seats are being asked and name the seat being asked by seat number.
+- [ ] **TURN-068**: When an advance enters `end` in a contested game and every other seat still in the game is passed automatically, or no other seat is still in the game, the end-step response window shall close within the advance and the advance shall go on toward its `to` without stopping on account of the window.
+- [ ] **TURN-069**: When an advance of a contested game passes through `end` without stopping because every other seat was passed automatically, the outcome shall report each automatic pass, naming the seat.
 - [ ] **TURN-059**: When an advance enters `end` in a goldfish game, the advance shall not stop on account of any response window.
 
 ## Hand size at cleanup

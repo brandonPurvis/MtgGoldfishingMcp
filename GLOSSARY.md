@@ -114,6 +114,10 @@ _Avoid_: Priority holder, awaited seat, current player
 One turn for each seat still in the game.
 _Avoid_: Cycle, go-around
 
+**Table turn**:
+The count of turns taken by all the seats of a game together. A seat's own count of the turns it has taken is what `T<n>` shows.
+_Avoid_: Global turn, game turn, absolute turn
+
 **Elimination**:
 A seat leaving a contested game, at 0 life, at 21 damage from one commander, or by conceding; it takes no more turns and the cards it owns leave the game.
 _Avoid_: Death, knockout, loss
@@ -191,7 +195,7 @@ A pass the service makes for a seat that has no untapped permanents.
 _Avoid_: Auto-skip, implicit pass
 
 **Digest**:
-The short account, at the start of a seat's response, of the other seats' public events since that seat's last call.
+The short account, at the start of a seat's response, of the other seats' public events, and of what their calls did to the reading seat's own hidden zones, since that seat's last call.
 _Avoid_: Feed, recap, catch-up
 
 ### Mana and payment

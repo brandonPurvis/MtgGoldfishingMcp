@@ -89,7 +89,7 @@ When an ability's text continues past a form the reader knows, or is conditioned
 
 ### No reading
 
-An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. A card with `produced_colors` but no reading for any ability is reported as **unread**.
+An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. An ability without a reading is reported as **unread** only on a card whose `produced_colors` are known; on a card without them it is left out of the report, since nothing says the card makes mana at all.
 
 ### Reporting
 
@@ -121,7 +121,9 @@ StepTrigger { step: Step, whose: "controller" | "each" | "opponents" }
 | `of each end step`, `of each player's end step`, `of the end step` | end | each |
 | `of each opponent's end step` | end | opponents |
 
-Which readings produce a reminder on a given turn is decided by `turn`: a goldfish game has only the controller's turns, so an `opponents` reading never produces one there. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones; the reminder is harmless when it does not apply. A face with several triggers in the same step and of the same `whose` yields that pair once.
+The table is the whole list. A phrase that names opponents or other players in any other wording (`At the beginning of combat on each opponent's turn`, `of each other player's upkeep`) yields no reading; its controller records the trigger unprompted, as it records an event trigger.
+
+Which readings produce a reminder on a given turn is decided by `turn`: a goldfish game has only the controller's turns, so an `opponents` reading never produces one there. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones: `the next` step reads as `each`, like `the end step`, since the text does not say whose turn it will be, and `your next` step reads as `controller`. The reminder is harmless when it does not apply. A face with several triggers in the same step and of the same `whose` yields that pair once.
 
 ## Haste and Vigilance
 
@@ -166,6 +168,7 @@ The reading applies to any permanent, not only lands.
 1. Mana filters and mana-doubling triggers get no reading; the agent adds their mana with an `effect` call.
 2. Step triggers in zones other than the battlefield (a card that triggers from the graveyard at upkeep) are readable, but which zones are scanned is decided by `turn`.
 3. Additional `Count` kinds are added as cards that need them are encountered.
+4. Opponent-only step phrases beyond upkeep, draw step and end step, and wordings such as `each other player's`.
 
 ## References
 
