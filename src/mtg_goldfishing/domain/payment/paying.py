@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import islice, product
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
@@ -47,8 +47,15 @@ from mtg_goldfishing.domain.payment.matching import (
     Unit,
     phyrexian_symbols,
     spend_pool,
+    ways_to_pay_phyrexian,
 )
-from mtg_goldfishing.domain.payment.sources import Source, available_sources, sources_of
+from mtg_goldfishing.domain.payment.sources import (
+    Source,
+    available_sources,
+    most_mana_of,
+    most_of_color,
+    sources_of,
+)
 
 _CHOICE_LIMIT = 64
 
@@ -118,12 +125,20 @@ def read_pay(data: object) -> PayInstructions | Error:
     return PayInstructions(tuple(with_sources), cost, life)
 
 
+@dataclass(frozen=True)
+class _NamedUse:
+    """One way a named source may be used: through which ability, making which mana."""
+
+    source: Source | None
+    output: tuple[Unit, ...]
+
+
 @dataclass
 class _Named:
+    """A source the agent named, and the ways it may be used in this payment."""
+
     card: CardInstance
-    source: Source | None
-    layouts: list[list[Unit]]
-    restriction: Restriction | None
+    uses: list[_NamedUse]
 
 
 @dataclass(frozen=True)
@@ -145,7 +160,7 @@ class PaymentPlan:
     """Everything a payment will do, worked out before anything is changed."""
 
     cost: ManaString
-    named: list[_Named]
+    named: list[tuple[CardInstance, Source | None]]
     sources: tuple[Source, ...]
     units: list[PlannedUnit]
     life: int
@@ -192,6 +207,15 @@ def _units_of(mana: ManaString) -> list[Unit]:
     return [frozenset({kind}) for kind in mana.produced()]
 
 
+def _ability_making(abilities: Sequence[Source], mana: ManaString) -> Source | None:
+    """The ability of a named source that can make the stated mana, else its first."""
+    stated = sorted(mana.produced())
+    for ability in abilities:
+        if any(sorted(option) == stated for option in ability.options):
+            return ability
+    return abilities[0] if abilities else None
+
+
 def _resolve_named(
     game: Game, deck: LoadedDeck, entries: Sequence[PayWith]
 ) -> tuple[list[_Named], list[Error | FailedCheck], list[InstanceChosen]]:
@@ -209,16 +233,17 @@ def _resolve_named(
             continue
         if is_summoning_sick(game, deck, card):
             problems.append(FailedCheck(CheckKind.SUMMONING_SICK_SOURCE, subject=name))
-        sources = [s for s in sources_of(game, deck, card) if s.options]
-        source = sources[0] if sources else None
+        abilities = [s for s in sources_of(game, deck, card) if s.options]
         if entry.mana is not None:
-            named.append(
-                _Named(
-                    card, source, [_units_of(entry.mana)], source.restriction if source else None
-                )
-            )
-        elif source is not None:
-            named.append(_Named(card, source, source.unit_choices(), source.restriction))
+            source = _ability_making(abilities, entry.mana)
+            named.append(_Named(card, [_NamedUse(source, tuple(_units_of(entry.mana)))]))
+        elif abilities:
+            uses = [
+                _NamedUse(ability, tuple(output))
+                for ability in abilities
+                for output in ability.unit_choices()
+            ]
+            named.append(_Named(card, uses))
         else:
             problems.append(Error(ErrorKind.SOURCE_MANA_UNKNOWN, subject=name))
     return named, problems, list(chosen_events)
@@ -232,16 +257,14 @@ def _missing_colors(
         needed = sum(1 for need in requirement.constrained if need == frozenset({color}))
         if not needed:
             continue
-        makers = sum(1 for unit in pool if color in unit) + sum(
-            s.most_mana for s in sources if color in s.colors
-        )
+        makers = sum(1 for unit in pool if color in unit) + most_of_color(sources, color)
         if makers < needed:
             missing.append(color)
     return tuple(missing)
 
 
 def _plan_units(
-    first: list[tuple[Unit, Restriction | None, Mana | None]],
+    first: Sequence[tuple[Unit, Restriction | None, Mana | None]],
     spent: Assignment,
     payment: SourcePayment | None,
 ) -> list[PlannedUnit]:
@@ -256,13 +279,96 @@ def _plan_units(
             leftover_index += 1
         planned.append(PlannedUnit(unit, restriction, pool_mana, kind))
     if payment is not None:
-        source_units = [unit for output in payment.outputs for unit in output]
-        for unit, kind in zip(source_units, second[leftover_index:], strict=True):
-            planned.append(PlannedUnit(unit, None, None, kind))
+        source_units = [
+            (unit, source.restriction)
+            for source, output in zip(payment.sources, payment.outputs, strict=True)
+            for unit in output
+        ]
+        for (unit, restriction), kind in zip(source_units, second[leftover_index:], strict=True):
+            planned.append(PlannedUnit(unit, restriction, None, kind))
     return planned
 
 
-# @spec PAY-020, PAY-021, PAY-030, PAY-031, PAY-032, PAY-033, PAY-034, PAY-035, PAY-036, PAY-038
+@dataclass(frozen=True)
+class _Found:
+    """How a requirement is paid: the pool and named mana spent, then the sources chosen."""
+
+    key: ScoreKey
+    spent: Assignment
+    payment: SourcePayment | None
+
+
+def _pay_rest(
+    requirement: Requirement,
+    units: Sequence[Unit],
+    available: Sequence[Source],
+    others: Sequence[OtherCard],
+    life_budget: int,
+) -> _Found | None:
+    """Pay a requirement's mana from mana already made (the pool and named sources) first.
+
+    `life_budget` is the life left once the requirement's own life is paid; it bounds only
+    the life the chosen sources cost. When spending the mana already made first leaves a
+    remainder no source can pay, that mana and the sources are considered together, so
+    spending the pool never makes a cost unpayable.
+    """
+    requirement = replace(requirement, life=0)
+    spent, rest = spend_pool(requirement, units)
+    leftover = [u for u, kind in zip(units, spent.paid_as, strict=True) if kind is None]
+    if rest.is_empty:
+        return _Found(score_key(None, available, leftover, others, life_budget), spent, None)
+    chosen = choose_payment(rest, leftover, available, others, life_budget=life_budget)
+    if chosen is None and spent.spent:
+        spent = Assignment((None,) * len(units))
+        chosen = choose_payment(requirement, units, available, others, life_budget=life_budget)
+    if chosen is None:
+        return None
+    payment, key = chosen
+    return _Found(key, spent, payment)
+
+
+PlanKey = tuple[int, ScoreKey]
+
+
+# @spec PAY-021
+def _plan_with_uses(
+    game: Game,
+    cost: ManaString,
+    uses: Sequence[_NamedUse],
+    *,
+    first: Sequence[tuple[Unit, Restriction | None, Mana | None]],
+    available: Sequence[Source],
+    others: Sequence[OtherCard],
+    extra_life: int,
+) -> tuple[PlanKey, Requirement, _Found] | None:
+    """The best payment once the named sources' uses are fixed.
+
+    Phyrexian symbols are paid with life as far as a valid payment remains: as many as
+    life allows are tried first, then one fewer, and so on.
+    """
+    named_life = sum(use.source.life for use in uses if use.source is not None)
+    budget = game.life - 1 - extra_life - named_life
+    units = [unit for unit, _, _ in first]
+    most = min(phyrexian_symbols(cost), max(0, budget) // 2)
+    for with_life in range(most, -1, -1):
+        best: tuple[PlanKey, Requirement, _Found] | None = None
+        for way in ways_to_pay_phyrexian(cost, with_life):
+            requirement = Requirement.of(cost, life_for=way)
+            for use in uses:
+                if use.source is not None and use.source.mana_cost:
+                    requirement = requirement.plus(use.source.mana_cost)
+            found = _pay_rest(requirement, units, available, others, budget - requirement.life)
+            if found is None:
+                continue
+            key: PlanKey = (-with_life, found.key)
+            if best is None or key < best[0]:
+                best = (key, requirement, found)
+        if best is not None:
+            return best
+    return None
+
+
+# @spec PAY-020, PAY-030, PAY-031, PAY-032, PAY-033, PAY-034, PAY-035, PAY-036, PAY-038
 def plan_payment(
     game: Game,
     deck: LoadedDeck,
@@ -282,13 +388,6 @@ def plan_payment(
         return None, problems
     if instructions.cost is not None:
         cost = instructions.cost
-    named_life = sum(entry.source.life for entry in named if entry.source is not None)
-    budget = game.life - 1 - instructions.life - named_life
-    phyrexian_life = min(phyrexian_symbols(cost), max(0, budget) // 2)
-    requirement = Requirement.of(cost, phyrexian_life=phyrexian_life)
-    for entry in named:
-        if entry.source is not None and entry.source.mana_cost:
-            requirement = requirement.plus(entry.source.mana_cost)
     pool_mana = [
         unit
         for unit in game.mana_pool.units
@@ -301,34 +400,36 @@ def plan_payment(
         if s.instance_id not in named_ids
     ]
     others = other_cards(game, deck, playing)
-    life_budget = budget - requirement.life
-    best: tuple[ScoreKey, PaymentPlan] | None = None
-    for layout in islice(product(*(entry.layouts for entry in named)), _CHOICE_LIMIT):
+    best: tuple[PlanKey, PaymentPlan] | None = None
+    for uses in islice(product(*(entry.uses for entry in named)), _CHOICE_LIMIT):
         first: list[tuple[Unit, Restriction | None, Mana | None]] = [
             (frozenset({m.kind}), m.restriction, m) for m in pool_mana
         ]
-        for entry, output in zip(named, layout, strict=True):
-            first.extend((unit, entry.restriction, None) for unit in output)
-        units = [unit for unit, _, _ in first]
-        spent, rest = spend_pool(requirement, units)
-        leftover = [u for u, kind in zip(units, spent.paid_as, strict=True) if kind is None]
-        payment: SourcePayment | None = None
-        if rest.is_empty:
-            key = score_key(None, available, leftover, others, life_budget)
-        else:
-            chosen = choose_payment(rest, leftover, available, others, life_budget=life_budget)
-            if chosen is None:
-                continue
-            payment, key = chosen
+        for use in uses:
+            restriction = use.source.restriction if use.source is not None else None
+            first.extend((unit, restriction, None) for unit in use.output)
+        planned = _plan_with_uses(
+            game,
+            cost,
+            uses,
+            first=first,
+            available=available,
+            others=others,
+            extra_life=instructions.life,
+        )
+        if planned is None:
+            continue
+        key, requirement, found = planned
+        sources = found.payment.sources if found.payment else ()
         plan = PaymentPlan(
             cost=cost,
-            named=named,
-            sources=payment.sources if payment else (),
-            units=_plan_units(first, spent, payment),
+            named=[(entry.card, use.source) for entry, use in zip(named, uses, strict=True)],
+            sources=sources,
+            units=_plan_units(first, found.spent, found.payment),
             life=requirement.life
             + instructions.life
-            + named_life
-            + sum(s.life for s in (payment.sources if payment else ())),
+            + sum(use.source.life for use in uses if use.source is not None)
+            + sum(s.life for s in sources),
             snow=requirement.snow > 0,
             chosen=chosen_events,
         )
@@ -336,12 +437,16 @@ def plan_payment(
             best = (key, plan)
     if best is None:
         units = [frozenset({m.kind}) for m in pool_mana]
+        budget = game.life - 1 - instructions.life
+        requirement = Requirement.of(
+            cost, phyrexian_life=min(phyrexian_symbols(cost), max(0, budget) // 2)
+        )
         problems.append(
             FailedCheck(
                 CheckKind.COST_NOT_PAYABLE,
                 subject=subject,
                 cost=cost,
-                number=len(units) + sum(s.most_mana for s in available),
+                number=len(units) + most_mana_of(available),
                 names=_missing_colors(requirement, units, available),
             )
         )
@@ -353,19 +458,19 @@ def _mana_of(unit: Unit, restriction: Restriction | None) -> Mana:
     return Mana(min(unit, key="CWUBRG".index), restriction)
 
 
-# @spec PAY-007, PAY-017, PAY-039
+# @spec PAY-007, PAY-017, PAY-039, PAY-042
 def apply_payment(game: Game, deck: LoadedDeck, plan: PaymentPlan) -> list[Event]:
     """Carry out a planned payment: tap, sacrifice, pay life, update the pool."""
     tapped: list[str] = []
     sacrificed: list[str] = []
     moves: list[Event] = []
-    for entry in plan.named:
-        name = face_name(deck, entry.card)
-        if entry.source is not None and entry.source.sacrifices:
+    for card, source in plan.named:
+        name = face_name(deck, card)
+        if source is not None and source.sacrifices:
             sacrificed.append(name)
-            moves.extend(move(game, deck, entry.card, Destination.GRAVEYARD))
+            moves.extend(move(game, deck, card, Destination.GRAVEYARD))
         else:
-            entry.card.tapped = True
+            card.tapped = True
             tapped.append(name)
     for source in plan.sources:
         game.instance(source.instance_id).tapped = True

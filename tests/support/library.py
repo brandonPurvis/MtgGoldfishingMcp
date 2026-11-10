@@ -90,6 +90,23 @@ _add(
     _reading(mana_abilities=(taps_for_any(life=1),)),
 )
 _add(
+    _card("Caves of Koilos", "", "Land", identity="WB"),
+    _reading(mana_abilities=(taps_for("{C}"), taps_for_either("{W}", "{B}", life=1))),
+)
+_add(
+    _card("Mishra's Workshop", "", "Land"),
+    _reading(
+        mana_abilities=(
+            taps_for(
+                "{C}{C}{C}",
+                restriction=Restriction(
+                    "Spend this mana only to cast artifact spells.", ("Artifact",)
+                ),
+            ),
+        )
+    ),
+)
+_add(
     _card("Temple of Plenty", "", "Land — Temple", identity="GW"),
     _reading(
         mana_abilities=(taps_for_either("{G}", "{W}"),),

@@ -8,9 +8,11 @@ from mtg_goldfishing.domain.events import (
     AdvanceStopped,
     CardsDrawn,
     CheckKind,
+    ChecksOverridden,
     EnteredStep,
     Error,
     ErrorKind,
+    FailedCheck,
     ReminderIssued,
     StepsEntered,
     StopReason,
@@ -228,6 +230,28 @@ def test_an_override_with_discard_discards_exactly_the_cards_named() -> None:
     situation = a_game().in_step(Step.END).with_hand(*a_big_hand(9)).build()
     result = advanced(situation, discard=["Ponder"], override="madness")
     assert len(result.game.hand) == 8
+
+
+# @spec TURN-019, REC-006
+def test_an_override_that_lets_an_advance_keep_too_many_cards_records_the_overridden_check() -> (
+    None
+):
+    situation = a_game().in_step(Step.END).with_hand(*a_big_hand(9)).build()
+    result = advanced(situation, override="Reliquary Tower")
+    overridden = ChecksOverridden(
+        (FailedCheck(CheckKind.HAND_TOO_BIG, number=2),), "Reliquary Tower"
+    )
+    assert overridden in result.events
+
+
+# @spec TURN-020, REC-006
+def test_an_override_that_lets_a_wrong_discard_count_through_records_the_overridden_check() -> None:
+    situation = a_game().in_step(Step.END).with_hand(*a_big_hand(9)).build()
+    result = advanced(situation, discard=["Ponder"], override="madness")
+    overridden = ChecksOverridden(
+        (FailedCheck(CheckKind.DISCARD_COUNT, number=1, expected=2),), "madness"
+    )
+    assert overridden in result.events
 
 
 # @spec TURN-021

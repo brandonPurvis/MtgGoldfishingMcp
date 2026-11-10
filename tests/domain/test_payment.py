@@ -127,6 +127,26 @@ def test_mana_in_the_pool_is_spent_before_any_source_is_tapped() -> None:
     assert str(situation.game.mana_pool) == "{}"
 
 
+# @spec PAY-006, PAY-019
+def test_pool_mana_goes_to_the_narrowest_requirement_so_the_rest_stays_payable() -> None:
+    situation = a_game().with_battlefield("Island").with_pool("{W}").build()
+    paid, problems = pay(situation, "{W/U}{W}")
+    assert problems == []
+    assert paid is not None
+    assert paid.from_pool == "{W}"
+    assert tapped_names(situation) == ["Island"]
+
+
+# @spec PAY-006, PAY-019
+def test_pool_mana_is_spent_on_whichever_hybrid_leaves_the_rest_payable() -> None:
+    situation = a_game().with_battlefield("Plains").with_pool("{U}").build()
+    paid, problems = pay(situation, "{W/U}{U/B}")
+    assert problems == []
+    assert paid is not None
+    assert paid.from_pool == "{U}"
+    assert tapped_names(situation) == ["Plains"]
+
+
 # @spec PAY-007
 def test_mana_a_source_makes_beyond_the_cost_goes_to_the_pool_and_is_reported() -> None:
     situation = a_game().with_battlefield("Sol Ring").build()
@@ -152,6 +172,14 @@ def test_restricted_mana_in_the_pool_never_pays_for_an_effect() -> None:
     situation = a_game().with_pool_units(Mana("G", creatures)).build()
     _, problems = pay(situation, "{G}", paying_for=None)
     assert [p.kind for p in problems] == [CheckKind.COST_NOT_PAYABLE]
+
+
+# @spec PAY-042
+def test_surplus_from_a_restricted_source_keeps_its_restriction_in_the_pool() -> None:
+    situation = a_game().with_battlefield("Mishra's Workshop").build()
+    paid, _ = pay(situation, "{1}", paying_for="Artifact")
+    assert paid is not None
+    assert str(situation.game.mana_pool) == "{C}*{C}*"
 
 
 # @spec PAY-011
@@ -270,6 +298,26 @@ def test_phyrexian_symbols_are_paid_with_mana_when_life_would_drop_below_one() -
     assert tapped_names(situation) == ["Swamp", "Swamp"]
 
 
+# @spec PAY-021
+def test_phyrexian_symbols_are_paid_with_mana_when_paying_life_leaves_no_valid_payment() -> None:
+    situation = a_game().with_life(3).with_battlefield("City of Brass", "Forest").build()
+    paid, problems = pay(situation, "{G/P}{B}")
+    assert problems == []
+    assert paid is not None
+    assert tapped_names(situation) == ["City of Brass", "Forest"]
+    assert situation.game.life == 2
+
+
+# @spec PAY-021
+def test_the_phyrexian_symbol_paid_with_life_is_one_that_leaves_a_valid_payment() -> None:
+    situation = a_game().with_life(3).with_battlefield("Forest").build()
+    paid, problems = pay(situation, "{G/P}{U/P}")
+    assert problems == []
+    assert paid is not None
+    assert situation.game.life == 1
+    assert tapped_names(situation) == ["Forest"]
+
+
 # @spec PAY-022, PAY-023
 def test_the_auto_payment_system_keeps_a_card_in_hand_castable() -> None:
     situation = (
@@ -348,6 +396,34 @@ def test_the_search_stops_after_the_limit_and_uses_the_best_payment_examined() -
     assert [s.name for s in payment.sources] == ["Forest"]
 
 
+# @spec PAY-041
+def test_a_permanent_with_several_mana_abilities_pays_through_any_of_them() -> None:
+    situation = a_game().with_battlefield("Caves of Koilos").build()
+    paid, problems = pay(situation, "{W}")
+    assert problems == []
+    assert paid is not None
+    assert paid.tapped == ("Caves of Koilos",)
+    assert situation.game.life == 39
+
+
+# @spec PAY-041
+def test_a_permanent_is_used_through_at_most_one_of_its_mana_abilities() -> None:
+    situation = a_game().with_battlefield("Caves of Koilos").build()
+    _, problems = pay(situation, "{C}{W}")
+    assert [p.kind for p in problems] == [CheckKind.COST_NOT_PAYABLE]
+
+
+# @spec PAY-041, PAY-026
+def test_a_land_with_a_free_and_a_life_ability_pays_through_the_free_one_when_either_will_do() -> (
+    None
+):
+    situation = a_game().with_battlefield("Caves of Koilos").build()
+    paid, _ = pay(situation, "{1}")
+    assert paid is not None
+    assert paid.life == 0
+    assert situation.game.life == 40
+
+
 # @spec PAY-030
 def test_a_named_source_is_used_first_and_the_rest_is_paid_automatically() -> None:
     situation = a_game().with_battlefield("Lotus Petal", "Forest").build()
@@ -380,6 +456,18 @@ def test_a_named_source_offering_a_choice_makes_the_option_that_serves_the_cost(
     )
     assert problems == []
     assert paid is not None
+    assert str(situation.game.mana_pool) == "{}"
+
+
+# @spec PAY-032, PAY-041
+def test_a_named_source_with_several_mana_abilities_uses_the_one_that_serves_the_cost() -> None:
+    situation = a_game().with_battlefield("Caves of Koilos").build()
+    paid, problems = pay(
+        situation, "{B}", instructions=PayInstructions(with_sources=(PayWith("Caves of Koilos"),))
+    )
+    assert problems == []
+    assert paid is not None
+    assert paid.life == 1
     assert str(situation.game.mana_pool) == "{}"
 
 
