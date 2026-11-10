@@ -45,5 +45,5 @@ Design: `application-design.md`. Prefix: `APP`.
 
 ## Testing
 
-- [ ] **APP-024**: The domain tests and the behave feature tests shall run without a database file, a network connection or a running server.
-- [ ] **APP-025**: The behave feature tests shall drive the MCP adapter's tool functions in-process over the in-memory adapters.
+- [x] **APP-024**: The domain tests and the behave feature tests shall run without a database file, a network connection or a running server.
+- [x] **APP-025**: The behave feature tests shall drive the MCP adapter's tool functions in-process over the in-memory adapters.

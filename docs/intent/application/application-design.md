@@ -49,12 +49,15 @@ src/mtg_goldfishing/
     sqlite/       # persistence ports on SQLite
     scryfall/     # card catalog on the Scryfall API with a cache
     memory/       # in-memory implementations of every port
+    system/       # the real id source and clock
   bootstrap.py    # composition root: wires adapters to use cases; entry point
 tests/
   domain/         # pytest, no adapters
   application/    # pytest, in-memory adapters
   contract/       # pytest, one suite per port, run against each adapter
   architecture/   # the dependency rule
+  adapters/       # pytest, adapter-specific behaviour (SQLite, Scryfall, rendering, MCP)
+  e2e/            # the real process over HTTP; marked e2e, run by CI but not before commits
   support/        # builders and fakes shared by tests
 features/         # behave feature files and steps
 ```
