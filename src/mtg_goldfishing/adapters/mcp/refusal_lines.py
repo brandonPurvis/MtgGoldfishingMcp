@@ -115,7 +115,8 @@ def error_text(error: Error) -> str:
                 " Send it without discard."
             )
         case ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD:
-            return f"No {subject} on the battlefield to attack with."
+            where = f"; it is in the {error.found_in}" if error.found_in else ""
+            return f"No {subject} on the battlefield to attack with{where}."
         case ErrorKind.NOT_AN_ATTACKER:
             return f"{subject} is not among the attackers."
         case ErrorKind.BAD_COMMANDER_TARGET:

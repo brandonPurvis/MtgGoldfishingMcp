@@ -473,3 +473,19 @@ def test_a_stale_change_number_says_where_the_game_is_now() -> None:
 def test_an_internal_failure_says_it_was_inside_the_service_and_not_caused_by_the_call() -> None:
     text = error_text(Error(ErrorKind.INTERNAL_FAILURE))
     assert ("inside the service" in text, "not caused by the call" in text) == (True, True)
+
+
+# @spec GAME-016, CMBT-014
+def test_an_attacker_found_in_another_zone_is_named_with_that_zone() -> None:
+    from mtg_goldfishing.adapters.mcp.refusal_lines import error_text  # noqa: PLC0415
+    from mtg_goldfishing.domain.events import Error, ErrorKind  # noqa: PLC0415
+
+    error = Error(
+        ErrorKind.ATTACKER_NOT_ON_BATTLEFIELD,
+        subject="Grizzly Bears",
+        zone="battlefield",
+        found_in="hand",
+    )
+    assert error_text(error) == (
+        "No Grizzly Bears on the battlefield to attack with; it is in the hand."
+    )
