@@ -23,19 +23,19 @@ Design: `tools-design.md`. Prefix: `TOOL`.
 
 ## Response format
 
-- [ ] **TOOL-014**: Every tool except a successful `get_log` shall respond with a single text item made of a status-and-summary line, zero or more event lines, and, for a response about an existing game, a status line.
-- [ ] **TOOL-015**: The first word of a text response shall be `OK`, `REJECTED`, `ERROR` or `CHOICE`.
-- [ ] **TOOL-016**: Event lines shall appear in this order when present: steps entered; payment; moves, tokens created and cards drawn; cards revealed for a pending choice with its choice id; combat damage per attacker; assumptions; reminders; why an advance stopped; expectation warnings; notices.
-- [ ] **TOOL-017**: The status line for a started game shall read `T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>`.
-- [ ] **TOOL-018**: While a game has two commanders, the status line shall show `Cmdr` and `Tax` as one group per commander separated by `|`, in the commanders' name order.
-- [ ] **TOOL-019**: While a game's status is `mulligan`, the status line shall read `Mulligan <k> · Hand <n> · #<change>`.
-- [ ] **TOOL-020**: While a game has a pending choice, the status line shall end with ` · CHOICE pending`.
-- [ ] **TOOL-021**: While a game's status is `ended`, the status line shall begin with `Ended (<result>) · `.
-- [ ] **TOOL-022**: When a response does not concern an existing game, the response shall have no status line.
-- [ ] **TOOL-023**: When a response is `REJECTED`, its summary shall say what failed and that the call can be resubmitted with `override`.
-- [ ] **TOOL-024**: While a game has raised notices, every text response about that game shall include them, whatever the response's status.
-- [ ] **TOOL-025**: A response to `play`, `effect`, `attack` or `advance` shall not list the full hand or the full battlefield.
-- [ ] **TOOL-026**: All response text shall be produced by one renderer from a use case's outcome, with one rendering per event type.
+- [x] **TOOL-014**: Every tool except a successful `get_log` shall respond with a single text item made of a status-and-summary line, zero or more event lines, and, for a response about an existing game, a status line.
+- [x] **TOOL-015**: The first word of a text response shall be `OK`, `REJECTED`, `ERROR` or `CHOICE`.
+- [x] **TOOL-016**: Event lines shall appear in this order when present: steps entered; payment; moves, tokens created and cards drawn; cards revealed for a pending choice with its choice id; combat damage per attacker; assumptions; reminders; why an advance stopped; expectation warnings; notices.
+- [x] **TOOL-017**: The status line for a started game shall read `T<turn> <step> · Hand <n> · Lands <n> (<n> untapped) · Pool <mana> · Life <n> · Dmg <n>/120 · Cmdr <a>/<b>/<c> · Tax <n> · #<change>`.
+- [x] **TOOL-018**: While a game has two commanders, the status line shall show `Cmdr` and `Tax` as one group per commander separated by `|`, in the commanders' name order.
+- [x] **TOOL-019**: While a game's status is `mulligan`, the status line shall read `Mulligan <k> · Hand <n> · #<change>`.
+- [x] **TOOL-020**: While a game has a pending choice, the status line shall end with ` · CHOICE pending`.
+- [x] **TOOL-021**: While a game's status is `ended`, the status line shall begin with `Ended (<result>) · `.
+- [x] **TOOL-022**: When a response does not concern an existing game, the response shall have no status line.
+- [x] **TOOL-023**: When a response is `REJECTED`, its summary shall say what failed and that the call can be resubmitted with `override`.
+- [x] **TOOL-024**: While a game has raised notices, every text response about that game shall include them, whatever the response's status.
+- [x] **TOOL-025**: A response to `play`, `effect`, `attack` or `advance` shall not list the full hand or the full battlefield.
+- [x] **TOOL-026**: All response text shall be produced by one renderer from a use case's outcome, with one rendering per event type.
 
 ## MCP details
 
