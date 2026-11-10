@@ -201,4 +201,13 @@ The architecture is chosen for code that stays readable, maintainable and extens
 - The status line and response formats in a contested game, including the digest's wording.
 - Tool names and parameters, including how `new_game` takes opposing decks, starting life and the tested seat's position, and how the attacking seat states the result of combat.
 - The `wait` timeout and the port behind it.
-- How the work is split into milestones.
+
+## Milestones
+
+Each milestone lands as a tests-first PR, whose new tests are marked as expected to fail, then a code PR that makes them pass.
+
+1. **M1 — Ports as abstract base classes.** Every port becomes an abstract base class that its implementations inherit from; no behavior changes.
+2. **M2 — Seats inside the game aggregate.** The game holds a table and its seats, cards carry an owner and a controller, and a goldfish game is the one-seat case. Every goldfish behavior stays as it is.
+3. **M3 — Contested games without the stack.** `new_game` with opposing seats, seat ids and seat numbers, turn order, what a seat may see, mulligans for every seat, turn rotation and rounds, deltas reaching other seats, pending choices addressed to a seat, combat with blocks and combat results, elimination and conceding, the digest, `wait`, and records naming seats. Plays resolve at once.
+4. **M4 — The stack and response windows.** Held plays and effects, `pass`, the three windows, asking in turn order, automatic passes, countering, confirming or restating a disturbed item, and reminders for seats other than the active seat.
+5. **M5 — The player brief and HTTP end-to-end scenarios.** The brief's contested section, the server instructions, and the behave scenarios that run against the real process with a client per seat.

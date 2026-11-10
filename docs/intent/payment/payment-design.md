@@ -7,7 +7,9 @@ prefix: PAY
 
 ## Context and Design Philosophy
 
-Paying for a spell is the most frequent piece of bookkeeping in a game and the easiest for an agent to get wrong. This component holds the mana pool and decides whether and how a cost is paid.
+Paying for a spell is the most frequent piece of bookkeeping in a game and the easiest for an agent to get wrong. This component holds the mana pools and decides whether and how a cost is paid.
+
+Every payment is made by the acting seat (see `play`), from its own mana pool, with the mana sources it controls, and with its own life. Nothing in this design reaches another seat: whatever this design calls "the agent" is the acting seat, and "the hand", "the command zone" and "the sources" are that seat's.
 
 When the agent does not say how to pay, the **auto payment system** chooses. Its aim is not merely a valid payment but the valid payment that **leaves the agent the most options afterwards**. With three Plains and two Forests, a card costing {1}{W}{W}, and a {G}{W} card still in hand, it taps two Plains and a Forest, not three Plains, so the second card can still be cast.
 
@@ -32,7 +34,7 @@ A mana string is a sequence of symbols in braces.
 
 ## The Mana Pool
 
-The pool holds mana that has been made and not yet spent. Mana enters it from a delta's `mana` key and from sources that make more than a payment needed. It empties when the game leaves a step (see `turn`).
+Each seat has its own pool, holding mana that has been made and not yet spent. Mana enters it from a delta's `mana` key and from sources that make more than a payment needed. Every seat's pool empties when the game leaves a step (see `turn`).
 
 ```
 ManaPool = [ { symbol: W|U|B|R|G|C, restriction: Restriction | null } ]
@@ -44,7 +46,7 @@ Any payment spends suitable mana already in the pool before tapping anything, an
 
 ## Mana Sources
 
-A **mana source** is a permanent on the battlefield with at least one mana ability reading (see `card-reading`), or a token whose `TokenSpec` gives `produces`, or a card whose definition gives `produces`. A source's counted amounts are evaluated from game state at the moment of payment. A permanent with several mana abilities may be used through any one of them in a payment, never through more than one, since each taps it.
+A **mana source** is a permanent on the battlefield, controlled by the acting seat, with at least one mana ability reading (see `card-reading`), or a token whose `TokenSpec` gives `produces`, or a card whose definition gives `produces`. A source's counted amounts are evaluated from game state at the moment of payment. A permanent with several mana abilities may be used through any one of them in a payment, never through more than one, since each taps it.
 
 A source is **available** to the auto payment system when all of these hold:
 
@@ -106,6 +108,7 @@ OK Cast Cultivate. Paid {2}{G}: tapped Forest, Forest, Island.
 | What "later plays" counts | Cards in hand and commanders in the command zone, one at a time | Sets of cards castable together; cards that might be drawn | One-at-a-time is computable, explainable, and matches the question a player asks ("can I still cast this?"). |
 | Phyrexian symbols | Life whenever life stays positive and a valid payment remains | Mana by default; life whenever life stays positive, even when that leaves the cost unpayable | Life is rarely the constraint in a goldfish game; mana is. Paying life keeps the most options, but never at the price of a payable cost. |
 | Spending the pool | Narrowest requirements first; the pool and sources together when what is left cannot be paid | In cost order | Spending in cost order can give the pool's only white mana to a hybrid and leave a white symbol no source can pay. |
+| Whose pool and sources | The acting seat's alone, whoever owns the sources | A shared pool; sources by owner | Mana belongs to the player who made it, and a permanent's abilities are its controller's to use. |
 | Permanents with several mana abilities | Any one ability per payment | The first usable ability only | A painland's colored ability would never be used, and a payable cost would be refused. |
 | Life-costing lands | A tie-breaker below free lands, above artifacts and creatures | Avoided unless necessary; used freely | They may be tapped when that keeps more cards castable, but are not preferred over an equivalent free land. |
 | Sacrifice sources and sources with another cost | Never automatic | Automatic when nothing else can pay | Giving something up is a decision, not bookkeeping. |

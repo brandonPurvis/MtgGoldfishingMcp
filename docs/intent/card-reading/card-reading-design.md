@@ -10,7 +10,7 @@ prefix: READ
 The service does not know what cards do. This component holds the deliberate exceptions: four narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and attack bookkeeping possible.
 
 1. **Mana sources**: how much mana of which colors a permanent makes, and what using it costs.
-2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in.
+2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in, and on whose turns.
 3. **Haste and vigilance**: whether a permanent has either keyword itself or grants it to others.
 4. **Entering tapped**: whether a permanent enters the battlefield tapped.
 
@@ -99,18 +99,29 @@ For a set of cards the reader produces lists a caller can show: mana abilities r
 
 ## Step Triggers
 
-A face is scanned for beginning-of-step phrases. Each match yields the step it belongs to.
+A face is scanned for beginning-of-step phrases. Each match yields a step trigger reading: the step it belongs to, and **whose** turns it happens on.
 
-| Phrase contains | Step |
-|---|---|
-| `At the beginning of your upkeep`, `of each upkeep`, `of each player's upkeep` | upkeep |
-| `At the beginning of your draw step`, `of each player's draw step` | draw |
-| `At the beginning of your precombat main phase`, `of your first main phase` | main1 |
-| `At the beginning of combat on your turn`, `of each combat` | begin_combat |
-| `At the beginning of your postcombat main phase`, `of your second main phase` | main2 |
-| `At the beginning of your end step`, `of each end step`, `of each player's end step`, `of the end step` | end |
+```
+StepTrigger { step: Step, whose: "controller" | "each" | "opponents" }
+```
 
-A phrase that names only opponents (`each opponent's upkeep`) yields nothing, because a goldfish game has no opponent turns. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones; the reminder is harmless when it does not apply. A face with several triggers in the same step yields that step once.
+| Phrase contains | Step | Whose |
+|---|---|---|
+| `At the beginning of your upkeep` | upkeep | controller |
+| `of each upkeep`, `of each player's upkeep` | upkeep | each |
+| `of each opponent's upkeep` | upkeep | opponents |
+| `At the beginning of your draw step` | draw | controller |
+| `of each player's draw step` | draw | each |
+| `of each opponent's draw step` | draw | opponents |
+| `At the beginning of your precombat main phase`, `of your first main phase` | main1 | controller |
+| `At the beginning of combat on your turn` | begin_combat | controller |
+| `of each combat` | begin_combat | each |
+| `At the beginning of your postcombat main phase`, `of your second main phase` | main2 | controller |
+| `At the beginning of your end step` | end | controller |
+| `of each end step`, `of each player's end step`, `of the end step` | end | each |
+| `of each opponent's end step` | end | opponents |
+
+Which readings produce a reminder on a given turn is decided by `turn`: a goldfish game has only the controller's turns, so an `opponents` reading never produces one there. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones; the reminder is harmless when it does not apply. A face with several triggers in the same step and of the same `whose` yields that pair once.
 
 ## Haste and Vigilance
 
@@ -147,6 +158,7 @@ The reading applies to any permanent, not only lands.
 | Counted amounts | Returned as a rule, evaluated by the holder of game state | Reader takes game state | Keeps reading pure and testable from text alone. |
 | Own versus granted keyword | Decided from text position, not Scryfall's keyword list | Trust the keyword list | The list includes keywords a card grants to others, so it cannot tell a hasty creature from one that gives haste. |
 | Attachment-conferred keywords | Not read | Track attachments | Attachment tracking is rules-engine territory; the agent states haste or vigilance in the `attack` call instead. |
+| Whose turns a step trigger happens on | Read as controller, each, or opponents | Read the step only; ignore opponents-only phrases | In a contested game other seats' turns exist, and a trigger on each opponent's upkeep is the controller's to record during another seat's turn. |
 
 ## Open Questions & Future Decisions
 

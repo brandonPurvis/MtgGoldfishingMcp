@@ -14,9 +14,11 @@ The service's findings are worth only what its records are worth. Three kinds of
 
 Records are data for an outside process. The service does not compute statistics from them.
 
+A game has one set of records, whatever its number of seats: every seat's calls and changes, hidden zones included. The record of a contested game says which seat made each entry and each call. Fields that only a contested game has are left out of a goldfish game's records, so a goldfish game's records have the same shape whether or not contested games exist.
+
 ## Log
 
-One entry for every accepted call that changed a game, from `new_game` to `end_game`. Refused calls and read-only calls (`get_state`, `get_log`) produce no log entry. A resent call that was recognised and not applied again (see `game`) produces none either.
+One entry for every accepted call that changed a game, from `new_game` to `end_game`, whichever seat made it. Refused calls and read-only calls (`get_state`, `get_log`) produce no log entry. A resent call that was recognised and not applied again (see `game`) produces none either.
 
 ```
 LogEntry {
@@ -45,18 +47,32 @@ LogEntry {
   reminders: [{ card, step }]
   assumptions: [string]      // best guesses the service made in applying the call
   notices: [string]          // notices first raised by this call
+
+  // contested games only
+  seat: int                  // the acting seat's number
+  active: int | null         // the active seat's number when the call was made
+  table_turn: int
+  round: int
+  stacked: string | null     // the stack item this call put on the stack
+  resolved: [{ item, controller, source, delta, to }]   // items this call caused to resolve, with what was applied
+  countered: [string]        // items removed by `counter`
+  auto_passes: [{ seat, item | null }]  // automatic passes this call caused, and declared-no-block seats
+  eliminated: [{ seat, cause }]
+  public: [Event]            // the public form of this call's events (see `game`), for digests
 }
 ```
+
+In a contested game `turn` is the active seat's own turn number, as its status line shows it; `table_turn` and `round` place the entry in the game as a whole. For a call whose item goes on the stack, `delta` and `paid` record what was stated and paid when the call was applied, and the item's resolution is recorded in `resolved` on the entry of whichever call caused it.
 
 `reason` is the agent's own explanation of the play and is what makes a log useful for analysis; it is stored verbatim.
 
 ## Reminders
 
-Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step. A reminder is **answered** when, later in the same turn, an `effect` call is accepted whose `source` names the reminded permanent. Otherwise it is **unanswered**. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
+Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step, with the seat it was issued to in a contested game. A reminder is **answered** when, later in the same turn, an `effect` call from that seat is accepted whose `source` names the reminded permanent; a `pass` declines it and leaves it unanswered. Otherwise it is **unanswered**. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
 
 ## Turn Snapshots
 
-Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot.
+Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn.
 
 ```
 TurnSnapshot {
@@ -72,6 +88,14 @@ TurnSnapshot {
   damage_dealt: int
   commander_damage: { [commander]: [int, int, int] }
   unanswered_reminders: [{ card, step }]
+
+  // contested games only; damage_dealt and the three-number commander_damage are left out
+  seat: int                  // the active seat
+  table_turn: int
+  round: int
+  lives: { [seat number]: int }
+  eliminated: [int]
+  commander_damage: { [commander]: { [seat number]: int } }
 }
 ```
 
@@ -87,7 +111,8 @@ One record for every tool call the service receives, whatever its outcome and wh
 CallRecord {
   id: int
   time: timestamp
-  game_id: string | null     // as supplied, whether or not such a game exists
+  game_id: string | null     // the game the supplied id names; as supplied when it names none
+  seat: int | null           // contested games only: the calling seat's number
   tool: string
   arguments: object          // as received, JSON-string objects and lists decoded
   status: "OK" | "REJECTED" | "ERROR" | "CHOICE"
@@ -105,12 +130,15 @@ Arguments are stored as received, with any object or list parameter that was giv
 get_log(game_id, since?, include_snapshots?, include_calls?)
 ```
 
-Returns JSON, unlike every other tool, because its reader is a program.
+Returns JSON, unlike every other tool, because its reader is a program. Any seat may call it at any time, and every seat receives the whole record, hidden zones included: the service hides in its views, not in its records.
 
 ```
 {
   "game": { "game_id", "deck_id", "seed", "turn_limit", "draw_first_turn",
-            "status", "turn", "change", "result": { "outcome", "notes" } | null },
+            "status", "turn", "change", "result": { "outcome", "notes" } | null,
+            // contested games only:
+            "table_turn", "round",
+            "seats": [{ "number", "deck_id", "tested", "starting_life", "life", "eliminated" }] },
   "entries": [LogEntry],
   "snapshots": [TurnSnapshot],
   "calls": [CallRecord]
@@ -120,6 +148,8 @@ Returns JSON, unlike every other tool, because its reader is a program.
 `since` returns only entries with a sequence number greater than it, calls whose `change` is greater than it, and snapshots written by those entries. `include_snapshots` defaults to true. `include_calls` defaults to false. `get_log` is accepted in every game status.
 
 Because a refused or read-only call carries the change number it was made at, a reader that polls with `since` set to the change number it last saw does not receive calls made at that same change number; a full read includes them.
+
+Seat ids are never part of the records' content: a record names seats by number.
 
 A `get_log` call that cannot be answered — an unknown game, a malformed argument — is answered like any other tool's error, in the text format (see `tools`), not as JSON.
 
@@ -135,6 +165,11 @@ A `get_log` call that cannot be answered — an unknown game, a malformed argume
 | Snapshot timing | At cleanup | At the start of each turn | The end of the turn is when "what was left unused" is known. |
 | `payable` definition | Payable with all sources untapped | Payable with what was untapped at cleanup | The question is whether the card was stuck, not whether mana was left over. |
 | Statistics | None computed | Summary figures per game | Non-goal; analysis is done elsewhere from these records. |
+| Records of a contested game | One log for the game, every entry and call naming its seat | A log per seat | Analysis of the tested deck needs what the opposition did, in order; one change number already orders every seat's calls. |
+| Contested-only fields in a goldfish game | Left out | Present with fixed values | A goldfish game's records keep the shape readers already rely on. |
+| Reading the log during a contested game | Any seat, whole record | Refused to seats until the game ends; filtered to the seat's view | The service hides in its views and does not police agents (tenet *It's the agent's simulation*). |
+| Where a resolution is recorded | On the entry of the call that caused it | On the entry that put the item on the stack | Entries are append-only; the resolution happens later and is part of what that later call did. |
+| Public events on each entry | Stored with the entry | Computed when a digest is built | The digest is then built from records alone, after any restart, without replaying calls. |
 
 ## Open Questions & Future Decisions
 

@@ -78,6 +78,10 @@ _Avoid_: Dummy, phantom opponent
 The unguessable id naming one seat of one game; a call made with it acts as that seat and sees what that seat may see.
 _Avoid_: Player token, seat key
 
+**Seat number**:
+A seat's place in turn order, from 1, by which calls and responses name seats to one another.
+_Avoid_: Seat index, player number
+
 **Seed**:
 The number that fixes every shuffle of a game and the order of its seats, so that the same loaded decks and seed give the same game.
 _Avoid_: Random state, salt
@@ -95,8 +99,16 @@ The seat that currently controls a permanent or an item on the stack; its owner 
 _Avoid_: Holder, user
 
 **Zone**:
-Where a card instance is: library, hand, battlefield, graveyard, exile or the command zone.
+Where a card instance is: library, hand, battlefield, graveyard, exile, the command zone, or, in a contested game, the stack.
 _Avoid_: Area, pile, location
+
+**Active seat**:
+The seat whose turn it is.
+_Avoid_: Current player, active player, turn owner
+
+**Seat to act**:
+A seat whose call the game is waiting on before it can go on.
+_Avoid_: Priority holder, awaited seat, current player
 
 **Round**:
 One turn for each seat still in the game.
