@@ -8,6 +8,7 @@ These apply to every change. The reasoning is in `docs/high-level-design.md` (te
 
 - **Domain-driven.** Model the game in code with the glossary's words. Name types, functions and tests after domain concepts. If a concept has no name yet, add it to `GLOSSARY.md` before using it in code.
 - **Ports and adapters.** Dependencies point inward: `adapters → application → domain`. The domain performs no I/O and imports nothing outside itself and the standard library. Ports are defined in `application/ports.py` and speak in domain types.
+- **Dependency injection.** Each port is an abstract base class, and every implementation inherits from the port it implements. The service and use cases receive their ports as constructor arguments and never construct an implementation; only the composition root (`bootstrap.py`, or a test's builder) chooses implementations.
 - **Rules live in the domain.** A rule of play is never implemented in a tool handler, a renderer or a SQL statement.
 - **Value objects are immutable** (frozen dataclasses), validate themselves on construction, and compare by value.
 - **Refusals are return values.** Errors and failed rule checks are returned, not raised. Exceptions mean a defect.
