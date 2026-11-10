@@ -183,9 +183,10 @@ Each is one leaf design under `docs/intent/`, owning the requirement prefix show
 The rings are tested at their own level, so each test says one thing and fails for one reason.
 
 - **Domain tests** (pytest) exercise the model directly, with no adapters at all. Game states, including tables of several seats and a stack, are set up with test builders that read like the situation being tested.
-- **Feature tests** (behave) express scenarios in the language of play and drive the service through its tools, with in-memory adapters behind the ports, so they run in milliseconds and never touch disk or network. Contested-game scenarios drive several seats through their own seat ids.
+- **Feature tests** (behave) express scenarios in the language of play and drive the service through its tools, with in-memory adapters behind the ports, so they run in milliseconds and never touch disk or network. Contested-game scenarios drive several seats through their own seat ids, and every contested-game flow has at least one.
 - **Contract tests** (pytest) state what each port promises and run against every adapter that implements it, in-memory and real alike, so the fakes used by other tests are known to behave like the real thing.
-- **A small end-to-end check** starts the real process with SQLite and plays a short goldfish game over HTTP, and a short contested game with two seats played by separate clients.
+- **A small end-to-end check** starts the real process with SQLite and plays a short goldfish game over HTTP.
+- **Contested end-to-end scenarios** (behave) run a selection of the contested-game scenarios against the real process with SQLite, with a separate client for each seat, so that seat ids, `wait` and seats acting at once are exercised over the network.
 - **An architecture test** fails the build if an inner ring imports an outer one.
 
 Tests use recorded card data and never reach the network. Every requirement is cited by at least one test.

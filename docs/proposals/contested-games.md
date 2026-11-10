@@ -54,7 +54,7 @@ Goldfish games remain available and unchanged, because they remain the best meas
   - in the end step, so a seat can act at the end of another seat's turn.
 - No other step opens a window.
 - In a window, seats are asked **one at a time, in turn order**, beginning with the seat after the one that acted. A response puts a new item on the stack and restarts the asking from the seat after the responder, including the original actor. The window closes when every seat has passed in succession. Asking in a fixed order keeps a seed reproducible; asking every seat at once and taking the first answer would let timing decide the game.
-- **Automatic pass:** the service passes for a seat that has **no untapped permanents**. This leaks a little information and loses the rare free spell cast while tapped out (Force of Will, Deflecting Swat). Both are accepted: the aim is pushback against the tested deck, not perfect play.
+- **Automatic pass:** the service passes for a seat that has **no untapped permanents**. This leaks a little information and loses the rare free spell cast while tapped out (Force of Will, Deflecting Swat). Both are accepted: the aim is pushback against the tested deck, not perfect play. An automatic pass is the service deciding for a seat, so it is reported, under the tenet *Best guess, shown*.
 
 ### Decisions owed to another seat's effect
 
@@ -100,6 +100,72 @@ Goldfish games remain available and unchanged, because they remain the best meas
 - The log is one record for the whole game, holding every seat's actions, hidden zones included, and readable by any seat at any time.
 - The record keeps the opposing seats' deck ids and their number, so analysis can tell a duel from a four-player game.
 - The verdict belongs to the tested seat.
+
+## Flows the behave scenarios cover
+
+Every flow below has at least one behave scenario that drives the service through its tools, with in-memory adapters, one seat id per seat. The flows marked **(HTTP)** also run as end-to-end scenarios against the real process with SQLite, with a separate client for each seat. Each scenario cites the EARS IDs it checks, so the scenarios are written test-first once the specs exist.
+
+### Starting a game
+1. A contested game starts with one, two or three opposing seats, and each seat receives its own seat id. **(HTTP)**
+2. The same decks and seed give the same turn order and the same opening hands every time.
+3. The tested seat's opening hand and draws for a seed are the same in a goldfish game and in a contested game.
+4. `new_game` fixes the tested seat's position in turn order; the other seats are ordered by the seed.
+5. Starting life is set per seat; a seat with none given starts at 40.
+6. An opposing seat may use the tested seat's own deck (a mirror match).
+7. Every seat takes its own mulligans and sees only its own hand; turn 1 begins once every seat has kept.
+
+### Turns
+8. Turns pass from seat to seat in turn order; `T<n>` counts the viewing seat's own turns; a round is one turn for each seat still in the game.
+9. A turn limit in a contested game counts rounds.
+10. A call from a seat that has nothing to do is an error.
+11. A step trigger of a permanent controlled by a seat other than the active one becomes a reminder for that seat, and the game waits on it.
+
+### What a seat sees
+12. A seat's responses and state show its own hand and library, every public zone, and only the sizes of other seats' hands and libraries.
+13. Every response to a seat begins with a digest of the other seats' public events since its last call, and the digest holds no hidden information. **(HTTP)**
+14. Any seat may read the log at any time.
+
+### The stack and response windows
+15. A spell with no responses resolves with the delta it was cast with, once every other seat has passed.
+16. A counterspell cast in response resolves first and moves the countered card; the countered spell's delta is not applied. **(HTTP)**
+17. A response restarts the asking from the seat after the responder, including the original caster; items resolve newest first.
+18. A held delta applies as sent when nothing resolved above it; when something did, its controller confirms or restates it.
+19. A seat with no untapped permanents is passed automatically, and the automatic pass is reported.
+20. After attackers are declared, a window opens in which another seat may remove an attacker.
+21. In the end step, a window opens in which a seat may act at the end of another seat's turn.
+22. A triggered ability recorded with `effect` goes on the stack and can be responded to.
+23. An event trigger of a seat that is not taking its turn is recorded with `effect` at that seat's next window.
+
+### Effects across seats
+24. An effect that requires another seat to discard or sacrifice gives that seat a pending choice, and the game waits for its answer.
+25. Looking at another seat's hand shows those cards to the looking seat only.
+26. A delta may destroy or exile another seat's permanent and change any seat's life.
+27. A delta may change control of a permanent; owner and controller are kept separately.
+28. A delta that reaches into another seat's hand or library is refused.
+
+### Combat
+29. `attack` names a seat for each attacker, and each attacked seat declares blockers through a pending choice. **(HTTP)**
+30. The attacking seat states what happens to creatures in combat; the service adds up combat damage to seats and commander damage per seat.
+
+### Elimination and the end of a game
+31. A seat at 0 life is eliminated: the cards it owns leave the game, permanents it controlled but did not own return to their owners, and it takes no more turns and is skipped by response windows.
+32. A seat dealt 21 combat damage by one commander is eliminated.
+33. An opposing seat may concede, which eliminates it.
+34. A notice is raised when the tested seat is eliminated, and when every opponent of the tested seat is eliminated.
+35. Only the tested seat may call `end_game`, and it may do so at any time, including while the game waits on another seat.
+
+### Coordination
+36. `wait` returns when the seat has something to do, with what is asked of it. **(HTTP)**
+37. `wait` times out and names the seat the game is waiting on.
+38. A resend is recognised against the sending seat's own most recent change, even when another seat acted in between. **(HTTP)**
+39. A changing call with a stale `after` is an error.
+40. A full game played by four seats, each through its own client, produces one complete log. **(HTTP)**
+
+### Records
+41. Every log entry and call record names the seat that made it, and the record holds the opposing seats' deck ids.
+
+### Goldfish games
+42. A goldfish game's tested seat id is its game id, and its responses show no digest, stack or response window.
 
 ## Alternatives considered
 
