@@ -7,15 +7,29 @@ from dataclasses import dataclass, field
 
 from mtg_goldfishing.domain.events import ChecksOverridden, Error, Event, FailedCheck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.records.model import TurnSnapshot
 
 
 @dataclass(frozen=True)
 class Applied:
-    """The changed game, the headline event and everything else worth telling, in order."""
+    """The changed game, the headline event and everything else worth telling, in order.
+
+    `snapshots` holds any turn snapshot written while the call was applied.
+    """
 
     game: Game
     summary: Event
     events: tuple[Event, ...] = ()
+    snapshots: tuple[TurnSnapshot, ...] = ()
+
+
+@dataclass(frozen=True)
+class Resent:
+    """A resend of the most recent change: its original report, and nothing applied."""
+
+    game: Game
+    summary: Event
+    events: tuple[Event, ...]
 
 
 @dataclass(frozen=True)

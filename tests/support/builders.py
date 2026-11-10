@@ -197,3 +197,17 @@ class GameBuilder:
 
 def a_game() -> GameBuilder:
     return GameBuilder()
+
+
+def a_deck(*names: str, commanders: tuple[str, ...] = ("Atraxa, Praetors' Voice",)) -> LoadedDeck:
+    """A loaded deck of library cards; a name given several times is that many copies."""
+    counts: dict[str, int] = {}
+    for name in names:
+        counts[name] = counts.get(name, 0) + 1
+    distinct = sorted(set(names) | set(commanders))
+    return LoadedDeck(
+        deck_id="dtest",
+        commanders=commanders,
+        entries=tuple(DeckEntry(n, c) for n, c in sorted(counts.items())),
+        cards=tuple(DeckCard(*LIBRARY[n]) for n in distinct),
+    )
