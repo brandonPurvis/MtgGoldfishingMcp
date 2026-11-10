@@ -53,6 +53,12 @@ A parameter that is an object or a list (`delta`, `choices`, `pay`, `expect`, `s
 
 Each tool description states, in this order: what the tool is for in one sentence; what the service does automatically as a result; each parameter's meaning with one example value; and what can be overridden. Descriptions use the terms in `GLOSSARY.md`. The shape of a delta is described once, in `play`, and `effect` refers to it. What a tool does only in a contested game is described in a final sentence or parameter marked "Contested games:", so an agent playing a goldfish game can pass over it.
 
+Three things about combat in a contested game are easy to get wrong from the parameter list alone, and the descriptions say them outright (see `combat`):
+
+- `effect`: an immediate `effect` that states the result of combat gives only what happens to the creatures. The service deals the declared attack's damage to seats on entering `combat_damage`, whatever an earlier `effect` said, so a `life` or `damage` entry for that damage would be applied on top of it.
+- `attack`: a `damage` entry for a blocked attacker is dealt in full to the seat it attacks; the service subtracts nothing for blockers, so the entry is the damage that gets past them.
+- `attack`: the call may stop before attackers are declared, at a step where another seat has a reminder. Nothing is declared or tapped, and the attacking seat sends `attack` again once it is the seat to act.
+
 ### Server instructions
 
 The MCP server's instructions field carries a short guide to playing a game, so an agent connecting cold knows the order of things:
@@ -74,7 +80,7 @@ It continues with a short section on contested games:
 2. Seats act one at a time. When it is not your seat's turn to act, call `wait`; it returns when it is, with what you are being asked.
 3. Spells and abilities go on the stack and resolve once every other seat has passed. When you are asked to respond, `play` or `effect` to respond, or `pass`.
 4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect asks of you, or whether a spell still does what you said.
-5. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats.
+5. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it.
 6. Each response begins with what the other seats did since your last call.
 7. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
 
@@ -91,15 +97,16 @@ Every tool except `get_log` responds with plain text:
 
 ### Digest
 
-In a contested game a response begins with one line for each change other seats made since the calling seat's digest baseline — its previous response that carried a digest (see `application`) — oldest first, each in its public form (see `game`). A seat's first response covers the other seats' changes since the game began. For example: For example:
+In a contested game a response begins with one line for each change other seats made since the calling seat's digest baseline — its previous response that carried a digest (see `application`) — oldest first, each as the calling seat may see it (see `game`): the public form, except that a card another seat's call moved into, between or out of the calling seat's own hand or library is named to it. A seat's first response covers the other seats' changes since the game began. For example, as seat 3 reads it:
 
 ```
-S2 #53: cast Swords to Plowshares (s3), targeting Llanowar Elves
-S3 #54: passed automatically: no untapped permanents
-S2 #54: s3 resolved: Llanowar Elves exiled; S1 life +1
+S2 #53: cast Swords to Plowshares (s3), targeting Llanowar Elves; S3 passed automatically: no untapped permanents
+S4 #54: passed
+S1 #55: passed; s3 resolved: Llanowar Elves exiled; S1 life +1
+S2 #56: cleanup → S3 T5 untap → upkeep → draw → main1; S3 drew Forest
 ```
 
-A change that caused several things lists them on its line, separated by `;`. A response with nothing new has no digest lines. A `get_log` response is JSON and carries no digest; what happened before it is shown by the seat's next text response. A goldfish game's responses never have them.
+A line belongs to the seat whose call made the change, and a change has one line. Everything the change caused is listed on it, separated by `;`, including what it caused for other seats: an automatic pass, the resolution of another seat's item, the start of the next seat's turn. Seats are always named `S<n>` in a digest, the reader's own seat included; every line has at least one event, because every accepted change has a public form. A mulligan taken reads `S2 took a mulligan (2 taken)` and a kept hand `S2 kept 6, bottomed 1`; a look at a hand names the looking seat and whose hand, never the cards: `S3 looks at S1's hand (CHOICE hand)`. A response with nothing new has no digest lines. A `get_log` response is JSON and carries no digest; what happened before it is shown by the seat's next text response. A goldfish game's responses never have them.
 
 **Status** is one of:
 
@@ -130,15 +137,30 @@ T<turn> <step> (S<active>) · You S<n> · Hand <n> · Lands <n> (<n> untapped) �
 
 - `T<turn>` is the number of turns the calling seat has begun; `(S<active>)` names the active seat.
 - `You S<n>` is the calling seat's number; `Hand` to `Life` are its own.
-- One `S<n> <life>` per other seat in turn order, `out` for an eliminated seat.
-- `Cmdr` shows the calling seat's commander damage to each other seat, in turn order; with two commanders, a group per commander separated by `|`.
+- One `S<n> <life>` per other seat in ascending seat number, `out` for an eliminated seat. Seat 3 of four reads `S1`, `S2`, `S4`.
+- `Cmdr` shows the calling seat's commander damage to each other seat, one number per life group and in the same order; an eliminated seat keeps its number, so positions always match. With two commanders, `Cmdr` and `Tax` each show a group per commander separated by `|`, in the commanders' name order, as in a goldfish game.
 - `Stack <n>` appears only when the stack is not empty.
-- `Act` names the seat to act and what it is asked: `Act you respond`, `Act S3 blocks`, `Act S2 turn`. During mulligans it names every seat still to keep.
-- During mulligans the line is `Mulligan <k> · Hand <n> · Act <seats> · #<change>`; for an ended game it begins `Ended (<result>) · `; for an eliminated calling seat it begins `Out · `.
+- `Act` names the seat to act and, in one word, what it is asked: `Act you respond`, `Act S3 blocks`, `Act S2 turn`. The calling seat is `you`.
+- The line never ends with ` · CHOICE pending`: `Act` already says which seat a pending choice waits on and its kind.
+- During mulligans the line is `Mulligan <k> · Hand <n> · Act <seats> · #<change>`, where `<seats>` lists every seat still to keep in ascending seat number, separated by spaces, with no word after them: `Mulligan 1 · Hand 7 · Act you S3 · #4`.
+- For an eliminated calling seat the line begins `Out · `.
+- For an ended game the line begins `Ended (<result>) · `, ahead of any `Out · `, and has no `Act` and no `Stack`: no seat is asked and the stack was discarded. A game ended during mulligans reads `Ended (stalled) · Mulligan 0 · Hand 7 · #3`.
 
 ```
 T7 main1 (S2) · You S1 · Hand 4 · Lands 6 (6 untapped) · Pool {} · Life 33 · S2 40 · S3 out · S4 12 · Cmdr 7/0/14 · Tax 2 · Stack 1 · Act you respond · #57
 ```
+
+What a seat is asked has one vocabulary, used by `Act`, by the first event line of a response to a seat to act, by the `ERROR` to a seat that is not, and by a `wait` that times out:
+
+| The seat is to act because | `Act` word | Sentence (`You are asked to ...` / `S3 is asked to ...`) |
+|---|---|---|
+| A response window is asking it | `respond` | `respond to s4` (the event line adds `: Counterspell from S3`); `respond to the attack`; `respond in the end step` |
+| A reminder waits for it and it is not the active seat | `trigger` | `record or pass the upkeep trigger of Rhystic Study` |
+| A pending choice is addressed to it | the choice's kind: `look`, `search`, `hand`, `ask`, `resolve`, `blocks` | `answer the blocks choice` |
+| It is the active seat and nothing else waits | `turn` | `take its turn` (`take your turn`) |
+| It has not kept (mulligans) | none; see the mulligan line | `keep or mulligan` |
+
+A `wait` that times out answers `OK Still waiting: S3 is asked to respond to s4.`
 
 A call from a seat that is not a seat to act is answered as an `ERROR` that names the seat to act and what it is asked, and suggests `wait`:
 
@@ -153,7 +175,9 @@ REJECTED Cost {6}{R} not payable: 5 mana available. Resubmit with override to ca
 T6 main1 · Hand 4 · Lands 6 (5 untapped) · Pool {} · Life 40 · Dmg 22/120 · Cmdr 7/0/0 · Tax 2 · #41
 ```
 
-Responses to routine plays do not list the battlefield or the hand; `get_state` does that.
+An error about a card in another seat's hand or library says no more than `game` allows. An instance id is answered with `ERROR c212 is in a hidden zone of S2.`, naming neither the card nor the zone; a name that matches nothing the calling seat may see gets the same not-found text whether or not another seat holds such a card.
+
+Responses to routine plays do not list the battlefield or the hand; `get_state` does that. In a contested game its listing puts a permanent on the battlefield of the seat that controls it, and marks one its controller does not own with its owner: `Llanowar Elves (owner S2)`.
 
 ### In MCP terms
 
@@ -178,9 +202,10 @@ It is given a deck id (or a deck list to load), and optionally a seed and turn l
 - read the digest at the top of each response to follow what other seats did;
 - respond with `play` or `effect` when asked and it has something worth doing, and `pass` otherwise;
 - answer pending choices addressed to it, including blocks and decisions other seats' effects ask of it;
-- when attacking, state what happens to the creatures with `effect` and `immediate: true` after blocks;
+- when attacking, state what happens to the creatures with `effect` and `immediate: true` after blocks, leaving out the damage to seats, which the service deals; give `damage` for a blocked attacker only for what gets past its blockers;
+- when an `attack` response says the attack was not declared, call `wait` and send the same `attack` again;
 - as the tested seat, end the game with `end_game` and a verdict that names what the opposition did to the deck; as an opposing seat, concede with `end_game` when it is beaten, and otherwise play until the game ends;
-- return its seat number, the game id it was given, and its verdict as its final message.
+- return its seat number, the id it was given (the game id for the tested seat, its own seat id for an opposing seat) and its verdict as its final message; a subagent given a seat rather than a deck is never shown the seed, so it returns none.
 
 ## Rendering
 
@@ -207,6 +232,13 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | Where the digest goes | Before the status word, one line per change | After the event lines; on request only | What happened before the call is context for reading its result; on request only would cost a `get_state` after every `wait`. |
 | Contested status line | The calling seat's own figures, then every other seat's life, then who is to act | The goldfish line unchanged; every seat's full figures | An agent needs its own resources and every opponent's life on every call; other seats' hands and lands are in `get_state`. Who is to act tells it whether to `wait`. |
 | Player briefs | One brief with a contested section | A separate brief for opposing seats | The tools and rules are the same for every seat; a seat's goal comes from its caller. |
+| Whose line a digest event is on | The seat whose call made the change, one line per change | A line per seat the change affected | A change number then appears once, and the line reads as cause and consequences in order. |
+| Order of the other seats on the status line | Ascending seat number | Turn order starting after the calling seat | Every seat reads the same seats in the same places, and the labels are seat numbers already. |
+| An eliminated seat's `Cmdr` number | Kept | Replaced by `out`; dropped | The `Cmdr` numbers stay aligned with the life groups, which already say `out`. |
+| A pending choice on the contested status line | Shown by `Act` and the choice's kind | The goldfish ` · CHOICE pending` suffix | The suffix cannot say which seat the choice waits on; `Act` can, and two signs for one fact invite disagreement. |
+| The word for what a seat is asked | The pending choice's own kind, or `respond`, `trigger`, `turn` | `choose` for every pending choice; free text | The kind is the word the `CHOICE` response and `choose` already use, and tells a seat which answer is wanted without a `get_state`. |
+| `Ended` and `Out` together | `Ended (<result>) · Out · ...` | `Out` first; `Ended` alone | That the game is over matters more than how the seat left it, and an ended game's line begins the same way for every seat. |
+| What a seat-given subagent returns | Seat number, the id it was given, verdict | Game id, seed and verdict as in a goldfish game | It is shown neither the seed nor, as an opposing seat, the game id; its caller holds both. |
 
 ## Open Questions & Future Decisions
 

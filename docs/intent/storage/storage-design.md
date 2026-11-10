@@ -31,7 +31,9 @@ Loaded decks are never updated once written. Writing a deck whose id already exi
 
 The `seats` table exists so that a call made with any seat id finds its game with one indexed lookup; it is a copy of what the game's document holds, written in the same transaction as the new game. A goldfish game has one row in it.
 
-A seat's digest baseline (see `application`) is the change number on its most recent call record for a tool other than `get_log`, found from `calls` by game id and seat number; an index on those columns keeps that lookup cheap.
+A seat's digest baseline (see `application`) is the change number on its most recent call record for a tool other than `get_log`, found from `calls` by game id and seat number; an index on those columns keeps that lookup cheap. The seat number column of `calls` holds what the call record carries (see `records`): it is null for every call of a goldfish game, whose records name no seat even though the game's `seats` row has seat number 1, for a contested game's `new_game`, and for a call whose id names no seat.
+
+A table turn has one snapshot. The domain writes at most one, so a second for the same game and table turn is a defect: the adapter raises rather than replace the first or drop the second, and the call's unit of work is rolled back.
 
 ## Transactions
 
@@ -65,6 +67,7 @@ The `schema_version` row records the layout. The migration that adds seats creat
 | Finding a game from a seat id | A `seats` table written with the game | Scanning game documents; encoding the game id in the seat id | A scan grows with the number of games; an encoded game id would let one seat's id reveal another's. |
 | Key of a snapshot | Game id and table turn | Game id and the active seat's own turn number | In a contested game several seats each have a turn 3; the table turn is unique in a game and equals the turn in a goldfish game. |
 | Shape of a contested game's state | The same one JSON document, grown to hold seats and the stack | A row per seat | The reasons for one document hold unchanged: every call loads and saves the whole game. |
+| A second snapshot for a table turn | Raise | Replace the first; keep the first and ignore the second | It can only come from a defect, and either quiet behavior would hide it and leave a record nobody chose. |
 
 ## Open Questions & Future Decisions
 

@@ -23,7 +23,7 @@ One entry for every accepted call that changed a game, from `new_game` to `end_g
 ```
 LogEntry {
   seq: int                   // the game's change number after this call: 1, 2, 3 ...
-  turn: int                  // 0 during mulligans
+  turn: int                  // turn the game was in when the call was made; 0 during mulligans
   step: Step | null          // step the game was in when the call was made; null during mulligans
   tool: string
   arguments: object          // the call's arguments as received, JSON-string objects and lists decoded;
@@ -31,10 +31,14 @@ LogEntry {
   outcome: object | null     // what the tool produced that the fields below do not carry:
                              //   new_game: opening hand (contested: every seat's, by seat number)
                              //   mulligan: new hand, cards bottomed
-                             //   choose: where each revealed card went
-                             //   attack: attackers, blocked, targets; on the entry that enters
-                             //           combat_damage: damage per attacker
-                             //   advance: cards discarded       end_game: result and notes
+                             //   choose: where each revealed card went (look, search, hand);
+                             //           the blocks as applied (blocks); null (ask, resolve)
+                             //   attack: attackers, blocked, targets (contested: attackers and
+                             //           the seat each attacks, no blocked list); on the entry
+                             //           that enters combat_damage: damage per attacker
+                             //           (contested: with the seat it was dealt to)
+                             //   advance: cards discarded
+                             //   end_game: result and notes (a concession: null result, notes)
   card: string | null        // card played, or effect source
   from: string | null        // zone a played card came from
   delta: Delta | null        // as applied, including what the service added
@@ -55,28 +59,50 @@ LogEntry {
   active: int | null         // the active seat's number when the call was made
   table_turn: int
   round: int
-  stacked: string | null     // the stack item this call put on the stack
-  resolved: [{ item, controller, source, delta, to }]   // items this call caused to resolve, with what was applied
-  countered: [string]        // items removed by `counter`
-  auto_passes: [{ seat, item | null }]  // automatic passes this call caused, and declared-no-block seats
-  eliminated: [{ seat, cause }]
-  public: [Event]            // the public form of this call's events (see `game`), for digests
+  stacked: string | null     // id of the stack item this call put on the stack ("s4")
+  resolved: [{ item, controller, source, delta, to }]   // items this call caused to resolve, in order:
+                             //   item id, controller's seat number, source, the delta applied,
+                             //   and where its card went (null for an ability, which has no card)
+  countered: [string]        // ids of items removed by `counter`
+  removed: [string]          // ids of items that left the stack unresolved because a seat was
+                             //   eliminated or the game was ended, bottom of the stack first
+  auto_passes: [{ seat, item | null }]  // automatic passes this call caused, in order; item is null
+                             //   in an attack or end response window with an empty stack
+  no_blocks: [int]           // attacked seats the service declared no blockers for
+  eliminated: [{ seat, cause }]   // in the order applied; cause: "life" | "commander_damage" | "concede"
+  public: [Event]            // the public form of this call's summary and events (see `game`)
+  private: { [seat number]: [Event] }   // the same events as a seat may see them, for each seat
+                             //   other than the acting one that may see more than `public`
 }
 ```
 
-In a contested game `turn` is the active seat's own turn number, as its status line shows it; `table_turn` and `round` place the entry in the game as a whole. For a call whose item goes on the stack, `delta` and `paid` record what was stated and paid when the call was applied, and the item's resolution is recorded in `resolved` on the entry of whichever call caused it.
+Every positional field — `turn`, `step`, `active`, `table_turn`, `round` — describes the game as it stood when the call was made, before the call was applied. The keep that starts a game is therefore recorded at turn 0 with no step and no active seat, and an `advance` that passes the turn is recorded in the turn it left. In a contested game `turn` is the own turn number of the seat that was then active, as its status line showed it; `table_turn` and `round` place the entry in the game as a whole.
 
-A contested game's `new_game` is made by whoever starts the game, before any seat acts. Its entry has a null `seat`, holds every seat's opening hand in `outcome`, and has no public events: it is in no seat's digest.
+For a call whose item goes on the stack, `delta` and `paid` record what was stated and paid when the call was applied, `stacked` holds the new item's id, and the item's resolution is recorded in `resolved` on the entry of whichever call caused it, with the delta that was actually applied (the restated one when its controller restated it). An item that leaves the stack unresolved is recorded by id on the entry of the call that caused it: in `countered` when a delta's `counter` named it, in `removed` when a seat's elimination or the tested seat's `end_game` took it off.
 
-`reason` is the agent's own explanation of the play and is what makes a log useful for analysis; it is stored verbatim.
+`auto_passes` holds only automatic passes in response windows. A seat the service declared no blockers for, because it controlled no untapped creature when blocks were requested, is listed in `no_blocks`: the two are different decisions made for a seat, and an attack window with an empty stack would otherwise make them look alike.
+
+A seat eliminated by a call is listed in `eliminated` with one cause. When it meets both the life and the commander damage condition after the same call, the cause recorded is `life`.
+
+### Public and private events
+
+`public` holds the public form of the call's summary and events, in the order they happened. Every entry a seat makes has at least one public event, the public form of its summary, so no accepted change is invisible to the other seats.
+
+Some events show one seat more than their public form, because they move a card into, between or out of that seat's own hand or library (see `game`): a card it drew when another seat's `advance` began its turn, or cards it drew when its own spell resolved on another seat's `pass`. Every other seat sees a count; the seat itself may see the names. For each such seat other than the acting one, `private` holds, under its seat number, the call's whole list of events in the form that seat may see, in the same order as `public`. A seat with no key in `private` sees the call exactly as `public` shows it. The acting seat has no key: it is told what its call did by the call's own response. Both forms are produced by the domain's filter (see `game`) when the entry is built, and a digest (see `application`) takes one of the two lists as stored.
+
+A contested game's `new_game` is made by whoever starts the game, before any seat acts. Its entry has a null `seat`, holds every seat's opening hand in `outcome`, and has no public or private events: it is in no seat's digest.
+
+An opposing seat's `end_game` concedes and ends nothing. Its entry's `outcome` holds a null result and the seat's notes; the `result` word it passed stays in `arguments`, the seat is listed in `eliminated` with cause `concede`, and the game's own result stays null until the tested seat ends the game.
+
+`reason` is the agent's own explanation of the play and is what makes a log useful for analysis; it is stored verbatim (but see Seat Ids in Records).
 
 ## Reminders
 
-Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step, with the seat it was issued to in a contested game. A reminder is **answered** when, later in the same turn, an `effect` call from that seat is accepted whose `source` names the reminded permanent; a `pass` declines it and leaves it unanswered. Otherwise it is **unanswered**. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
+Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step, with the seat it was issued to in a contested game. A reminder is **answered** when, later in the same turn — in a contested game, the same table turn — an `effect` call from that seat is accepted whose `source` names the reminded permanent. Otherwise it is **unanswered**. Acceptance is what counts: the reminder exists to catch a forgotten trigger, so it is answered once the seat has recorded the trigger, whether the stack item that `effect` made later resolves, is countered or is removed. A `pass` declines a reminder and does not answer it, but does not close it either: an `effect` naming the permanent later in the same table turn still answers it. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
 
 ## Turn Snapshots
 
-Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn. A turn that ends because its active seat was eliminated (see `turn`) never enters `cleanup`; its snapshot is written when the turn ends, describing that seat as elimination left it.
+Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. A game ended during mulligans has none: no turn has begun, and there is no active seat to describe. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn; one written because the tested seat ended the game describes whichever seat is active at that moment. A turn that ends because its active seat was eliminated (see `turn`) never enters `cleanup`; its snapshot is written when the turn ends, once the stack is empty, and describes that seat as it then is: its hand, battlefield and graveyard are empty and it has no lands, because the cards it owned have left the game, and its life is what it was when it was eliminated.
 
 ```
 TurnSnapshot {
@@ -94,14 +120,18 @@ TurnSnapshot {
   unanswered_reminders: [{ card, step }]
 
   // contested games only; damage_dealt and the three-number commander_damage are left out
-  seat: int                  // the active seat
+  seat: int                  // the active seat, which the snapshot describes
   table_turn: int
   round: int
-  lives: { [seat number]: int }
-  eliminated: [int]
-  commander_damage: { [commander]: { [seat number]: int } }
+  lives: { [seat number]: int }   // every seat; an eliminated seat keeps the life it was eliminated at
+  eliminated: [int]          // seat numbers, ascending
+  commander_damage: { [commander name]: { [seat number]: int } }   // the described seat's commanders;
+                             //   an entry for every other seat, zeros and eliminated seats included
+  unanswered_reminders: [{ card, step, seat }]   // every seat's, issued during this table turn
 }
 ```
+
+In a contested game seats other than the active one are reminded too, during the active seat's turn. A reminder is judged within the table turn it was issued in, so the snapshot of that table turn lists every seat's unanswered reminders, each naming the seat it was issued to.
 
 `payable` asks whether the plain mana cost of the card's first face, with X as 0 and each Phyrexian symbol paid with mana, could be paid if every mana source the auto payment system may use on its own were untapped (see `payment`). It says whether a card left in hand was castable in principle this turn, which is what an analysis of clunky hands needs. Lands are always `payable`.
 
@@ -116,7 +146,8 @@ CallRecord {
   id: int
   time: timestamp
   game_id: string | null     // the game the supplied id names; as supplied when it names none
-  seat: int | null           // contested games only: the calling seat's number; null for new_game
+  seat: int | null           // contested games only: the number of the seat the supplied id names,
+                             //   whatever the call's outcome; null for new_game
   tool: string
   arguments: object          // as received, JSON-string objects and lists decoded;
                              //   `game_id` holds the game id (see Seat Ids in Records)
@@ -135,7 +166,7 @@ Arguments are stored as received, with any object or list parameter that was giv
 get_log(game_id, since?, include_snapshots?, include_calls?)
 ```
 
-Returns JSON, unlike every other tool, because its reader is a program. Any seat may call it at any time, and every seat receives the whole record, hidden zones included: the service hides in its views, not in its records.
+Returns JSON, unlike every other tool, because its reader is a program. Any seat may call it at any time, and every seat receives the whole record, hidden zones included: the service hides in its views, not in its records. The rule that a response to a seat shows only what that seat may see (see `game`) governs every other tool and does not apply to `get_log`.
 
 ```
 {
@@ -162,6 +193,7 @@ A seat id is the whole of a seat's access control, and `get_log` is open to ever
 
 - The `game_id` argument of a call made with an opposing seat's seat id is stored, in the call record and in the log entry, as the game id; the record's `seat` says which seat called.
 - The stored response of a contested game's `new_game`, which lists every seat's seat id for whoever starts the game, has each opposing seat's seat id replaced by the redaction mark `[redacted]`. The response returned to the caller is not changed.
+- An agent that holds several seat ids may write one where it does not belong: in a `reason`, in `notes`, in another argument. Wherever an opposing seat's seat id of the game occurs inside a string of a call record or log entry of that game — any argument value at any depth, the response text — that occurrence is replaced by `[redacted]` and the rest of the string is kept. A seat id is `g` and ten random characters, so the replacement cannot touch ordinary text.
 
 The tested seat's seat id is the game id and is stored as such. An id that names no game or seat is stored as supplied.
 
@@ -188,6 +220,15 @@ A `get_log` call that cannot be answered — an unknown game, a malformed argume
 | Reading the log during a contested game | Any seat, whole record | Refused to seats until the game ends; filtered to the seat's view | The service hides in its views and does not police agents (tenet *It's the agent's simulation*). |
 | Where a resolution is recorded | On the entry of the call that caused it | On the entry that put the item on the stack | Entries are append-only; the resolution happens later and is part of what that later call did. |
 | Public events on each entry | Stored with the entry | Computed when a digest is built | The digest is then built from records alone, after any restart, without replaying calls. |
+| What a seat is shown of its own hidden zones when another seat's call changed them | A `private` event list per such seat, stored beside `public` | Public events only, the seat calling `get_state` to learn what it drew | A seat's turn begins inside the previous seat's `advance`, and its spells resolve on other seats' passes; with counts alone every seat would call `get_state` each turn to learn its own draws. |
+| A seat id written into free text | Redacted wherever it occurs in a stored string | Only the `game_id` argument and the `new_game` response are rewritten; the call is refused | The promise that no record holds an opposing seat's seat id must not depend on what an agent types; refusing would police the agent for a slip the record can simply not keep. |
+| Stack items removed by an elimination or the end of the game | Listed by id in `removed` | Listed in `countered`; not recorded | A reader following an item from `stacked` finds on one entry why it never resolved; `countered` keeps meaning that a seat's delta countered it. |
+| Seats the service declared no blockers for | Their own field, `no_blocks` | Entries of `auto_passes` | An automatic pass and a no-block are different decisions made for a seat, and in an attack window with an empty stack the two would be indistinguishable. |
+| A `pass` on a reminder followed by an `effect` | The later `effect` answers the reminder | The `pass` is final | The reminder asks whether the trigger was recorded in its table turn; a seat that records it late has recorded it. |
+| An `effect` answering a reminder whose item is countered | Answered on acceptance | Answered only when the item resolves | The reminder detects a forgotten trigger, not a trigger that failed. |
+| Other seats' reminders in a snapshot | Every seat's unanswered reminders of the table turn, each naming its seat | The active seat's only; carried to the reminded seat's next snapshot | Reminders are judged per table turn and snapshots are keyed by table turn; the tested seat's missed triggers on other seats' turns are what an analysis looks for. |
+| A game ended during mulligans | No snapshot | A snapshot at table turn 0 | No turn has begun and no seat is active; the log entries already hold every hand. |
+| Positional fields of an entry | The game before the call | The game after the call | A call is recorded where it was made; what it moved the game to is in `steps` and the next entry. |
 
 ## Open Questions & Future Decisions
 

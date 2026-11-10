@@ -102,11 +102,16 @@ In a contested game an outcome also carries a **digest** and is rendered for the
 Outcome {
   ...
   seat: int | None             // the calling seat, in a contested game
-  digest: [{ seat, change, events: [Event] }]   // other seats' public events since this seat's digest baseline
+  digest: [{ seat, change, events: [Event] }]   // other seats' changes since this seat's digest baseline,
+                                                //   as this seat may see them
 }
 ```
 
-The digest is assembled by the use case from records: the log entries made by other seats with a change number greater than the calling seat's **digest baseline**, each with its public events. The baseline is the change number on the seat's most recent call record whose response carried a digest. Every response to a seat of a contested game carries one, even when it has no lines, except a `get_log` response, which is JSON for a program: a `get_log` call is given no digest and does not move the baseline, so a seat that reads the log misses nothing in its next response. A seat with no such call record has no baseline, and its first digest covers the other seats' public events since the game began. The entry of `new_game` is made by no seat and is in no digest (see `records`). Events of the calling seat's own call are its outcome, not its digest. The public events themselves were chosen by the domain when the entries were written; the application only selects entries.
+The digest is assembled by the use case from records: one element for each log entry made by another seat with a change number greater than the calling seat's **digest baseline**, oldest first, naming the seat that made the change. An element's events are what the calling seat may see of that change. For most changes that is the entry's `public` list. When another seat's call changed the calling seat's own hidden zones — the previous seat's `advance` began its turn and it drew, or its own spell resolved on another seat's `pass` and it drew — the entry holds a `private` list for that seat, which names its cards, and the element takes that list instead (see `records`). Both lists were produced by the domain when the entry was written; the application chooses between two stored lists by seat number and computes nothing.
+
+The baseline is the change number on the seat's most recent call record whose response carried a digest. Every text response to a seat of a contested game carries one, even when it has no lines: an applied call, a resend, a refusal, a call whose arguments could not be shaped, a save that lost a race, and a failure inside the service alike. So the baseline is found as the change number on the seat's most recent call record for a tool other than `get_log`. A `get_log` response is JSON for a program: a `get_log` call is given no digest and does not move the baseline, so a seat that reads the log misses nothing in its next response. A seat with no such call record has no baseline, and its first digest covers the other seats' changes since the game began. The entry of `new_game` is made by no seat and is in no digest (see `records`). Events of the calling seat's own call are its outcome, not its digest.
+
+A resend is answered with the original change's summary and events, but its digest and game summary are of the moment it is answered: other seats may have acted since the response that was lost, and the resend's call record moves the baseline like any other.
 
 ## Ports
 
@@ -116,7 +121,7 @@ Interfaces owned by the application and implemented by adapters. Each port is an
 |---|---|---|
 | `GameRepository` | Load and save games | get a game by id; find the game and seat number a seat id names; save a game, failing if the stored game has changed since it was loaded |
 | `DeckRepository` | Keep loaded decks | get a loaded deck by id; add a loaded deck, leaving an existing one with the same id in place |
-| `RecordStore` | Keep and return records | append a log entry; add a snapshot; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give a seat's digest baseline: the change number on its most recent call record for a tool other than `get_log` |
+| `RecordStore` | Keep and return records | append a log entry; add a snapshot, raising if its game and table turn already have one; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give a seat's digest baseline: the change number on its most recent call record for a tool other than `get_log` |
 | `CardCatalog` | Supply card data by exact name | look up a set of names, returning for each: a card, not found, or unavailable; optionally refreshing |
 | `UnitOfWork` | Make one call's saves atomic | begin; commit; roll back — spanning `GameRepository`, `DeckRepository` and `RecordStore` |
 | `GameLocks` | Apply one game's calls one at a time | hold a game's lock for the length of a call |
@@ -150,8 +155,8 @@ For a tool that changes a game:
 2. Hold the game's lock.
 3. Load the game.
 4. Ask the game whether the call is a resend of the calling seat's most recent change (see `game`). If it is, answer it as already applied, whatever the game's state.
-5. Ask the game whether the calling seat may make this call now (see `game`: the seat to act). If not, return an error outcome.
-6. Ask the game whether the call follows its change number: apply, or refuse as stale.
+5. Ask the game whether the calling seat may make this call now (see `game`: the seat to act, an eliminated seat, an ended game). If not, return an error outcome, whatever the call's `after`.
+6. Ask the game whether the call follows its change number: apply, or refuse as stale. A stale call is refused as stale before its structured arguments are read, so a malformed `delta` is reported only for a call that would otherwise be applied.
 7. Resolve any card data the call needs through `CardCatalog` (only `play` from outside the game needs this). A card definition given with the call does not skip the lookup: its fields replace the fetched ones it names.
 8. Call the domain operation, as the calling seat.
 9. If applied: build the log entry and any snapshots, and save game, entry and snapshots in one unit of work.
@@ -160,7 +165,7 @@ For a tool that changes a game:
 12. If applied: announce through `GameChanges` that the game changed, after the unit of work has committed.
 13. Return the outcome and its rendered text.
 
-Read-only use cases (`get_state`, `get_log`) do steps 1–3, 5, 10, 11 and 13; `get_log` has no digest, so step 10 does nothing for it. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`. `new_game` asks `IdSource` for the game id and one seat id for each opposing seat.
+Read-only use cases (`get_state`, `get_log`) do steps 1–3, 5, 10, 11 and 13; `get_log` has no digest, so step 10 does nothing for it. `load_deck` involves no game: it looks up cards, asks the domain to build and check the deck, and adds it to the `DeckRepository`. `new_game` asks `IdSource` for the game id, then for a seed when the call gave none, then for one seat id for each opposing seat in `opponents` order; the *k*th seat id goes to the *k*th opposing deck's seat, wherever the seed then places it in turn order. The order is fixed because an id source that hands out a fixed sequence makes it visible to tests.
 
 ### `wait`
 
@@ -173,13 +178,24 @@ wait(game_id, timeout?)
 1. Find the game and seat the id names; if none, return an error outcome.
 2. Under the game's lock, load the game. If the calling seat is a seat to act, or is eliminated, or the game has ended, go to step 4.
 3. Release the lock and wait through `GameChanges` for a change after the loaded change number, up to what remains of the timeout. On a change, go back to step 2. On timeout, go to step 4.
-4. Under the game's lock: assemble the digest, render an outcome saying what the calling seat is asked to do — or, on timeout, which seat the game is waiting on and for what — and add the call record. Return.
+4. Under the game's lock: assemble the digest, render the outcome and add the call record. Return.
 
-`timeout` is in seconds, default 30, from 1 to 60; a value below 1 or above 60 is an error. In a goldfish game the only seat is always the seat to act, so `wait` returns at once.
+Every return of `wait` that is not an error is `OK`; its summary says which of four things happened:
+
+| Summary | When |
+|---|---|
+| What the calling seat is asked to do | The seat is a seat to act. |
+| Timed out: which seat the game is waiting on and what it is asked (during mulligans, every seat still to keep) | The timeout passed first. |
+| The seat is eliminated | The calling seat is eliminated and the game has not ended. |
+| The game has ended | The game's status is `ended`, whatever the seat's state. |
+
+A timeout is not an error: nothing was wrong with the call, and the status line's `Act` already tells the agent whether to wait again. `wait` returns only for these four reasons. A change that leaves the calling seat still waiting — another seat's play, a notice — does not end the wait; the seat reads it in the digest when `wait` does return. The notices the tested seat must act on reach it without delay all the same: its own elimination returns its `wait`, and when every opposing seat is eliminated it is the only seat left and so the seat to act.
+
+`timeout` is a number of seconds, default 30, from 1 to 60 inclusive; a fraction is accepted. A value below 1 or above 60 is an error, checked after the game is found, so the error carries the status line and digest like any other refusal. In a goldfish game the only seat is always the seat to act, so `wait` returns at once, saying what the seat is asked to do or that the game has ended.
 
 A call whose arguments the MCP adapter cannot shape at all (a missing parameter, a number where a list belongs) is still handed to the application, which answers it with an `ERROR` outcome — carrying the game summary when the call names an existing game — and adds its call record.
 
-If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service. If even the call record cannot be added, that error is still returned with its rendered text.
+If anything fails unexpectedly, the unit of work is rolled back, a call record is still added, and the outcome is an error that says the failure was inside the service. In a contested game that outcome still carries the calling seat's digest, assembled after the rollback, because its call record moves the seat's digest baseline. If even the call record cannot be added, that error is still returned with its rendered text.
 
 ## In-Memory Adapters
 
@@ -217,6 +233,13 @@ Conventions that keep tests readable:
 | Where the digest is assembled | The use case, from log entries after the seat's digest baseline | Kept on the game per seat | The records already hold every change in order; keeping a digest on the game would grow its state and change it on read-only calls. |
 | What moves a seat's digest baseline | Only a call whose response carried a digest; `get_log` does not | Every call the seat makes | A `get_log` response is JSON with no digest lines; if it moved the baseline, the changes made since the seat's last text response would never be shown to it. |
 | The range of `wait`'s timeout | 1 to 60 seconds, anything else an error | Clamp to the range; allow 0 as a poll | A clamped value hides a caller's mistake; a zero wait is `get_state`, which already answers at once. |
+| The type of `wait`'s timeout | Any number in the range, fractions included | Whole seconds only | Refusing `1.5` would turn a harmless value into an error for no gain. |
+| A `wait` that times out | `OK`, with a summary that says so | `ERROR`; a fifth status | Nothing was wrong with the call, an `ERROR` would set the MCP error flag, and the four statuses already cover it. |
+| What ends a `wait` | The seat becoming a seat to act, its elimination, the game's end, the timeout | Also any notice being raised | Every notice the tested seat must act on already makes it a seat to act or eliminates it; returning on others would wake seats that have nothing to do. |
+| What a seat is shown of a change to its own hidden zones made in another seat's call | The entry's `private` list for that seat, taken as stored | Public events only | A seat's turn begins, and its spells resolve, inside other seats' calls; with counts alone it would call `get_state` every turn to learn what it drew. |
+| A resend's digest and status line | Of the moment the resend is answered | The original response reproduced whole | Other seats may have acted since; the resend's call record moves the baseline, so an old digest would lose their changes for good. |
+| Which refusal a call out of turn with a stale `after` gets | That it is not the seat's call | That its change number is stale | A seat that is not to act usually has a stale number because others acted; telling it to `wait` is what helps it. |
+| A second snapshot for a table turn | The store raises | Replace the first; ignore the second | The domain writes at most one; a second is a defect, and replacing or ignoring it would hide the defect. |
 | When the HTTP scenarios run | In CI, not before commits | Before every commit | They start a real process and several clients, which is too slow for the checks run before each commit; the in-process scenarios cover the same flows there. |
 | How refusals travel | Return values | Exceptions | Refusals are the normal, expected result of a rule check; modelling them as values makes "refused, nothing changed" visible in every signature. |
 | How a refused operation leaves the game untouched | Operations work on a copy and return it only when applied | Mutate and undo; validate fully before mutating | Guaranteed by construction, with no undo logic to get wrong. |

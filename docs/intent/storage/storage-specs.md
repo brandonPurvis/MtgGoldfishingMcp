@@ -34,10 +34,11 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-010**: When asked to add a loaded deck whose id already exists, the SQLite adapter shall leave the existing loaded deck in place.
 - [x] **STOR-011**: The SQLite adapter shall keep games, log entries, snapshots, call records and loaded decks indefinitely and delete none of them automatically.
 - [x] **STOR-012**: When asked for a game's records after a given change number, the SQLite adapter shall return only log entries with a greater sequence number, call records with a greater change number, and snapshots written by those entries.
-- [ ] **STOR-021**: The SQLite adapter shall store with each call record the calling seat's seat number, or null when the call record carries none.
+- [ ] **STOR-021**: The SQLite adapter shall store with each call record the seat number the call record carries, or null when it carries none: every call record of a goldfish game (whose records name no seat, although its `seats` row has seat number 1), a contested game's `new_game`, and a call whose id names no seat.
 - [ ] **STOR-022**: When asked through `RecordStore` for a seat's digest baseline, the SQLite adapter shall return the change number of the latest-stored call record with that game id and seat number whose tool is not `get_log`, or report that the seat has none.
 - [ ] **STOR-023**: The SQLite adapter shall keep an index on the game id and seat number columns of `calls`.
 - [ ] **STOR-028**: The SQLite adapter shall key each stored turn snapshot by game id and table turn number, which in a goldfish game is the turn number, so that the snapshots of different seats' turns in a contested game never replace one another.
+- [ ] **STOR-029**: If the SQLite adapter is asked to add a snapshot whose game id and table turn number already have a stored snapshot, then it shall raise an exception and write nothing, neither replacing the stored snapshot nor ignoring the new one silently.
 
 ## Schema
 

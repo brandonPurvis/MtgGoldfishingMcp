@@ -46,14 +46,14 @@ Any payment spends suitable mana already in the pool before tapping anything, an
 
 ## Mana Sources
 
-A **mana source** is a permanent on the battlefield, controlled by the acting seat, with at least one mana ability reading (see `card-reading`), or a token whose `TokenSpec` gives `produces`, or a card whose definition gives `produces`. A source's counted amounts are evaluated from game state at the moment of payment. A permanent with several mana abilities may be used through any one of them in a payment, never through more than one, since each taps it.
+A **mana source** is a permanent on the battlefield, controlled by the acting seat, with at least one mana ability reading (see `card-reading`), or a token whose `TokenSpec` gives `produces`, or a card whose definition gives `produces`. A source's counted amounts are evaluated from game state at the moment of payment. Whatever a reading says of "you" means the seat that controls the source: its permanents, devotion, hand and graveyard are the ones counted, and "your commander's color identity" is that of its commanders, even when the source came from another seat's deck. A permanent with several mana abilities may be used through any one of them in a payment, never through more than one, since each taps it.
 
 A source is **available** to the auto payment system when all of these hold:
 
 - it is untapped;
 - its ability taps, does not sacrifice it, and has no cost other than tapping, life or mana;
 - if its ability costs life, the agent's life after the whole payment — sources, Phyrexian symbols and `pay.life` together — would stay at 1 or more;
-- if it is a creature, it did not enter the battlefield this turn, or it has haste (its own, or granted by another permanent's reading);
+- if it is a creature, it did not enter the battlefield this turn, or it has haste (its own, or granted by the reading of another permanent the same seat controls: a grant reads `creatures you control`, so one seat's permanent never gives haste to another seat's creature);
 - if its ability has a restriction, the card being paid for qualifies, and the restriction's card types are known;
 - its ability has a reading, with or without assumptions.
 
@@ -78,7 +78,7 @@ When a source makes more mana than needed, the surplus goes to the pool and the 
 
 If no valid payment exists, the cost is **not payable**: a rule check (see `play`). The refusal states the cost, how much mana is available, and which color requirement cannot be met.
 
-Whether a cost is payable at all is always decided exactly. Choosing *among* valid payments is exhaustive in principle: identical sources are treated as interchangeable to keep the search small, payments are examined in a fixed order, and at most 20,000 are examined; past that, the best found so far is used. The limit is a count, never a time, so the same game state always produces the same payment on any machine. When named sources offer a choice (see below), at most 64 layouts of their mana are tried, each searched within the 20,000-payment limit.
+Whether a cost is payable at all is always decided exactly. Choosing *among* valid payments is exhaustive in principle: identical sources are treated as interchangeable to keep the search small, payments are examined in a fixed order, and at most 20,000 are examined; past that, the best found so far is used. The limit is a count, never a time, so the same game state always produces the same payment on any machine. When named sources offer a choice (see below), the search runs once for each **layout** of their mana: one choice of ability and of mana for every named source at once. Layouts are taken in a fixed order — the sources as `pay.with` lists them, each source's choices as its abilities and their options were read, the last-listed source's choice changing first — and at most 64 are tried, each within a 20,000-payment limit of its own; the best payment found over them is used. Three named five-color sources already have 125 layouts, so when none of the first 64 pays, the cost is reported not payable though a later layout might pay it, and the agent states the mana of some of the sources.
 
 ## Agent-Directed Payment
 
@@ -116,6 +116,7 @@ OK Cast Cultivate. Paid {2}{G}: tapped Forest, Forest, Island.
 | Summoning-sick creatures | Not used automatically; a rule check when named | Error when named | The service may not know the creature was given haste; the agent can override. |
 | Named sources plus remainder | Named sources first, auto payment for the rest | Named sources must cover the whole cost | The agent can say "use the Treasure" without also listing five lands. |
 | Explicit cost | Allowed with a required override reason | Trusted silently; not allowed | The service cannot verify a reduced or alternative cost; the override keeps a record of why. |
+| More than 64 layouts of named sources | The first 64 in a fixed order; not payable when none of them pays | Every layout; a payment limit shared across layouts | Layouts multiply with each named source, and the agent who named the sources can state their mana in the same call. A fixed count keeps the payment the same on every machine. |
 | Search bound | A fixed count of payments examined, best found so far | Unbounded exhaustive; a time limit | A response must come back promptly even on a very wide board; a time limit would make the payment depend on the machine and break reproducibility. |
 
 ## Open Questions & Future Decisions
