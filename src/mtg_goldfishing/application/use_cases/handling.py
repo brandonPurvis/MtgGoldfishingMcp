@@ -457,6 +457,7 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
         summary=applied.summary,
         events=applied.events,
         seat=loaded.seat,
+        final=applied.final,
     )
     summary, events = _seen(loaded.seat, applied.summary, applied.events)
     game = summarize(changed, loaded.deck, loaded.seat, decks=loaded.decks)

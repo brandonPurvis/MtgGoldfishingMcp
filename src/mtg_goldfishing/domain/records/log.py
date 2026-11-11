@@ -68,7 +68,7 @@ DELTA_TOOLS = ("play", "effect", "choose")
 
 # @spec REC-001, REC-003, REC-004, REC-005, REC-006, REC-007, REC-008, REC-027, REC-030
 # @spec REC-057, REC-058, REC-065, REC-061, REC-072, REC-073, REC-075, REC-076, REC-080
-# @spec REC-082, REC-083, REC-084, REC-085
+# @spec REC-082, REC-083, REC-084, REC-085, REC-097, REC-102
 def log_entry(
     *,
     tool: str,
@@ -86,7 +86,9 @@ def log_entry(
     `before` is the game as it was when the call was made (None for `new_game`); `after`
     is the game once the call has been counted as its next change. Everything is taken
     from the call's summary and events and from those two games, never from response text.
-    Every value is JSON-compatible data, so the entry can be stored and exported.
+    Every value is JSON-compatible data, so the entry can be stored and exported. `final`,
+    every seat's state when the tested seat ended a contested game, is held in the outcome
+    alone, in none of the entry's events.
 
     In a contested game the entry also places the call among the seats and holds its
     public and private events, and no opposing seat's seat id is kept anywhere in it.
@@ -101,7 +103,7 @@ def log_entry(
         step=before.step if before else None,
         tool=tool,
         arguments=stored_arguments(copy.deepcopy(dict(arguments)), after.game_id, seat_ids),
-        outcome=_outcome(tool, reported, after),
+        outcome=_with_final(_outcome(tool, reported, after), final),
         card=played.card if played else effect.source if effect else None,
         from_zone=played.from_zone if played else None,
         delta=_delta(tool, arguments, before, after, reported),
@@ -131,6 +133,34 @@ def log_entry(
         contested=_contested(tool, before, after, seat, reported) if after.contested else None,
     )
     return redacted(entry, seat_ids)
+
+
+def _with_final(
+    outcome: dict[str, object] | None, final: Sequence[SeatFinal] | None
+) -> dict[str, object] | None:
+    """The outcome with `final` beside the result and notes, when there is one."""
+    if final is None:
+        return outcome
+    return {**(outcome or {}), "final": [_seat_final_to_data(seat) for seat in final]}
+
+
+# @spec REC-098, REC-099
+def _seat_final_to_data(seat: SeatFinal) -> dict[str, object]:
+    """One seat's final state as data; commander damage taken keyed by seat number as text."""
+    return {
+        "seat": seat.seat.value,
+        "life": seat.life,
+        "eliminated": seat.eliminated,
+        "hand": list(seat.hand),
+        "battlefield": [
+            {"name": p.name, "tapped": p.tapped, "counters": dict(p.counters)}
+            for p in seat.battlefield
+        ],
+        "graveyard": list(seat.graveyard),
+        "commander_damage_taken": {
+            str(dealer.value): dict(dealt) for dealer, dealt in seat.commander_damage_taken
+        },
+    }
 
 
 def _turn(before: Game | None, after: Game) -> int:

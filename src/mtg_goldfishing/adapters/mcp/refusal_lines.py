@@ -142,7 +142,8 @@ def _error_text(error: Error) -> str:
                 " seat declares its own blocks and each attacker attacks a seat named in targets."
             )
         case ErrorKind.NO_SUCH_SEAT:
-            return f"There is no seat S{error.number} in this game."
+            seats = f" Its seat numbers are {names}." if names else ""
+            return f"There is no seat S{error.number} in this game.{seats}"
         case ErrorKind.SEAT_OUT:
             return f"S{error.number} has been eliminated."
         case ErrorKind.HIDDEN_ZONE:
@@ -368,6 +369,10 @@ def _error_text(error: Error) -> str:
             return f"{subject} was not found, so its definition needs a type_line."
         case ErrorKind.BAD_TIMEOUT:
             return "timeout must be a number of seconds from 1 to 60."
+        case ErrorKind.UNKNOWN_TOOL:
+            return f"tools names {subject}, which are not tools. The tools are {names}."
+        case ErrorKind.NO_TOOLS_NAMED:
+            return f"tools names no tool; name at least one of {names}, or leave tools out."
         case ErrorKind.CHANGED_UNDERNEATH:
             return "The game changed while this call was applied, so nothing was. Send it again."
         case ErrorKind.INTERNAL_FAILURE:

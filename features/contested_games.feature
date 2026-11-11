@@ -154,7 +154,6 @@ Feature: Starting and taking turns in a contested game
     Then the status line shows "Cmdr 0 · Cmdr taken 0 · Tax 0"
 
   # @spec REC-089, REC-055
-  @wip
   Scenario: Any seat may narrow the log to the calls one seat made
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 asks for the game's log of seat S2
@@ -163,7 +162,6 @@ Feature: Starting and taking turns in a contested game
     And the log has an entry for "mulligan"
 
   # @spec REC-097, REC-098
-  @wip
   Scenario: Ending a contested game records every seat's board in the log
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 ends the game as a "stalled"

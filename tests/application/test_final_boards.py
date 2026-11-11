@@ -6,8 +6,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -17,7 +15,6 @@ from tests.support.service import ServiceHarness, a_service
 IDS = ("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc")
 GAME = "gaaaaaaaaaa"
 S1, S2 = SeatNumber(1), SeatNumber(2)
-NOT_YET = pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
 
 
 def contested() -> ServiceHarness:
@@ -46,7 +43,6 @@ def end_game_entry(harness: ServiceHarness, reader: int = 2) -> dict[str, Any]:
 
 
 # @spec REC-097
-@NOT_YET
 def test_get_log_gives_every_seat_s_state_as_the_tested_seat_ended_the_game() -> None:
     harness = contested()
     started(harness)
@@ -60,7 +56,6 @@ def test_get_log_gives_every_seat_s_state_as_the_tested_seat_ended_the_game() ->
 
 
 # @spec REC-097
-@NOT_YET
 def test_a_game_ended_during_mulligans_records_every_seat_s_hand() -> None:
     harness = contested()
     call_as(harness, 1, "end_game", result="stalled")
@@ -73,7 +68,6 @@ def test_a_game_ended_during_mulligans_records_every_seat_s_hand() -> None:
 
 
 # @spec REC-099
-@NOT_YET
 def test_commander_damage_taken_names_each_other_seat_s_commanders_from_its_deck() -> None:
     harness = contested()
     started(harness)
@@ -86,7 +80,6 @@ def test_commander_damage_taken_names_each_other_seat_s_commanders_from_its_deck
 
 
 # @spec REC-099, REC-100
-@NOT_YET
 def test_a_seat_that_conceded_is_recorded_with_empty_zones_and_its_commanders_still_named() -> None:
     harness = contested()
     started(harness)
@@ -116,7 +109,6 @@ def test_the_end_game_response_does_not_show_final() -> None:
 
 
 # @spec REC-055, REC-097
-@NOT_YET
 def test_every_seat_reads_the_same_final_through_get_log() -> None:
     harness = contested()
     started(harness)

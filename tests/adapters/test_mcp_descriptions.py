@@ -229,15 +229,7 @@ def _contested_part(text: str) -> str:
 # @spec TOOL-033, TOOL-109
 @pytest.mark.parametrize(
     "name",
-    [
-        pytest.param(
-            name,
-            marks=[pytest.mark.xfail(strict=True, reason="M5: not implemented yet")]
-            if name == "get_log"
-            else [],
-        )
-        for name in GOLDFISH_DESCRIPTIONS
-    ],
+    [pytest.param(name) for name in GOLDFISH_DESCRIPTIONS],
 )
 def test_a_goldfish_agent_reads_every_description_as_before_once_contested_parts_are_left_out(
     name: str,
@@ -442,8 +434,6 @@ def test_the_contested_section_says_a_failed_or_empty_wait_is_the_client_giving_
 
 # ------------------------------------------------------------------ reading the records
 
-NOT_YET = pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
-
 
 def _get_log_parameter(name: str) -> str:
     """The meaning of one of get_log's parameters; empty when get_log has none of that name."""
@@ -451,7 +441,6 @@ def _get_log_parameter(name: str) -> str:
 
 
 # @spec TOOL-109
-@NOT_YET
 @pytest.mark.parametrize(
     "words",
     [
@@ -468,7 +457,6 @@ def test_get_log_describes_tools_for_every_game(words: str) -> None:
 
 
 # @spec TOOL-109
-@NOT_YET
 def test_get_log_gives_an_example_of_tools() -> None:
     (tools,) = [p for p in DEFINITIONS["get_log"].parameters if p.name == "tools"]
 
@@ -476,7 +464,6 @@ def test_get_log_gives_an_example_of_tools() -> None:
 
 
 # @spec TOOL-110
-@NOT_YET
 @pytest.mark.parametrize(
     "words",
     [
@@ -494,7 +481,6 @@ def test_the_contested_part_of_get_log_describes_seat(words: str) -> None:
 
 
 # @spec TOOL-110
-@NOT_YET
 def test_get_log_gives_an_example_of_seat() -> None:
     (seat,) = [p for p in DEFINITIONS["get_log"].parameters if p.name == "seat"]
 
@@ -502,7 +488,6 @@ def test_get_log_gives_an_example_of_seat() -> None:
 
 
 # @spec TOOL-111
-@NOT_YET
 @pytest.mark.parametrize(
     "words",
     [

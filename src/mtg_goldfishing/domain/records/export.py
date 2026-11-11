@@ -25,7 +25,7 @@ from mtg_goldfishing.domain.records.model import (
 from mtg_goldfishing.domain.records.reminders import judge_reminders
 
 
-# @spec REC-019, REC-020, REC-021, REC-022, REC-025
+# @spec REC-019, REC-020, REC-021, REC-022, REC-025, REC-089, REC-090, REC-091, REC-092
 def export(
     game: Game,
     entries: Sequence[LogEntry],
@@ -41,10 +41,14 @@ def export(
     """The get_log document for a game.
 
     With `since`, only entries numbered after it, call records whose change number is
-    after it, and snapshots written by those entries are kept. Snapshots are left out
-    when `include_snapshots` is false, call records unless `include_calls` is true; a
-    left-out section is absent from the document. Reminders are judged over every entry,
-    so a reminder answered after `since` reads as answered.
+    after it, and snapshots written by those entries are kept. With `seat`, only the entries
+    and call records of calls that seat made and the snapshots that describe it; with
+    `tools`, only the entries and call records of those tools, the snapshots untouched. A
+    record is kept when every filter given keeps it, and is exported as it is unfiltered;
+    the `game` object is always whole. Snapshots are left out when `include_snapshots` is
+    false, call records unless `include_calls` is true; a left-out section is absent from
+    the document. Reminders are judged over every entry, so a reminder answered by a call
+    the filters leave out reads as answered.
     """
     verdicts = iter(judge_reminders(entries))
     answered = [[next(verdicts).answered for _ in entry.reminders] for entry in entries]
@@ -52,20 +56,34 @@ def export(
     def after_since(number: int | None) -> bool:
         return since is None or (number is not None and number > since)
 
+    def of_seat(made_by: SeatNumber | None) -> bool:
+        return seat is None or made_by == seat
+
+    def of_tools(tool: str) -> bool:
+        return tools is None or tool in tools
+
     document: dict[str, object] = {
         "game": game_to_data(game),
         "entries": [
             log_entry_to_data(entry, verdict)
             for entry, verdict in zip(entries, answered, strict=True)
             if after_since(entry.seq)
+            and of_seat(entry.contested.seat if entry.contested else None)
+            and of_tools(entry.tool)
         ],
     }
     if include_snapshots:
         document["snapshots"] = [
-            snapshot_to_data(s) for s in snapshots if after_since(s.written_by)
+            snapshot_to_data(s)
+            for s in snapshots
+            if after_since(s.written_by) and of_seat(s.contested.seat if s.contested else None)
         ]
     if include_calls:
-        document["calls"] = [call_record_to_data(c) for c in calls if after_since(c.change)]
+        document["calls"] = [
+            call_record_to_data(c)
+            for c in calls
+            if after_since(c.change) and of_seat(c.seat) and of_tools(c.tool)
+        ]
     return document
 
 

@@ -18,6 +18,7 @@ from mtg_goldfishing.domain.game.mulligan import start_first_turn
 from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.play.settling import settle
+from mtg_goldfishing.domain.records.final import final_state
 from mtg_goldfishing.domain.records.model import TurnSnapshot
 from mtg_goldfishing.domain.records.snapshots import take_snapshot
 
@@ -47,7 +48,7 @@ def _concede(game: Game, decks: Decks, seat: SeatNumber, notes: str) -> Applied:
 
 
 # @spec GAME-045, GAME-046, GAME-047, REC-012, REC-070, APP-031, GAME-148, GAME-149, REC-050
-# @spec GAME-147, STACK-033
+# @spec GAME-147, STACK-033, REC-097, REC-101, REC-103
 def end_game(
     game: Game,
     deck: LoadedDeck,
@@ -62,7 +63,8 @@ def end_game(
 
     A turn in progress without a snapshot gets one now, describing the active seat with its
     own deck (`decks` gives each seat's; omitted, every seat plays `deck`); during mulligans
-    no turn has begun, so none is written.
+    no turn has begun, so none is written. A contested game also gives every seat's state
+    once the end has been applied, for the log entry to record as `final`.
     """
     every = decks or Decks.everyone_playing(game, deck)
     outcome = GameResult(result) if result in {r.value for r in GameResult} else None
@@ -94,4 +96,5 @@ def end_game(
         GameEnded(outcome.value, notes or ""),
         removed,
         snapshots=(snapshot,) if snapshot else (),
+        final=final_state(ended, every) if ended.contested else None,
     )

@@ -770,6 +770,7 @@ WAIT = ToolDefinition(
     overridable="Nothing; it changes nothing. A timeout outside 1 to 60 is an error.",
 )
 
+# @spec TOOL-111
 END_GAME = ToolDefinition(
     name="end_game",
     purpose="End the game with a result and verdict.",
@@ -777,7 +778,9 @@ END_GAME = ToolDefinition(
         "Discards any pending choice and declared attack, writes the turn snapshot if this"
         " turn has none, and ends the game; afterwards only `get_state` and `get_log` are"
         " accepted. Contested games: only the tested seat ends the game; an opposing seat's"
-        " end_game concedes, which eliminates it, and the game goes on."
+        " end_game concedes, which eliminates it, and the game goes on. When the tested seat"
+        " ends the game, the log records every seat's life, commander damage taken, hand,"
+        " battlefield and graveyard as the game ended, so your verdict need not restate them."
     ),
     parameters=(
         _game_id(),
@@ -799,6 +802,7 @@ END_GAME = ToolDefinition(
     overridable="Nothing; your result is trusted.",
 )
 
+# @spec TOOL-109, TOOL-110
 GET_LOG = ToolDefinition(
     name="get_log",
     purpose="Return the game's records as JSON for analysis.",
@@ -817,6 +821,13 @@ GET_LOG = ToolDefinition(
             20,
         ),
         Parameter(
+            "tools",
+            Kind.LIST,
+            "A list of tool names: keeps only the log entries and call records of calls to"
+            " those tools, leaving the snapshots as they would be without it.",
+            ["play", "attack"],
+        ),
+        Parameter(
             "include_snapshots",
             Kind.FLAG,
             "False to leave the turn snapshots out; true by default.",
@@ -828,8 +839,20 @@ GET_LOG = ToolDefinition(
             "True to include the call records; false by default.",
             True,
         ),
+        Parameter(
+            "seat",
+            Kind.WHOLE_NUMBER,
+            "Contested games: a seat number; keeps only the log entries and call records of"
+            " calls that seat made and the snapshots of that seat's turns, whichever seat calls."
+            " Refused in a goldfish game.",
+            2,
+        ),
     ),
-    overridable="Nothing; it changes nothing.",
+    overridable=(
+        "Nothing; it changes nothing. An empty `tools`, or one naming anything that is not a"
+        " tool, is an error. Contested games: a `seat` that is not one of the game's seat"
+        " numbers is an error."
+    ),
 )
 
 # @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011, TOOL-033
