@@ -44,7 +44,7 @@ The service distinguishes two kinds of refusal. An **error** is a structural imp
 
 ### The service reads card text where reading it is cheap and checkable
 
-The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, has **flash**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment and trigger reminders possible.
+The service does not know what cards do, with deliberate exceptions: it reads rules text to learn **how much mana of which colors a permanent makes**, which **step triggers** a permanent has, whether a permanent has or grants **haste or vigilance**, has or grants the **evasion** of flying, horsemanship or "can't be blocked" or the **reach** that lets a creature block flyers, has **flash**, and whether a permanent **enters tapped**. These are narrow, pattern-shaped readings whose results are shown to the agent, and they are what make automatic payment, trigger reminders and the rule checks on attacks and blocks possible.
 
 ### Everything is recorded
 
@@ -173,9 +173,9 @@ Each is one leaf design under `docs/intent/`, owning the requirement prefix show
 | `play` | Domain | `PLAY` | `play`, `effect`, `choose`: deltas, including deltas that reach other seats' cards; defaults; choices and pending choices addressed to a seat; errors and rule checks, overrides, `expect` |
 | `stack` | Domain | `STACK` | `pass`: the stack of held plays and effects, response windows, asking seats in turn order, automatic passes, resolution, countering, and confirming or restating a held delta |
 | `payment` | Domain | `PAY` | The mana pool, the auto payment system, agent-directed payment |
-| `combat` | Domain | `CMBT` | `attack`: attackers and what each attacks, blocks, the attacking seat's statement of combat between creatures, combat damage to players, commander damage |
+| `combat` | Domain | `CMBT` | `attack`: attackers and what each attacks, blocks and their evasion checks, the attacking seat's statements of combat between creatures and of trample damage, combat damage to players, commander damage |
 | `deck` | Domain | `DECK` | `load_deck`: list parsing, commander, card definitions, deck checks, the content-derived deck id |
-| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step triggers and whose turns they happen on, haste and vigilance, flash, entering tapped |
+| `card-reading` | Domain | `READ` | Reading rules text and keywords: mana sources and their amounts, step triggers and whose turns they happen on, haste and vigilance, evasion and reach, flash, entering tapped |
 | `records` | Domain | `REC` | `get_log`: the shape and meaning of log entries, turn snapshots and call records, and the seat each belongs to |
 | `application` | Application | `APP` | `wait`: the use cases, the ports and their injection, outcomes, digests, transactions, per-game ordering, and the rule that dependencies point inward |
 | `card-data` | Domain + adapter | `CARD` | The card model (domain) and the Scryfall adapter with its cache that supplies it |

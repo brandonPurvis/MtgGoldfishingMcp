@@ -55,11 +55,13 @@ A parameter that is an object or a list (`delta`, `choices`, `pay`, `expect`, `s
 
 Each tool description states, in this order: what the tool is for in one sentence; what the service does automatically as a result; each parameter's meaning with one example value; and what can be overridden. Descriptions use the terms in `GLOSSARY.md`. The shape of a delta is described once, in `play`, and `effect` refers to it. What a tool does only in a contested game is described in a final sentence or parameter marked "Contested games:", so an agent playing a goldfish game can pass over it.
 
-Three things about combat in a contested game are easy to get wrong from the parameter list alone, and the descriptions say them outright (see `combat`):
+Five things about combat in a contested game are easy to get wrong from the parameter list alone, and the descriptions say them outright (see `combat`):
 
 - `effect`: an immediate `effect` that states the result of combat gives only what happens to the creatures. The service deals the declared attack's damage to seats on entering `combat_damage`, whatever an earlier `effect` said, so a `life` or `damage` entry for that damage would be applied on top of it.
-- `attack`: a `damage` entry for a blocked attacker is dealt in full to the seat it attacks; the service subtracts nothing for blockers, so the entry is the damage that gets past them.
+- `attack`: a blocked attacker deals no combat damage to the seat it attacks, its `damage` entry included, unless the attacking seat states its trample damage once blocks are known, with an `attack` that gives `trample` alone.
 - `attack`: the call may stop before attackers are declared, at a step where another seat has a reminder. Nothing is declared or tapped, and the attacking seat sends `attack` again once it is the seat to act.
+- `attack`: `evasion` states flying, horsemanship or "can't be blocked" an attacker has beyond what the service has read, such as from a spell this turn, and blocks that the attacker's evasion forbids are refused.
+- `choose`: a `blocks` answer is refused, overridably, when the attacker's evasion forbids a block; a blocker that has flying or reach only for this turn blocks with an override giving that reason.
 
 ### Server instructions
 
@@ -82,7 +84,7 @@ It continues with a short section on contested games:
 2. Seats act one at a time. When it is not your seat's turn to act, call `wait`; it returns when it is, with what you are being asked.
 3. Spells and abilities go on the stack and resolve once every other seat has passed. When you are asked to respond, `play` or `effect` to respond, or `pass`.
 4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect asks of you, or whether a spell still does what you said.
-5. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it.
+5. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it. A blocked attacker deals a seat nothing unless the attacking seat states its trample damage with `attack` and `trample` before combat damage.
 6. Each response begins with what the other seats did since your last call.
 7. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
 
@@ -187,7 +189,7 @@ Your pending choices (2):
   x8 (ask) from S2: Sacrifice a creature.
 ```
 
-A `blocks` choice reads `x9 (blocks): attacked by Grizzly Bears (c61), Llanowar Elves (c62)`, and a `resolve` choice `x10 (resolve): s2 Rancor holds delta {"move": ...} and goes to battlefield`, followed by the error that kept it from resolving as held, if any. A goldfish game's listing has no such lines.
+A `blocks` choice reads `x9 (blocks): attacked by Grizzly Bears (c61), Serra Angel (c62, flying)`, each attacker's evasion following its instance id, and a `resolve` choice `x10 (resolve): s2 Rancor holds delta {"move": ...} and goes to battlefield`, followed by the error that kept it from resolving as held, if any. A goldfish game's listing has no such lines.
 
 ### In MCP terms
 
@@ -212,7 +214,8 @@ It is given a deck id (or a deck list to load), and optionally a seed and turn l
 - read the digest at the top of each response to follow what other seats did;
 - respond with `play` or `effect` when asked and it has something worth doing, and `pass` otherwise;
 - answer pending choices addressed to it, including blocks and decisions other seats' effects ask of it;
-- when attacking, state what happens to the creatures with `effect` and `immediate: true` after blocks, leaving out the damage to seats, which the service deals; give `damage` for a blocked attacker only for what gets past its blockers;
+- when attacking, state what happens to the creatures with `effect` and `immediate: true` after blocks, leaving out the damage to seats, which the service deals; once blocks are known and before advancing to combat damage, state with `attack` and `trample` the damage each blocked attacker with trample deals past its blockers, since a blocked attacker otherwise deals the seat nothing;
+- when attacking, give `evasion` for flying, horsemanship or "can't be blocked" an attacker has only this turn; when blocking, block only as the attackers' evasion allows, and override a refused block only when the refusal is wrong for this turn — a blocker that has gained flying or reach, an attacker that has lost its evasion, or an assumed condition that does not hold — giving that as the reason;
 - when an `attack` response says the attack was not declared, call `wait` and send the same `attack` again;
 - as the tested seat, end the game with `end_game` and a verdict that names what the opposition did to the deck; as an opposing seat, concede with `end_game` when it is beaten, and otherwise play until the game ends;
 - return its seat number, the id it was given (the game id for the tested seat, its own seat id for an opposing seat) and its verdict as its final message; a subagent given a seat rather than a deck is never shown the seed, so it returns none.

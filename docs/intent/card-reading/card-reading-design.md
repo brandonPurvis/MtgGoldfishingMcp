@@ -7,11 +7,11 @@ prefix: READ
 
 ## Context and Design Philosophy
 
-The service does not know what cards do. This component holds the deliberate exceptions: four narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and attack bookkeeping possible.
+The service does not know what cards do. This component holds the deliberate exceptions: four narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and the checks on attacks and blocks possible.
 
 1. **Mana sources**: how much mana of which colors a permanent makes, and what using it costs.
 2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in, and on whose turns.
-3. **Haste and vigilance**: whether a permanent has either keyword itself or grants it to others.
+3. **Combat keywords**: whether a permanent has, itself, or grants to others haste, vigilance, the evasion of flying, horsemanship or "can't be blocked", or reach.
 4. **Entering tapped**: whether a permanent enters the battlefield tapped.
 
 Every mana ability reading, keyword reading and enters-tapped reading carries a list of `assumptions`, empty when the text matched a known form exactly. Step triggers carry none.
@@ -95,7 +95,7 @@ An ability gets no reading when it adds mana but neither taps nor sacrifices the
 
 A card with several mana abilities is reported per ability: it can appear both as read and, for another ability, as unread.
 
-For a set of cards the reader produces lists a caller can show: mana abilities read exactly, mana abilities read with assumptions (each with its assumptions), unread mana abilities, cards with step triggers, cards that have or grant haste or vigilance, and cards that enter tapped or are assumed to enter untapped.
+For a set of cards the reader produces lists a caller can show: mana abilities read exactly, mana abilities read with assumptions (each with its assumptions), unread mana abilities, cards with step triggers, cards that have or grant each combat keyword, and cards that enter tapped or are assumed to enter untapped.
 
 ## Step Triggers
 
@@ -125,17 +125,21 @@ The table is the whole list. A phrase that names opponents or other players in a
 
 Which readings produce a reminder on a given turn is decided by `turn`: a goldfish game has only the controller's turns, so an `opponents` reading never produces one there. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones: `the next` step reads as `each`, like `the end step`, since the text does not say whose turn it will be, and `your next` step reads as `controller`. The reminder is harmless when it does not apply. A face with several triggers in the same step and of the same `whose` yields that pair once.
 
-## Haste and Vigilance
+## Combat Keywords
 
-For each of the two keywords a face gets one of:
+The combat keywords are haste and vigilance, which `combat` checks when attacking; flying, horsemanship and "can't be blocked", the evasion `combat` checks when blocks are declared; and reach, which lets a blocker block a creature with flying. "Can't be blocked" is not a keyword in Magic but an ability phrase; it is read here because it is checked in the same way.
 
-- **own**: the keyword stands as an ability of the card itself: on a line of its own or in a comma-separated keyword line.
-- **grants**: a static ability gives the keyword to creatures the controller has, in one of the forms `Creatures you control have <keyword>`, `Other creatures you control have <keyword>`, `<Subtype> creatures you control have <keyword>`, `<plural subtype> you control have <keyword>`, including when the keyword is one item in a longer list (`get +1/+1 and have vigilance`). A grant records whether it includes the card itself and which subtype, if any, it is limited to. A plural subtype (`Goblins you control have haste`, `Allies you control have vigilance`) is recorded in its singular form (`Goblin`, `Ally`). Only standing grants are read: text that gives the keyword for a limited time (`gain haste until end of turn`, `gains haste this turn`), whether on a spell or inside an activated or triggered ability, is not a grant.
+For each combat keyword a face gets one of:
+
+- **own**: the keyword stands as an ability of the card itself: on a line of its own or in a comma-separated keyword line, reminder text in parentheses ignored. "Can't be blocked" is own when a sentence whose subject is the card itself says it can't be blocked and nothing more (`This creature can't be blocked.`, `<Name> can't be blocked.`).
+- **grants**: a static ability gives the keyword to creatures the controller has, in one of the forms `Creatures you control have <keyword>`, `Other creatures you control have <keyword>`, `<Subtype> creatures you control have <keyword>`, `<plural subtype> you control have <keyword>`, including when the keyword is one item in a longer list (`get +1/+1 and have vigilance`). "Can't be blocked" is granted in the same forms with `can't be blocked` in place of `have <keyword>` (`Other Rogues you control can't be blocked.`). A grant records whether it includes the card itself and which subtype, if any, it is limited to. A plural subtype (`Goblins you control have haste`, `Allies you control have vigilance`) is recorded in its singular form (`Goblin`, `Ally`). Only standing grants are read: text that gives the keyword for a limited time (`gain haste until end of turn`, `gains flying this turn`, `can't be blocked this turn`), whether on a spell or inside an activated or triggered ability, is neither a grant nor the card's own keyword; for flying, horsemanship, reach and "can't be blocked", neither is any keyword an activated or triggered ability gives, with or without a stated duration (`{2}{U}: This creature gains flying`, `Whenever this creature attacks, it can't be blocked`).
 - **none**.
 
-A keyword the card has only under a condition (`has haste as long as you control a Mountain`) is read as **own**, with the assumption "assumes its condition is met". The condition may itself speak of the turn (`As long as you've cast a noncreature spell this turn, this creature has vigilance`); that is still a standing ability under a condition, not a keyword given for a limited time. A grant under a condition is read as a grant with the same assumption.
+A keyword the card has only under a condition (`has haste as long as you control a Mountain`, `can't be blocked as long as defending player controls an Island`) is read as **own**, with the assumption "assumes its condition is met". The condition may itself speak of the turn (`As long as you've cast a noncreature spell this turn, this creature has vigilance`); that is still a standing ability under a condition, not a keyword given for a limited time. A grant under a condition is read as a grant with the same assumption. For flying, horsemanship, reach and "can't be blocked" a condition is one introduced by `as long as` or `if`, before or after the keyword. For evasion this assumption leans toward refusing a block: a blocking seat that knows the condition is not met overrides the refusal, which shows the assumption.
 
-Keywords conferred through attachment (`Equipped creature has haste`, `Enchanted creature has vigilance`) are not read, because the service does not track what is attached to what.
+"Can't be blocked" qualified by what may or may not block (`can't be blocked except by creatures with flying`, `can't be blocked by Walls`, `can't be blocked by more than one creature`) gets no reading: such restrictions are not checked (see `combat`).
+
+Keywords conferred through attachment (`Equipped creature has haste`, `Enchanted creature has flying`, `Enchanted creature can't be blocked`) are not read, because the service does not track what is attached to what.
 
 Flash is read the same way as an own keyword, for the timing check in `play`.
 
@@ -159,7 +163,10 @@ The reading applies to any permanent, not only lands.
 | Conditional enters-tapped text | Read as entering untapped, with the condition shown | Read as entering tapped | A player usually arranges to meet the condition; the shown assumption lets the agent tap the land itself when it does not. |
 | Counted amounts | Returned as a rule, evaluated by the holder of game state | Reader takes game state | Keeps reading pure and testable from text alone. |
 | Own versus granted keyword | Decided from text position, not Scryfall's keyword list | Trust the keyword list | The list includes keywords a card grants to others, so it cannot tell a hasty creature from one that gives haste. |
-| Attachment-conferred keywords | Not read | Track attachments | Attachment tracking is rules-engine territory; the agent states haste or vigilance in the `attack` call instead. |
+| Attachment-conferred keywords | Not read | Track attachments | Attachment tracking is rules-engine territory; the attacking seat states haste, vigilance or evasion in the `attack` call instead, and a blocking seat overrides a refused block. |
+| Which evasion is read | Flying, horsemanship and unqualified "can't be blocked", with reach as the blocker's keyword | Also menace, fear, intimidate, shadow, protection and landwalk | These are what `combat` checks; the others need colors, artifact types or counts of blockers, and wait until `combat` checks them. |
+| "Can't be blocked" with a qualification | No reading | Read as plain "can't be blocked"; read as a restriction to check | Read as plain, it would refuse blocks Magic allows; a restriction reading has no check to serve yet. |
+| Evasion under a condition | Read as present, the condition shown as an assumption | No reading | It matches how haste and vigilance under a condition are read. The resulting refusal is overridable and shows the assumption, so a wrong guess costs one resubmission; no reading would let an illegal block through unseen. |
 | Whose turns a step trigger happens on | Read as controller, each, or opponents | Read the step only; ignore opponents-only phrases | In a contested game other seats' turns exist, and a trigger on each opponent's upkeep is the controller's to record during another seat's turn. |
 
 ## Open Questions & Future Decisions
@@ -169,9 +176,11 @@ The reading applies to any permanent, not only lands.
 2. Step triggers in zones other than the battlefield (a card that triggers from the graveyard at upkeep) are readable, but which zones are scanned is decided by `turn`.
 3. Additional `Count` kinds are added as cards that need them are encountered.
 4. Opponent-only step phrases beyond upkeep, draw step and end step, and wordings such as `each other player's`.
+5. Readings for the evasion and blocking restrictions `combat` does not yet check: menace, fear, intimidate, shadow, protection, landwalk, qualified "can't be blocked", "can't block".
 
 ## References
 
 - `docs/high-level-design.md` (tenet *Best guess, shown*)
 - `docs/intent/card-data/card-data-design.md` (card model)
 - `docs/intent/payment/payment-design.md` (how readings are used)
+- `docs/intent/combat/combat-design.md` (how combat keywords are used)
