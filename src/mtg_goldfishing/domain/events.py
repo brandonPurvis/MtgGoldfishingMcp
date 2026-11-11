@@ -73,10 +73,13 @@ class ErrorKind(Enum):
     WRONG_CHOICE = "wrong_choice"
     NOT_REVEALED = "not_revealed"
     WRONG_ANSWER = "wrong_answer"
+    ANSWER_TEXT_TOO_LONG = "answer_text_too_long"
     ANSWER_MAY_NOT_REVEAL = "answer_may_not_reveal"
     HAND_ANSWER_DELTA = "hand_answer_delta"
     SOURCE_MANA_UNKNOWN = "source_mana_unknown"
     SOURCE_TAPPED = "source_tapped"
+    LAND_NOT_CAST = "land_not_cast"
+    CAST_TRIGGER_REVEALS = "cast_trigger_reveals"
     # mulligan and advance
     BOTTOM_NOT_IN_HAND = "bottom_not_in_hand"
     BOTTOM_WITHOUT_KEEP = "bottom_without_keep"
@@ -584,10 +587,12 @@ class ChoiceResolved:
 
 @dataclass(frozen=True)
 class AskAnswered:
-    """A seat's answer to an `ask` pending choice; what its delta did follows it."""
+    """A seat's answer to an `ask` pending choice; what its delta did follows it. `text` is
+    the answer's answer text as the game holds it, None when the answer carries none."""
 
     choice_id: str
     seat: SeatNumber
+    text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -763,12 +768,14 @@ class AttackNotDeclared:
 
 @dataclass(frozen=True)
 class ItemStacked:
-    """A play or effect put on the stack as item `item`, of kind `spell` or `ability`."""
+    """A play or effect put on the stack as item `item`, of kind `spell` or `ability`; a cast
+    trigger names the spell it was stated with in `cast_with`."""
 
     item: str
     controller: SeatNumber
     source: str
     kind: str
+    cast_with: str | None = None
 
 
 @dataclass(frozen=True)
@@ -791,6 +798,16 @@ class AutomaticPass:
     seat: SeatNumber
     item: str | None
     window: str
+
+
+@dataclass(frozen=True)
+class CastTriggerApplied:
+    """In a goldfish game, a cast trigger stated with `play` applied within the call: its
+    source and its delta as applied, with what the service added under `added`. What it
+    changed follows it."""
+
+    source: str
+    delta: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -979,6 +996,7 @@ Event = (
     | Passed
     | AutomaticPass
     | ItemResolved
+    | CastTriggerApplied
     | ItemCountered
     | ItemRemoved
     | ResolveAsked

@@ -34,10 +34,10 @@ from mtg_goldfishing.domain.game.movement import move
 from mtg_goldfishing.domain.game.notices import examine_end_conditions
 from mtg_goldfishing.domain.play.arguments import read_delta
 from mtg_goldfishing.domain.play.delta import apply_delta
-from mtg_goldfishing.domain.stack.items import begin_asking_again, disturb_every_item
+from mtg_goldfishing.domain.stack.items import begin_asking_again, disturb_items_below
 
 
-def _added(events: Sequence[Event]) -> dict[str, object]:
+def added_bookkeeping(events: Sequence[Event]) -> dict[str, object]:
     """What the service added to a resolving delta: shuffles, commanders sent to the command
     zone instead, and tokens that ceased to exist."""
     moves = [event for event in events if isinstance(event, CardMoved)]
@@ -97,9 +97,13 @@ def _apply(
     if isinstance(applied, Error):
         return applied
     events.extend(applied)
-    disturb_every_item(game)
+    disturb_items_below(game, item)
     resolved = ItemResolved(
-        item.id, item.controller, item.source, {**dict(delta), "added": _added(events)}, went
+        item.id,
+        item.controller,
+        item.source,
+        {**dict(delta), "added": added_bookkeeping(events)},
+        went,
     )
     events.extend(examine_end_conditions(game))
     events.extend(check_eliminations(game))
@@ -108,7 +112,7 @@ def _apply(
 
 
 # @spec STACK-016, STACK-017, STACK-018, STACK-019, STACK-020, STACK-021, STACK-022
-# @spec STACK-072, STACK-073, STACK-074, STACK-080, STACK-081, STACK-023
+# @spec STACK-072, STACK-073, STACK-074, STACK-080, STACK-081, STACK-023, STACK-089
 def resolve_item(
     game: Game,
     decks: Decks,

@@ -323,7 +323,6 @@ def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_tra
 
 
 # @spec TOOL-084
-@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 def test_the_contested_section_says_to_state_cast_triggers_in_the_play_that_casts() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 
@@ -332,7 +331,6 @@ def test_the_contested_section_says_to_state_cast_triggers_in_the_play_that_cast
 
 
 # @spec TOOL-085
-@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 def test_the_contested_section_says_to_give_a_named_card_or_guess_as_text() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 

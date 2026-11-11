@@ -56,8 +56,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import TESTED, Situation, a_game
 from tests.support.library import LIBRARY
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
-
 # ---------------------------------------------------------------------------------------
 # Arranging calls
 # ---------------------------------------------------------------------------------------
@@ -541,7 +539,6 @@ def test_a_log_entry_holds_only_json_compatible_data() -> None:
 
 
 # @spec REC-083
-@NOT_BUILT
 def test_a_goldfish_play_records_each_cast_trigger_s_delta_as_applied_in_the_order_listed() -> None:
     situation = (
         a_game()
@@ -574,7 +571,6 @@ def test_a_goldfish_play_records_each_cast_trigger_s_delta_as_applied_in_the_ord
 
 
 # @spec REC-083, REC-004
-@NOT_BUILT
 def test_a_goldfish_spell_s_delta_holds_none_of_its_cast_triggers_bookkeeping() -> None:
     situation = (
         a_game()
@@ -592,7 +588,6 @@ def test_a_goldfish_spell_s_delta_holds_none_of_its_cast_triggers_bookkeeping() 
 
 
 # @spec REC-085
-@NOT_BUILT
 def test_a_goldfish_entry_whose_call_stated_no_cast_triggers_records_an_empty_list() -> None:
     situation = a_game().build()
     entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck, TESTED))

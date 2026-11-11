@@ -21,7 +21,6 @@ from tests.support.tables import two_seats
 
 DISCARD = "discard a card"
 NAME_A_CARD = "name a card"
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 
 
 def table_of(seats: int = 3, *, third_out: bool = False) -> Situation:
@@ -124,8 +123,8 @@ def test_an_ask_is_answered_with_the_answering_seat_s_own_delta_applied_at_once(
     [
         {},
         {"delta": {}},
-        pytest.param({"text": "Island"}, marks=NOT_BUILT),
-        pytest.param({"delta": {}, "text": "Island"}, marks=NOT_BUILT),
+        pytest.param({"text": "Island"}),
+        pytest.param({"delta": {}, "text": "Island"}),
     ],
     ids=["no delta", "an empty delta", "answer text alone", "answer text and an empty delta"],
 )
@@ -147,8 +146,8 @@ def test_an_ask_answered_with_no_delta_is_accepted_and_changes_nothing_else(
     "answer",
     [
         {"delta": {"life": 1}},
-        pytest.param({"text": "7"}, marks=NOT_BUILT),
-        pytest.param({"delta": {"discard": ["Island"]}, "text": "Lightning Bolt"}, marks=NOT_BUILT),
+        pytest.param({"text": "7"}),
+        pytest.param({"delta": {"discard": ["Island"]}, "text": "Lightning Bolt"}),
     ],
     ids=[
         "a delta unlike the ask",
@@ -226,8 +225,8 @@ def test_an_ask_is_answered_only_with_a_delta_and_answer_text(argument: str, val
         ({"look": {"n": 1, "rest": "library_top"}}, "delta", {}),
         ({"look": {"n": 1, "rest": "library_top"}}, "blocks", {}),
         ({"search": {}}, "rest_order", ["Forest"]),
-        pytest.param({"look": {"n": 1, "rest": "library_top"}}, "text", "Forest", marks=NOT_BUILT),
-        pytest.param({"search": {}}, "text", "", marks=NOT_BUILT),
+        pytest.param({"look": {"n": 1, "rest": "library_top"}}, "text", "Forest"),
+        pytest.param({"search": {}}, "text", ""),
     ],
     ids=[
         "look with delta",
@@ -350,8 +349,8 @@ def test_a_hand_answer_s_delta_holds_only_control_of_cards_it_puts_onto_the_batt
     ("argument", "value"),
     [
         ("rest_order", ["Island"]),
-        pytest.param("text", "Island", marks=NOT_BUILT),
-        pytest.param("text", "", marks=NOT_BUILT),
+        pytest.param("text", "Island"),
+        pytest.param("text", ""),
     ],
     ids=["rest_order", "answer text", "empty answer text"],
 )
@@ -363,7 +362,6 @@ def test_a_hand_choice_takes_no_rest_order_and_no_answer_text(argument: str, val
 
 
 # @spec PLAY-107
-@NOT_BUILT
 @pytest.mark.parametrize("text", ["the first one", ""], ids=["answer text", "empty answer text"])
 def test_a_resolve_choice_takes_no_answer_text(text: str) -> None:
     situation = two_seats(
@@ -375,7 +373,6 @@ def test_a_resolve_choice_takes_no_answer_text(text: str) -> None:
 
 
 # @spec PLAY-107
-@NOT_BUILT
 def test_a_blocks_choice_takes_no_answer_text() -> None:
     situation = at_blocks(a_duel(attackers=("Grizzly Bears",)), attackers=["Grizzly Bears"])
     assert error_kinds(blocking(situation, S2, {}, text="no blocks")) == ["wrong_answer"]
@@ -396,7 +393,6 @@ def answer_event(result: Any) -> Any:
 
 
 # @spec PLAY-138
-@NOT_BUILT
 @pytest.mark.parametrize("delta", [None, {"life": -1}], ids=["alone", "with a delta"])
 def test_an_ask_answer_s_event_holds_its_answer_text(delta: object) -> None:
     situation = table_of()
@@ -406,7 +402,6 @@ def test_an_ask_answer_s_event_holds_its_answer_text(delta: object) -> None:
 
 
 # @spec PLAY-138
-@NOT_BUILT
 @pytest.mark.parametrize("text", [None, "", " \n\t "], ids=["null", "empty", "whitespace only"])
 def test_an_ask_answer_without_answer_text_holds_none(text: object) -> None:
     situation = table_of()
@@ -414,7 +409,6 @@ def test_an_ask_answer_without_answer_text_holds_none(text: object) -> None:
 
 
 # @spec PLAY-139
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "held"),
     [
@@ -430,7 +424,6 @@ def test_answer_text_is_held_on_one_line_with_single_spaces(text: str, held: str
 
 
 # @spec PLAY-140
-@NOT_BUILT
 def test_answer_text_longer_than_200_characters_is_an_error() -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": NAME_A_CARD})
@@ -438,7 +431,6 @@ def test_answer_text_longer_than_200_characters_is_an_error() -> None:
 
 
 # @spec PLAY-140
-@NOT_BUILT
 @pytest.mark.parametrize(
     "text",
     ["x" * 200, "   " + "x" * 200 + "   ", "\U0001f525" * 200],
@@ -451,7 +443,6 @@ def test_answer_text_of_200_characters_as_held_is_accepted(text: str) -> None:
 
 
 # @spec PLAY-141
-@NOT_BUILT
 def test_answer_text_changes_nothing_its_delta_does_not() -> None:
     situation = table_of()
     hand = situation.names_in(Zone.HAND, S2)
@@ -460,7 +451,6 @@ def test_answer_text_changes_nothing_its_delta_does_not() -> None:
 
 
 # @spec GAME-179
-@NOT_BUILT
 def test_the_public_form_of_an_ask_answer_holds_its_whole_answer_text() -> None:
     situation = table_of()
     result = text_answer(situation, "Lightning Bolt")

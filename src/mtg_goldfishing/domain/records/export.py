@@ -199,6 +199,7 @@ def log_entry_to_data(entry: LogEntry, answered: Sequence[bool] | None = None) -
         "from": entry.from_zone,
         "delta": entry.delta,
         "choices": entry.choices,
+        "cast_triggers": [dict(trigger) for trigger in entry.cast_triggers],
         "paid": _payment_to_data(entry.paid) if entry.paid else None,
         "drawn": list(entry.drawn),
         "steps": [step.value for step in entry.steps],

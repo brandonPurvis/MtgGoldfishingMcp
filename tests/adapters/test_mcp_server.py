@@ -61,7 +61,6 @@ async def test_a_listed_object_parameter_also_admits_a_json_string() -> None:
 
 
 # @spec TOOL-010
-@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 async def test_cast_triggers_is_listed_as_a_list_that_also_admits_a_json_string() -> None:
     client, _ = _client()
 

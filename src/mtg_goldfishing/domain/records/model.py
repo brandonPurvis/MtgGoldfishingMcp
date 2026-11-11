@@ -177,6 +177,7 @@ class LogEntry:
     assumptions: tuple[str, ...]
     notices: tuple[str, ...]
     contested: ContestedEntry | None = None
+    cast_triggers: tuple[dict[str, object], ...] = ()
 
 
 @dataclass(frozen=True)

@@ -6,8 +6,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game.calls import accept_change
 from mtg_goldfishing.domain.game.ending import end_game
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -22,8 +20,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, acted
 from tests.support.builders import Situation
 from tests.support.tables import a_table, bolt_at, three_seats, two_seats
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 
 
 def logged(
@@ -145,7 +141,6 @@ def test_a_choose_answering_an_ask_without_answer_text_has_no_outcome() -> None:
 
 
 # @spec REC-084
-@NOT_BUILT
 def test_a_play_records_its_cast_triggers_as_stated_with_the_items_they_became() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     triggers = [
@@ -167,7 +162,6 @@ def test_a_play_records_its_cast_triggers_as_stated_with_the_items_they_became()
 
 
 # @spec REC-084
-@NOT_BUILT
 def test_a_play_with_cast_triggers_records_the_spell_s_item_as_stacked() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     triggers = [{"source": "first", "delta": {"life": 1}}]
@@ -178,7 +172,6 @@ def test_a_play_with_cast_triggers_records_the_spell_s_item_as_stacked() -> None
 
 
 # @spec REC-084
-@NOT_BUILT
 def test_a_cast_trigger_s_resolution_is_recorded_on_the_entry_of_the_call_that_caused_it() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     a_cast(situation, S1, "Lightning Bolt", cast_triggers=[{"source": "first", "delta": {}}])

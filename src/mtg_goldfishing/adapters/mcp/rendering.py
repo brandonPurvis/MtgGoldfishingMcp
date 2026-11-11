@@ -55,6 +55,7 @@ from mtg_goldfishing.domain.events import (
     CardsDiscarded,
     CardsDrawn,
     CardsRevealed,
+    CastTriggerApplied,
     ChecksOverridden,
     ChoiceAsked,
     ChoiceResolved,
@@ -133,7 +134,7 @@ class TextRenderer(Renderer):
     """Implements the `Renderer` port with the plain-text response format."""
 
     # @spec TOOL-014, TOOL-015, TOOL-016, TOOL-022, TOOL-024, TOOL-025, TOOL-026, REC-018, REC-024
-    # @spec TOOL-040, TOOL-051, TOOL-056
+    # @spec TOOL-040, TOOL-051, TOOL-056, TOOL-086
     def render(self, tool: str, outcome: Outcome) -> Rendered:
         summary = outcome.summary
         if tool == GET_LOG and outcome.status is Status.OK and isinstance(summary, LogExported):
@@ -331,6 +332,8 @@ def _place_in_order(event: Event) -> int:
             return 2
         case CostPaid():
             return 3
+        case CastTriggerApplied():
+            return 4
         case (
             CardMoved()
             | TokensCreated()
@@ -376,7 +379,7 @@ def _place_in_order(event: Event) -> int:
             | Passed()
             | AttackNotDeclared()
         ):
-            return 4
+            return 5
         case (
             CardsRevealed()
             | ResolveAsked()
@@ -385,27 +388,27 @@ def _place_in_order(event: Event) -> int:
             | BlocksRequested()
             | NothingRevealed()
         ):
-            return 5
-        case CombatDamageDealt() | CombatDamageToSeats():
             return 6
-        case AssumptionMade():
+        case CombatDamageDealt() | CombatDamageToSeats():
             return 7
-        case ReminderIssued():
+        case AssumptionMade():
             return 8
-        case AdvanceStopped():
+        case ReminderIssued():
             return 9
-        case ExpectationMismatched():
+        case AdvanceStopped():
             return 10
-        case ItemStacked():
+        case ExpectationMismatched():
             return 11
-        case AutomaticPass():
+        case ItemStacked():
             return 12
-        case ItemResolved() | ItemCountered() | ItemRemoved():
+        case AutomaticPass():
             return 13
-        case SeatEliminated():
+        case ItemResolved() | ItemCountered() | ItemRemoved():
             return 14
-        case NoticeRaised():
+        case SeatEliminated():
             return 15
+        case NoticeRaised():
+            return 16
         case _:
             assert_never(event)
 
@@ -636,6 +639,13 @@ def _asked(event: ChoiceAsked) -> str:
     text = event.text.strip()
     ending = "" if text.endswith((".", "!", "?")) else "."
     return f"Choice {event.choice_id} (ask) for {event.seat}: {text}{ending}"
+
+
+# @spec TOOL-087
+def _ask_answered(event: AskAnswered) -> str:
+    """An answer to an `ask`, with its answer text in double quotes, written verbatim."""
+    answered = f"{event.seat} answered choice {event.choice_id} (ask)"
+    return f'{answered}: "{event.text}".' if event.text is not None else f"{answered}."
 
 
 def _assumption(event: AssumptionMade) -> str:
@@ -907,7 +917,9 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
                 f' Say where they go with choose(choice_id="{event.choice_id}").'
             ]
         case AskAnswered():
-            return [f"{event.seat} answered choice {event.choice_id} (ask)."]
+            return [_ask_answered(event)]
+        case CastTriggerApplied():
+            return [f"Cast trigger: {event.source}."]
         case ChoiceRevealedTo():
             return [_revealed_to(event)]
         case ChoiceAsked():

@@ -22,7 +22,6 @@ Feature: Effects that reach other seats in a contested game
     And seat S2's graveyard holds 1 card
     And the status line shows "Act S1 turn"
 
-  @wip
   # @spec PLAY-138, GAME-179, TOOL-087
   Scenario: An answer naming a card shows its answer text to every seat
     Given a started contested game against 2 Omnath decks with the tested seat first

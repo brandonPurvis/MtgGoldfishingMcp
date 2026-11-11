@@ -133,12 +133,10 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
         pytest.param(
             "TOOL-088: state cast triggers in the play",
             ("`cast_triggers`", "`play` that casts the spell", "never in a later `effect`"),
-            marks=pytest.mark.xfail(strict=True, reason="M2: not implemented yet"),
         ),
         pytest.param(
             "TOOL-089: give a named card, guess or number as text",
             ("name a card, guess or choose a number", "`text`"),
-            marks=pytest.mark.xfail(strict=True, reason="M2: not implemented yet"),
         ),
         ("TOOL-054: the tested seat's verdict", ("tested seat", "what the opposition did")),
         ("TOOL-054: an opposing seat concedes", ("concede", "until the game ends")),
