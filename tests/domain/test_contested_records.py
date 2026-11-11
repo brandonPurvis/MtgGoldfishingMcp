@@ -6,8 +6,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game import creation
 from mtg_goldfishing.domain.game.calls import accept_change
@@ -357,7 +355,6 @@ def test_an_attack_records_the_attackers_and_the_seat_each_attacks_and_no_blocke
 
 
 # @spec REC-082
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_a_trample_statement_records_each_attacker_s_trample_damage_and_the_seat_it_attacks() -> (
     None
 ):

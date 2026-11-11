@@ -1,4 +1,5 @@
-"""`attack`: declare attackers and which are blocked."""
+"""`attack`: declare attackers and which are blocked, or state blocked attackers' trample
+damage."""
 
 from __future__ import annotations
 
@@ -30,6 +31,8 @@ def attack(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             override=override,
             targets=arguments.get("targets"),
             decks=decks,
+            evasion=arguments.get("evasion"),
+            trample=arguments.get("trample"),
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

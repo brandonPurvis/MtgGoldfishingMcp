@@ -68,6 +68,10 @@ def read_face(face: Face, card: Card) -> FaceReading:
         vigilance=read_keyword("vigilance", text),
         flash=read_keyword("flash", text),
         enters_tapped=read_enters_tapped(text),
+        flying=read_evasion_keyword("flying", text),
+        horsemanship=read_evasion_keyword("horsemanship", text),
+        reach=read_evasion_keyword("reach", text),
+        cant_be_blocked=read_cant_be_blocked(text),
     )
 
 
@@ -78,7 +82,7 @@ def read_card(card: Card) -> CardReading:
     return CardReading(tuple(read_face(face, card) for face in card.faces))
 
 
-# @spec READ-027
+# @spec READ-027, READ-064
 def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
     """What a caller can show about the readings of a set of cards, named by face."""
     read_exactly: list[ReadAbility] = []
@@ -88,6 +92,7 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
     keywords: list[KeywordReport] = []
     enters_tapped: list[EntersTappedReport] = []
     assumed_untapped: list[EntersTappedReport] = []
+    evasion_and_reach: list[KeywordReport] = []
     for card, reading in cards:
         for face, face_reading in zip(card.faces, reading.faces, strict=False):
             name = face.name
@@ -103,6 +108,11 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
             ):
                 if keyword_reading.present:
                     keywords.append(KeywordReport(name, keyword, keyword_reading))
+            evasion_and_reach.extend(
+                KeywordReport(name, keyword, keyword_reading)
+                for keyword, keyword_reading in evasion_and_reach_of(face_reading)
+                if keyword_reading.present
+            )
             tapped = face_reading.enters_tapped
             if tapped.tapped:
                 enters_tapped.append(EntersTappedReport(name, tapped))
@@ -116,6 +126,17 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
         keywords=tuple(keywords),
         enters_tapped=tuple(enters_tapped),
         assumed_untapped=tuple(assumed_untapped),
+        evasion_and_reach=tuple(evasion_and_reach),
+    )
+
+
+def evasion_and_reach_of(reading: FaceReading) -> tuple[tuple[str, KeywordReading], ...]:
+    """A face's flying, horsemanship, reach and "can't be blocked" readings, by name."""
+    return (
+        ("flying", reading.flying),
+        ("horsemanship", reading.horsemanship),
+        ("reach", reading.reach),
+        ("can't be blocked", reading.cant_be_blocked),
     )
 
 
@@ -581,15 +602,7 @@ def _granted(keyword: str, sentence: str) -> KeywordGrant | None:
     match = _GRANT.search(sentence)
     if match is None or not _keyword_named(keyword, match["keywords"]):
         return None
-    subtype: str | None = match["subtype"]
-    if subtype in _NOT_SUBTYPES:
-        return None
-    plural: str | None = match["plural"]
-    if plural is not None:
-        if plural in _NOT_PLURAL_SUBTYPES:
-            return None
-        subtype = _singular(plural)
-    return KeywordGrant(includes_self=not match["other"], subtype=subtype)
+    return _grant_of(match)
 
 
 _SINGULAR_ENDING_IE = frozenset({"Faeries", "Zombies"})
@@ -602,6 +615,102 @@ def _singular(plural: str) -> str:
     if plural.endswith("ies") and plural not in _SINGULAR_ENDING_IE:
         return plural[:-3] + "y"
     return plural[:-1]
+
+
+# Evasion and reach
+
+_CANT_BE_BLOCKED_THIS_TURN = re.compile(r"\bcan't be blocked this turn\b", re.IGNORECASE)
+# What may follow `can't be blocked` and still leave it unqualified: nothing, or a condition.
+_UNQUALIFIED = r"(?:\s+(?:as long as|if)\b[^.]*)?\.?"
+_TRAILING_CONDITION = re.compile(r"\bcan't be blocked\s+(?:as long as|if)\b", re.IGNORECASE)
+# For evasion and reach, a condition is one introduced by `as long as` or `if`.
+_EVASION_CONDITION = re.compile(r"\b(?:as long as|if)\b", re.IGNORECASE)
+_LEADING_CONDITION = re.compile(r"^(?:as long as|if)\b[^,]*,\s*", re.IGNORECASE)
+_CANT_BE_BLOCKED_GRANT = re.compile(
+    r"^(?:(?P<other>[Oo]ther )?(?:[Cc]reatures|(?P<subtype>[A-Z][A-Za-z'-]*) creatures"
+    r"|(?P<plural>[A-Z][A-Za-z'-]*s)) you control) can't be blocked" + _UNQUALIFIED + "$"
+)
+
+
+def _is_activated_or_triggered(line: str) -> bool:
+    body = _ABILITY_WORD.sub("", line)
+    return bool(_TRIGGER_START.match(body)) or _ACTIVATED.match(body) is not None
+
+
+def _standing_sentences(text: _FaceText) -> Iterable[tuple[str, bool]]:
+    """Each sentence of the face's static abilities that gives something for good, with
+    whether it does so under a condition: activated and triggered abilities, and text giving
+    a keyword for a limited time, are left out."""
+    for line in text.lines:
+        if _is_activated_or_triggered(line):
+            continue
+        for sentence in _sentences(line):
+            if _LIMITED_TIME.search(sentence) or _CANT_BE_BLOCKED_THIS_TURN.search(sentence):
+                continue
+            yield sentence, bool(_EVASION_CONDITION.search(sentence))
+
+
+# @spec READ-055, READ-056, READ-057, READ-061, READ-062, READ-063
+def read_evasion_keyword(keyword: str, text: _FaceText) -> KeywordReading:
+    """Whether the face has flying, horsemanship or reach itself, grants it to creatures you
+    control, or neither. Only standing abilities count: what a spell gives for a limited time
+    and what an activated or triggered ability gives are not read, nor what attachment
+    confers."""
+    own = any(keyword in _keyword_line_items(line) for line in text.lines)
+    grant: KeywordGrant | None = None
+    assumptions: list[str] = []
+    for sentence, conditional in _standing_sentences(text):
+        if _has_keyword_itself(keyword, sentence, text.self_reference):
+            own = True
+        elif (found := _granted(keyword, sentence)) is not None:
+            grant = found
+        else:
+            continue
+        if conditional:
+            assumptions.append(ASSUMES_CONDITION_MET)
+    return KeywordReading(own=own, grant=grant, assumptions=tuple(dict.fromkeys(assumptions)))
+
+
+# @spec READ-058, READ-059, READ-060, READ-061, READ-062, READ-063
+def read_cant_be_blocked(text: _FaceText) -> KeywordReading:
+    """Whether the face says it can't be blocked, or that creatures you control can't be,
+    with nothing after `can't be blocked` but a condition introduced by `as long as` or `if`
+    (such a condition may also come first). A qualification of what may block (`except by`,
+    `by`) gives no reading."""
+    own_sentence = re.compile(
+        rf"^{text.self_reference} can't be blocked{_UNQUALIFIED}$", re.IGNORECASE
+    )
+    own = False
+    grant: KeywordGrant | None = None
+    assumptions: list[str] = []
+    for sentence, _ in _standing_sentences(text):
+        body = _LEADING_CONDITION.sub("", sentence)
+        conditional = body != sentence or bool(_TRAILING_CONDITION.search(body))
+        if own_sentence.match(body):
+            own = True
+        elif (match := _CANT_BE_BLOCKED_GRANT.match(body)) is not None and (
+            found := _grant_of(match)
+        ) is not None:
+            grant = found
+        else:
+            continue
+        if conditional:
+            assumptions.append(ASSUMES_CONDITION_MET)
+    return KeywordReading(own=own, grant=grant, assumptions=tuple(dict.fromkeys(assumptions)))
+
+
+def _grant_of(match: re.Match[str]) -> KeywordGrant | None:
+    """The grant a matched `<creatures> you control` phrase records: whether it includes the
+    card itself, and the subtype it is limited to, a plural in its singular form."""
+    subtype: str | None = match["subtype"]
+    if subtype in _NOT_SUBTYPES:
+        return None
+    plural: str | None = match["plural"]
+    if plural is not None:
+        if plural in _NOT_PLURAL_SUBTYPES:
+            return None
+        subtype = _singular(plural)
+    return KeywordGrant(includes_self=not match["other"], subtype=subtype)
 
 
 # Entering tapped

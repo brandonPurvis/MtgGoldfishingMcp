@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.listing import list_state
@@ -130,7 +128,6 @@ def test_haste_granted_by_a_taken_permanent_is_listed() -> None:
 
 
 # @spec GAME-171, CMBT-089
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_a_taken_attacker_keeps_the_flying_its_owners_deck_reads_when_blocks_are_judged() -> None:
     builder: Any = a_game().and_an_opposing_seat().with_battlefield("Wind Drake", "Llanowar Elves")
     situation = taken_by_seat_1(builder, "Wind Drake")

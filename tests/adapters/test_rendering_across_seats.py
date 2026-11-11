@@ -136,7 +136,6 @@ def test_an_attack_reads_with_the_seat_each_attacker_attacks() -> None:
 
 
 # @spec CMBT-037, TOOL-079
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_blocks_asked_of_a_seat_read_with_the_attackers_attacking_it() -> None:
     situation = three_seats()
     acted(

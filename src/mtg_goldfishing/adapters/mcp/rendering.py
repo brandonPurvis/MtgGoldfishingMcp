@@ -21,7 +21,12 @@ from __future__ import annotations
 import json
 from typing import assert_never
 
-from mtg_goldfishing.adapters.mcp.listing_lines import report_lines, state_lines
+from mtg_goldfishing.adapters.mcp.listing_lines import (
+    EVASION_WORDS,
+    attackers_to_block,
+    report_lines,
+    state_lines,
+)
 from mtg_goldfishing.adapters.mcp.refusal_lines import (
     asked_to,
     check_text,
@@ -92,6 +97,7 @@ from mtg_goldfishing.domain.events import (
     Refused,
     ReminderIssued,
     ResolveAsked,
+    RevealedCard,
     SeatDamaged,
     SeatEliminated,
     SeatOut,
@@ -103,6 +109,7 @@ from mtg_goldfishing.domain.events import (
     StopReason,
     Tapped,
     TokensCreated,
+    TrampleDamageStated,
     Untapped,
 )
 from mtg_goldfishing.domain.game.listing import StateListing
@@ -345,6 +352,7 @@ def _place_in_order(event: Event) -> int:
             | ChoiceResolved()
             | AskAnswered()
             | AttackDeclared()
+            | TrampleDamageStated()
             | SnapshotWritten()
             | DeckLoaded()
             | GameStarted()
@@ -537,7 +545,32 @@ def _attack(event: AttackDeclared) -> str:
         line += f" {commander} attacks opponent {opponent}."
     if event.tapped:
         line += f" Tapped {_listed(event.tapped)}."
+    if event.evasion:
+        stated = ", ".join(
+            f"{attacker} ({', '.join(EVASION_WORDS[e] for e in evasions)})"
+            for attacker, evasions in event.evasion
+        )
+        line += f" Evasion stated: {stated}."
     return line
+
+
+def _trample(event: TrampleDamageStated) -> str:
+    each = "; ".join(f"{entry.attacker} {entry.damage} to {entry.seat}" for entry in event.entries)
+    return f"Trample damage: {each}." if event.entries else "Trample damage: none stated."
+
+
+def _blocks_requested(event: BlocksRequested) -> str:
+    """A `blocks` choice: the attackers it may block, with their instance ids and evasion when
+    the event holds them."""
+    if event.attacker_ids:
+        cards = tuple(
+            RevealedCard(instance_id, name)
+            for name, instance_id in zip(event.attackers, event.attacker_ids, strict=True)
+        )
+        attackers = attackers_to_block(cards, event.evasion)
+    else:
+        attackers = _listed(event.attackers)
+    return f"Choice {event.choice_id} (blocks) for {event.seat}: attacked by {attackers}."
 
 
 def _combat_damage(event: CombatDamageDealt) -> list[str]:
@@ -880,10 +913,9 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
         case ChoiceAsked():
             return [_asked(event)]
         case BlocksRequested():
-            return [
-                f"Choice {event.choice_id} (blocks) for {event.seat}: attacked by"
-                f" {_listed(event.attackers)}."
-            ]
+            return [_blocks_requested(event)]
+        case TrampleDamageStated():
+            return [_trample(event)]
         case NoBlocksDeclared():
             return [f"{event.seat} has no untapped creature: no blocks declared."]
         case BlocksDeclared():

@@ -38,6 +38,7 @@ from mtg_goldfishing.domain.events import (
     NoticeRaised,
     SeatEliminated,
     StepsEntered,
+    TrampleDamageStated,
 )
 from mtg_goldfishing.domain.game.model import Game, Reminder
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -64,6 +65,7 @@ DELTA_TOOLS = ("play", "effect", "choose")
 
 # @spec REC-001, REC-003, REC-004, REC-005, REC-006, REC-007, REC-008, REC-027, REC-030
 # @spec REC-057, REC-058, REC-065, REC-061, REC-072, REC-073, REC-075, REC-076, REC-080
+# @spec REC-082
 def log_entry(
     *,
     tool: str,
@@ -317,7 +319,9 @@ def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, obj
 
     Cards discarded are an outcome only of `advance`; a delta's discard is in the delta. A
     contested game's `new_game` holds every seat's opening hand by seat number; its attack
-    the seat each attacker attacks; its combat damage the seat each attacker dealt it to;
+    the seat each attacker attacks; a trample statement each named attacker's trample damage,
+    by name and instance id, and the seat it attacks; its combat damage the seat each attacker
+    dealt it to;
     a blocks answer each blocker and the attacker it blocks; a concession its notes.
     """
     outcome: dict[str, object] = {}
@@ -343,6 +347,16 @@ def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, obj
             outcome["attackers"] = list(event.attackers)
             outcome["blocked"] = list(event.blocked)
             outcome["targets"] = dict(event.commander_targets)
+        elif isinstance(event, TrampleDamageStated):
+            outcome["trample"] = [
+                {
+                    "attacker": entry.attacker,
+                    "attacker_id": entry.attacker_id,
+                    "damage": entry.damage,
+                    "seat": entry.seat.value,
+                }
+                for entry in event.entries
+            ]
         elif isinstance(event, CombatDamageToSeats):
             outcome["damage"] = [
                 {"attacker": h.attacker, "damage": h.damage, "seat": h.seat.value}

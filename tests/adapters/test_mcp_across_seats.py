@@ -11,7 +11,6 @@ from mtg_goldfishing.adapters.mcp.definitions import TOOL_DEFINITIONS
 from mtg_goldfishing.adapters.mcp.parameters import Shaped, shape
 
 DEFINITIONS = {definition.name: definition for definition in TOOL_DEFINITIONS}
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 
 
 def parameter(tool: str, name: str) -> Any:
@@ -58,7 +57,6 @@ def test_effect_says_a_combat_result_gives_only_what_happens_to_the_creatures() 
 
 
 # @spec TOOL-070
-@NOT_BUILT
 def test_attack_says_a_blocked_attacker_deals_no_combat_damage_unless_trample_is_stated() -> None:
     trample = parameter("attack", "trample")
     assert trample is not None
@@ -75,7 +73,6 @@ def test_attack_says_a_blocked_attacker_deals_no_combat_damage_unless_trample_is
 
 
 # @spec TOOL-076
-@NOT_BUILT
 def test_attack_says_evasion_states_flying_horsemanship_or_can_t_be_blocked_per_attacker() -> None:
     evasion = parameter("attack", "evasion")
     assert evasion is not None
@@ -92,7 +89,6 @@ def test_attack_says_evasion_states_flying_horsemanship_or_can_t_be_blocked_per_
 
 
 # @spec TOOL-077
-@NOT_BUILT
 def test_choose_says_a_block_forbidden_by_evasion_fails_a_rule_check_overridden_for_this_turn() -> (
     None
 ):
@@ -108,7 +104,6 @@ def test_choose_says_a_block_forbidden_by_evasion_fails_a_rule_check_overridden_
 
 
 # @spec CMBT-080, TOOL-076
-@NOT_BUILT
 @pytest.mark.parametrize(
     "evasion", [{"Grizzly Bears": "flying"}, {"Grizzly Bears": ["flying", "unblockable"]}]
 )
@@ -120,7 +115,6 @@ def test_attack_takes_evasion_as_a_map_from_attacker_to_an_evasion_or_a_list(
 
 
 # @spec CMBT-098, TOOL-070
-@NOT_BUILT
 def test_attack_takes_trample_alone_without_attackers() -> None:
     arguments = {"game_id": "g1", "trample": {"Shivan Dragon": 3}}
     assert isinstance(shape(DEFINITIONS["attack"].parameters, arguments), Shaped)

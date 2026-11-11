@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.listing_lines import state_lines
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Outcome, Status
@@ -33,7 +31,6 @@ from tests.support.combat import (
     stating_trample,
 )
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 RENDERER = TextRenderer()
 ATRAXA = "Atraxa, Praetors' Voice"
 
@@ -64,7 +61,6 @@ def id_of(situation: Situation, name: str) -> str:
 
 
 # @spec TOOL-079
-@NOT_BUILT
 def test_the_choice_line_shows_each_attacker_by_instance_id_with_its_evasion() -> None:
     situation = attacked(
         a_duel(attackers=("Grizzly Bears", "Wind Drake")), attackers=["Grizzly Bears", "Wind Drake"]
@@ -80,7 +76,6 @@ def test_the_choice_line_shows_each_attacker_by_instance_id_with_its_evasion() -
 
 
 # @spec TOOL-079
-@NOT_BUILT
 def test_evasions_are_shown_in_order_each_once_whether_read_listed_or_both() -> None:
     situation = attacked(
         a_duel(attackers=("Sky Rider",)),
@@ -94,7 +89,6 @@ def test_evasions_are_shown_in_order_each_once_whether_read_listed_or_both() -> 
 
 
 # @spec TOOL-079
-@NOT_BUILT
 def test_the_listing_shows_a_blocks_choice_s_attackers_with_their_evasion() -> None:
     situation = at_blocks(a_duel(attackers=("Wind Drake",)), attackers=["Wind Drake"])
     choice = situation.game.pending[0].choice_id
@@ -107,7 +101,6 @@ def test_the_listing_shows_a_blocks_choice_s_attackers_with_their_evasion() -> N
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_a_block_refused_for_flying_names_the_blocker_the_attacker_and_where_flying_is_from() -> (
     None
 ):
@@ -118,7 +111,6 @@ def test_a_block_refused_for_flying_names_the_blocker_the_attacker_and_where_fly
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_a_block_refused_for_evasion_stated_in_evasion_says_so() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",)),
@@ -131,7 +123,6 @@ def test_a_block_refused_for_evasion_stated_in_evasion_says_so() -> None:
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_a_block_refused_for_a_reading_under_a_condition_gives_the_assumption() -> None:
     situation = at_blocks(a_duel(attackers=("Island Skimmer",)), attackers=["Island Skimmer"])
     result = blocking(situation, S2, {"Llanowar Elves": "Island Skimmer"})
@@ -140,7 +131,6 @@ def test_a_block_refused_for_a_reading_under_a_condition_gives_the_assumption() 
 
 
 # @spec CMBT-091
-@NOT_BUILT
 def test_an_overridden_evasion_check_is_named_in_the_response() -> None:
     situation = at_blocks(a_duel(attackers=("Wind Drake",)), attackers=["Wind Drake"])
     result = blocking(situation, S2, {"Llanowar Elves": "Wind Drake"}, override="it has reach")
@@ -152,7 +142,6 @@ def test_an_overridden_evasion_check_is_named_in_the_response() -> None:
 
 
 # @spec CMBT-080
-@NOT_BUILT
 def test_an_attack_says_the_evasion_stated_for_each_attacker() -> None:
     situation = a_duel(attackers=("Grizzly Bears",))
     result = attacking(situation, attackers=["Grizzly Bears"], evasion={"Grizzly Bears": "flying"})
@@ -160,20 +149,18 @@ def test_an_attack_says_the_evasion_stated_for_each_attacker() -> None:
 
 
 # @spec CMBT-101
-@NOT_BUILT
 def test_a_trample_statement_reads_with_each_attacker_s_trample_damage_and_seat() -> None:
     situation = at_blocks(a_duel(attackers=("Shivan Dragon",)), attackers=["Shivan Dragon"])
     blocked(situation, S2, {"Llanowar Elves": "Shivan Dragon"})
     result = stating_trample(situation, {"Shivan Dragon": 3})
-    lines = response("attack", situation, S2, result).splitlines()
-    assert "Trample damage: Shivan Dragon 3 to S2." in lines
+    first = response("attack", situation, S2, result).splitlines()[0]
+    assert first == "OK Trample damage: Shivan Dragon 3 to S2."
 
 
 # ------------------------------------------------------------------ load_deck
 
 
 # @spec DECK-041
-@NOT_BUILT
 def test_load_deck_lists_the_cards_that_grant_evasion_or_reach() -> None:
     granting = (KeywordReport("Levitation", "flying", KeywordReading(grant=KeywordGrant())),)
     build: Any = DeckReport

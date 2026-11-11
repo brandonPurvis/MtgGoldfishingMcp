@@ -462,6 +462,7 @@ EFFECT = ToolDefinition(
     ),
 )
 
+# @spec TOOL-077
 CHOOSE = ToolDefinition(
     name="choose",
     purpose="Finish a look or search by saying where the revealed cards go.",
@@ -532,13 +533,16 @@ CHOOSE = ToolDefinition(
     ),
     overridable=(
         "Nothing; a wrong choice id or a card that was not revealed is an error. Contested"
-        " games: a blocker that is tapped or is not a creature fails a rule check that"
-        " `override` passes, and an argument the choice's kind is not answered with is an"
-        " error."
+        " games: a blocks answer fails a rule check that `override` passes when a blocker is"
+        " tapped or is not a creature, or when the attacker's flying, horsemanship or can't be"
+        " blocked forbids the block (flying lets only a creature with flying or reach block,"
+        " horsemanship only a creature with horsemanship); a blocker that has flying or reach"
+        " only for this turn blocks with an override giving that reason. An argument the"
+        " choice's kind is not answered with is an error."
     ),
 )
 
-# @spec TOOL-070, TOOL-071
+# @spec TOOL-070, TOOL-071, TOOL-076
 ATTACK = ToolDefinition(
     name="attack",
     purpose="Declare attackers and which are blocked.",
@@ -559,9 +563,9 @@ ATTACK = ToolDefinition(
         Parameter(
             "attackers",
             Kind.LIST,
-            "The attacking creatures by name or instance id; a name given twice is two creatures.",
+            "The attacking creatures by name or instance id; a name given twice is two creatures."
+            " Contested games: not given in an attack that states trample damage.",
             ["Grizzly Bears", "Atraxa, Praetors' Voice"],
-            required=True,
         ),
         Parameter(
             "blocked",
@@ -580,7 +584,8 @@ ATTACK = ToolDefinition(
             "damage",
             Kind.OBJECT,
             "Attackers mapped to the damage each deals instead of its power, for pumps,"
-            " double strike or trample.",
+            " double strike or trample. Contested games: dealt only by an attacker that is not"
+            " blocked; a blocked attacker's damage past its blockers is stated in trample.",
             {"Tarmogoyf": 5},
         ),
         Parameter(
@@ -603,11 +608,27 @@ ATTACK = ToolDefinition(
             Kind.WHOLE_NUMBER_OR_OBJECT,
             "Contested games: the seat each attacker attacks, one seat number for all or"
             " {attacker: seat number}; needed with more than one opponent. Each attacked seat"
-            " then declares its own blocks, so blocked and commander_target are not given."
-            " A blocked attacker's damage entry is dealt in full to the seat it attacks, the"
-            " service making no reduction for blockers, so give it only for the damage that"
-            " gets past them.",
+            " then declares its own blocks, so blocked and commander_target are not given.",
             {"Grizzly Bears": 2, "Shivan Dragon": 3},
+        ),
+        Parameter(
+            "evasion",
+            Kind.OBJECT,
+            "Contested games: attackers mapped to the evasion each has beyond what the service"
+            " has read, for this declaration only: flying, horsemanship or can't be blocked"
+            " (unblockable), or a list of them, such as flying a spell gave it this turn. A"
+            " block the attacker's evasion forbids is refused as a rule check.",
+            {"Grizzly Bears": "flying"},
+        ),
+        Parameter(
+            "trample",
+            Kind.OBJECT,
+            "Contested games: A blocked attacker deals no combat damage to the seat it attacks,"
+            " its damage entry included, unless you state its trample damage here, once blocks"
+            " are known and before combat damage, in an attack that gives trample and no"
+            " attackers: each blocked attacker mapped to the combat damage it deals past its"
+            " blockers. A later statement replaces the attackers it names; 0 takes one back.",
+            {"Shivan Dragon": 3},
         ),
     ),
     overridable=(
@@ -616,7 +637,9 @@ ATTACK = ToolDefinition(
         " before the first main step, or after combat damage (an additional combat) — are"
         " passed with `override`. An attacker not on the battlefield, or a `blocked`,"
         " `damage`, `vigilance` or `haste` entry that is not among the attackers, is an"
-        " error."
+        " error. Contested games: an `evasion` entry that is not among the attackers or not an"
+        " evasion is an error; so is `trample` given with a declaration's arguments, before"
+        " every blocks choice is answered, or for an attacker that is not blocked."
     ),
 )
 

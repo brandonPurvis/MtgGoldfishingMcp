@@ -2,8 +2,6 @@
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
@@ -154,7 +152,6 @@ def test_the_report_lists_cards_that_have_or_grant_haste_or_vigilance() -> None:
 
 
 # @spec READ-064
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_the_report_lists_cards_that_have_or_grant_evasion_or_reach_by_keyword() -> None:
     levitation = a_card("Levitation", "Creatures you control have flying.", "Enchantment")
     spider = a_card("Giant Spider", "Reach", "Creature — Spider")

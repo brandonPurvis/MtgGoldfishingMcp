@@ -22,7 +22,6 @@ from tests.support.acting import S1, S2, S3, acted, check_kinds, error_kinds, ev
 from tests.support.builders import Situation, a_game
 
 ATRAXA = "Atraxa, Praetors' Voice"
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 
 
 def a_table(
@@ -476,7 +475,6 @@ def test_an_attacking_commander_s_damage_counts_against_the_seat_it_attacks() ->
 
 
 # @spec CMBT-063
-@NOT_BUILT
 def test_a_blocked_attacker_deals_exactly_its_trample_damage_whatever_its_damage_entry() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 6})
     advanced(situation, "declare_blockers")
@@ -487,7 +485,6 @@ def test_a_blocked_attacker_deals_exactly_its_trample_damage_whatever_its_damage
 
 
 # @spec CMBT-064
-@NOT_BUILT
 def test_a_blocked_attacker_with_a_damage_entry_and_no_trample_damage_deals_nothing() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 3})
     advanced(situation, "declare_blockers")
@@ -508,7 +505,6 @@ def test_a_blocked_attacker_without_trample_damage_deals_nothing_and_nothing_die
 
 
 # @spec CMBT-077
-@NOT_BUILT
 def test_a_blocked_attacker_with_trample_damage_no_longer_on_the_battlefield_deals_nothing() -> (
     None
 ):
