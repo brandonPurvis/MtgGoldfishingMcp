@@ -8,7 +8,6 @@ Feature: Elimination and the end of a contested game
     And the Omnath test deck is loaded
 
   # @spec GAME-129, GAME-132, GAME-133, GAME-136, GAME-138, TURN-031
-  @wip
   Scenario: A seat at 0 life is eliminated, its cards leave the game and it takes no more turns
     Given a started contested game against 2 Omnath decks with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -23,12 +22,11 @@ Feature: Elimination and the end of a contested game
     And the response says "S2 is eliminated: its life is 0 or less."
     And seat S2 is eliminated
     And no card seat S2 owns is left in the game
-    And seat S1 controls "Sol Ring"
+    And seat S1 controls "Sol Ring" owned by seat S1
     When seat S1 ends its turn
     Then seat S3 is the active seat
 
   # @spec GAME-130, CMBT-062, CMBT-065
-  @wip
   Scenario: A seat dealt 21 combat damage by one commander is eliminated
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Atraxa, Praetors' Voice" onto the battlefield
@@ -41,7 +39,6 @@ Feature: Elimination and the end of a contested game
     And seat S2 is eliminated
 
   # @spec GAME-131, GAME-136
-  @wip
   Scenario: An opposing seat concedes, and the game goes on without it
     Given a started contested game against 2 Omnath decks with the tested seat first
     When seat S3 concedes
@@ -54,7 +51,6 @@ Feature: Elimination and the end of a contested game
     Then seat S1 is the active seat
 
   # @spec GAME-158, GAME-159
-  @wip
   Scenario: An opposing seat concedes during mulligans, and the game starts without it
     Given a contested game against 1 Omnath deck with seed 42 and the tested seat at position 1
     When seat S1 keeps its hand
@@ -64,7 +60,6 @@ Feature: Elimination and the end of a contested game
     And seat S1 is the active seat
 
   # @spec GAME-142, GAME-143
-  @wip
   Scenario: Notices are raised when every opponent and when the tested seat is eliminated
     Given a started contested game against 2 Omnath decks with the tested seat first
     When seat S1 records an effect with delta {"damage": {"2": 40, "3": 40}}
@@ -74,7 +69,6 @@ Feature: Elimination and the end of a contested game
     And the response says "Notice: every opposing seat has been eliminated"
 
   # @spec GAME-045, GAME-131, GAME-148
-  @wip
   Scenario: Only the tested seat ends the game, even while the game waits on another seat
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 records an effect with delta {"ask": [{"seats": [2], "text": "sacrifice a creature"}]}

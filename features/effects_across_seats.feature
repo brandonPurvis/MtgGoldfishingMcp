@@ -8,7 +8,6 @@ Feature: Effects that reach other seats in a contested game
     And the Omnath test deck is loaded
 
   # @spec PLAY-097, PLAY-098, PLAY-099, GAME-109
-  @wip
   Scenario: An effect that makes another seat discard waits for that seat's answer
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 records an effect with delta {"ask": [{"seats": "opponents", "text": "discard a card"}]}
@@ -24,7 +23,6 @@ Feature: Effects that reach other seats in a contested game
     And the status line shows "Act S1 turn"
 
   # @spec PLAY-102, PLAY-103, GAME-090
-  @wip
   Scenario: Looking at another seat's hand shows those cards to the looking seat only
     Given a started contested game against 2 Omnath decks with the tested seat first
     When seat S1 records an effect with delta {"look_at_hand": 2}
@@ -39,7 +37,6 @@ Feature: Effects that reach other seats in a contested game
     And seat S2 holds 6 cards
 
   # @spec PLAY-087, PLAY-088, PLAY-091, PLAY-092, PLAY-095
-  @wip
   Scenario: A delta destroys and exiles another seat's permanents and changes any seat's life
     Given a started contested game against 2 Omnath decks with the tested seat first
     And seat S1 has ended its turn
@@ -56,7 +53,6 @@ Feature: Effects that reach other seats in a contested game
     And seat S1's life is 41
 
   # @spec PLAY-094, GAME-100, GAME-101, GAME-124
-  @wip
   Scenario: A delta changes control of a permanent, and its owner and controller are kept apart
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 has ended its turn
@@ -64,15 +60,13 @@ Feature: Effects that reach other seats in a contested game
     And seat S2 has ended its turn
     When seat S1 records an effect with delta {"control": {"1": ["Elvish Mystic"]}}
     Then the response is OK
-    And seat S1 controls "Elvish Mystic"
-    And "Elvish Mystic" is owned by seat S2
+    And seat S1 controls "Elvish Mystic" owned by seat S2
     When seat S1 asks for the state
     Then the response says "Elvish Mystic (owner S2)"
     When seat S1 records an effect with delta {"move": {"graveyard": ["Elvish Mystic"]}}
     Then "Elvish Mystic" is in seat S2's graveyard
 
   # @spec PLAY-079, GAME-157, TOOL-067
-  @wip
   Scenario: A delta that reaches into another seat's hand is refused
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 discards the first card in seat S2's hand by its instance id

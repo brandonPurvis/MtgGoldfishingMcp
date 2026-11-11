@@ -27,24 +27,32 @@ from mtg_goldfishing.domain.events import (
     AlreadyApplied,
     AlreadySo,
     AlreadySoKind,
+    AskAnswered,
     AskedKind,
     AssumptionKind,
     AssumptionMade,
     AttackDeclared,
+    BlocksDeclared,
+    BlocksRequested,
     CardMoved,
     CardPlayed,
     CardsDiscarded,
     CardsDrawn,
     CardsRevealed,
     ChecksOverridden,
+    ChoiceAsked,
     ChoiceResolved,
+    ChoiceRevealedTo,
     CombatDamageDealt,
+    CombatDamageToSeats,
     ContestedGameStarted,
+    ControlChanged,
     CostPaid,
     CountersChanged,
     DamageAdded,
     DeckLoaded,
     EffectRecorded,
+    EliminationCause,
     Event,
     ExpectationMismatched,
     GameEnded,
@@ -57,11 +65,14 @@ from mtg_goldfishing.domain.events import (
     LogExported,
     ManaAdded,
     MulliganTaken,
+    NoBlocksDeclared,
     NothingRevealed,
     NoticeKind,
     NoticeRaised,
     Refused,
     ReminderIssued,
+    SeatDamaged,
+    SeatEliminated,
     SnapshotWritten,
     StateListed,
     StepsEntered,
@@ -256,11 +267,16 @@ def _place_in_order(event: Event) -> int:
             | ManaAdded()
             | CountersChanged()
             | LifeChanged()
+            | SeatDamaged()
+            | ControlChanged()
+            | NoBlocksDeclared()
+            | BlocksDeclared()
             | DamageAdded()
             | LibraryShuffled()
             | AlreadySo()
             | InstanceChosen()
             | ChoiceResolved()
+            | AskAnswered()
             | AttackDeclared()
             | SnapshotWritten()
             | DeckLoaded()
@@ -277,9 +293,15 @@ def _place_in_order(event: Event) -> int:
             | Refused()
         ):
             return 4
-        case CardsRevealed() | NothingRevealed():
+        case (
+            CardsRevealed()
+            | ChoiceRevealedTo()
+            | ChoiceAsked()
+            | BlocksRequested()
+            | NothingRevealed()
+        ):
             return 5
-        case CombatDamageDealt():
+        case CombatDamageDealt() | CombatDamageToSeats():
             return 6
         case AssumptionMade():
             return 7
@@ -289,8 +311,10 @@ def _place_in_order(event: Event) -> int:
             return 9
         case ExpectationMismatched():
             return 10
-        case NoticeRaised():
+        case SeatEliminated():
             return 11
+        case NoticeRaised():
+            return 12
         case _:
             assert_never(event)
 
@@ -402,14 +426,28 @@ def _already_so(event: AlreadySo) -> str:
             return f"{event.card} was already untapped."
         case AlreadySoKind.COUNTER_AT_ZERO:
             return f"{event.card} had no {event.counter} counters to remove; it stays at 0."
+        case AlreadySoKind.ALREADY_CONTROLLED:
+            return f"{event.card} is already controlled by that seat."
         case _:
             assert_never(event.kind)
+
+
+def _attacking_seats(targets: tuple[tuple[str, SeatNumber], ...]) -> str:
+    """`S2 with Grizzly Bears; S3 with Shivan Dragon`: the attackers grouped by the seat they
+    attack, the seats in the order first attacked."""
+    by_seat: dict[SeatNumber, list[str]] = {}
+    for attacker, seat in targets:
+        by_seat.setdefault(seat, []).append(attacker)
+    return "; ".join(f"{seat} with {', '.join(names)}" for seat, names in by_seat.items())
 
 
 def _attack(event: AttackDeclared) -> str:
     if not event.attackers:
         return "Declared no attack."
-    line = f"Attacking with {_listed(event.attackers)}."
+    if event.targets:
+        line = f"Attacking {_attacking_seats(event.targets)}."
+    else:
+        line = f"Attacking with {_listed(event.attackers)}."
     if event.blocked:
         line += f" Blocked: {_listed(event.blocked)}."
     for commander, opponent in event.commander_targets:
@@ -435,6 +473,53 @@ def _combat_damage(event: CombatDamageDealt) -> list[str]:
         )
         totals += f"; commander damage {each}"
     return [*lines, totals + "."]
+
+
+def _combat_damage_to_seats(event: CombatDamageToSeats) -> list[str]:
+    lines = [
+        f"{hit.attacker} dealt {hit.damage} combat damage to {hit.seat}." for hit in event.hits
+    ]
+    if not lines:
+        lines.append("No combat damage: every attacker was blocked or has left the battlefield.")
+    for damaged in event.seats:
+        line = f"{damaged.seat} life now {damaged.life}"
+        if damaged.commander_damage:
+            each = ", ".join(f"{name} {damage}" for name, damage in damaged.commander_damage)
+            line += f"; commander damage from {each}"
+        lines.append(line + ".")
+    return lines
+
+
+def _blocks(event: BlocksDeclared) -> str:
+    if not event.blocks:
+        return f"{event.seat} declares no blocks."
+    each = "; ".join(f"{block.blocker} blocks {block.attacker}" for block in event.blocks)
+    return f"{event.seat} blocks: {each}."
+
+
+def _eliminated(event: SeatEliminated) -> str:
+    match event.cause:
+        case EliminationCause.LIFE:
+            return f"{event.seat} is eliminated: its life is 0 or less."
+        case EliminationCause.COMMANDER_DAMAGE:
+            return f"{event.seat} is eliminated: 21 or more combat damage from one commander."
+        case EliminationCause.CONCEDE:
+            return f"{event.seat} conceded and is eliminated."
+        case _:
+            assert_never(event.cause)
+
+
+def _revealed_to(event: ChoiceRevealedTo) -> str:
+    """The public form of a reveal: whose choice it is and, for a hand, whose hand."""
+    if event.hand_of is not None:
+        return f"{event.seat} looks at {event.hand_of}'s hand (CHOICE {event.kind})."
+    return f"{event.seat} looks at cards for a pending choice (CHOICE {event.kind})."
+
+
+def _asked(event: ChoiceAsked) -> str:
+    text = event.text.strip()
+    ending = "" if text.endswith((".", "!", "?")) else "."
+    return f"Choice {event.choice_id} (ask) for {event.seat}: {text}{ending}"
 
 
 def _assumption(event: AssumptionMade) -> str:
@@ -491,6 +576,12 @@ def _stopped(event: AdvanceStopped, after: int | None) -> str:
                 f" cards, so {count} must be discarded in cleanup. Send advance({arguments})"
                 " to continue, or add override if the hand has no maximum size."
             )
+        case StopReason.BLOCKS:
+            again = f"advance({to})" if to else "advance"
+            return (
+                f"Stopped at {event.step.value}: the attacked seats declare blockers first."
+                f" Send {again} again once they have."
+            )
         case _:
             assert_never(event.reason)
 
@@ -514,6 +605,10 @@ def notice_line(notice: NoticeKind) -> str:
             return "Notice: life is 0 or less"
         case NoticeKind.EMPTY_LIBRARY:
             return "Notice: a draw found too few cards in the library"
+        case NoticeKind.TESTED_SEAT_ELIMINATED:
+            return "Notice: the tested seat has been eliminated"
+        case NoticeKind.OPPONENTS_ELIMINATED:
+            return "Notice: every opposing seat has been eliminated"
         case _:
             assert_never(notice)
 
@@ -585,7 +680,12 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
         case CountersChanged():
             return [_counters(event)]
         case LifeChanged():
-            return [f"Life {event.change:+d}, now {event.now}."]
+            whose = f"{event.seat} life" if event.seat is not None else "Life"
+            return [f"{whose} {event.change:+d}, now {event.now}."]
+        case SeatDamaged():
+            return [f"{event.seat} took {event.amount} damage; life now {event.life}."]
+        case ControlChanged():
+            return [f"{event.seat} now controls {event.card}."]
         case DamageAdded():
             return [f"Damage {event.amount:+d}, now {event.total}/{DAMAGE_TO_WIN}."]
         case LibraryShuffled():
@@ -600,6 +700,25 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
                 f"Choice {event.choice_id} ({event.kind}) revealed: {cards}."
                 f' Say where they go with choose(choice_id="{event.choice_id}").'
             ]
+        case AskAnswered():
+            return [f"{event.seat} answered choice {event.choice_id} (ask)."]
+        case ChoiceRevealedTo():
+            return [_revealed_to(event)]
+        case ChoiceAsked():
+            return [_asked(event)]
+        case BlocksRequested():
+            return [
+                f"Choice {event.choice_id} (blocks) for {event.seat}: attacked by"
+                f" {_listed(event.attackers)}."
+            ]
+        case NoBlocksDeclared():
+            return [f"{event.seat} has no untapped creature: no blocks declared."]
+        case BlocksDeclared():
+            return [_blocks(event)]
+        case CombatDamageToSeats():
+            return _combat_damage_to_seats(event)
+        case SeatEliminated():
+            return [_eliminated(event)]
         case NothingRevealed():
             return [f"The {event.kind} revealed no cards, so no choice is pending."]
         case ChoiceResolved():

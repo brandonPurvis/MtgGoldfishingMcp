@@ -54,6 +54,15 @@ def _seats(asked: Asked) -> str:
     return f"{', '.join(named[:-1])} and {named[-1]} are"
 
 
+THROUGH_ASK = "Other seats' hands and libraries are reached through ask."
+
+
+def _through_ask(error: Error, text: str) -> str:
+    """An error about a delta's names in a contested game adds how other seats' hidden zones
+    are reached."""
+    return f"{text} {THROUGH_ASK}" if error.through_ask else text
+
+
 def _not_your_call(asked: Asked | None) -> str:
     if asked is None or not asked.seats:
         return "Not your seat's call: the game is waiting on no seat."
@@ -63,9 +72,13 @@ def _not_your_call(asked: Asked | None) -> str:
     )
 
 
-# @spec TOOL-026, TOOL-050
+# @spec TOOL-026, TOOL-050, TOOL-067, TOOL-068
 def error_text(error: Error) -> str:
     """The one wording of an error's kind, filled with its facts."""
+    return _through_ask(error, _error_text(error))
+
+
+def _error_text(error: Error) -> str:
     subject = error.subject or ""
     names = _listed(error.names)
     match error.kind:
@@ -109,6 +122,62 @@ def error_text(error: Error) -> str:
             return (
                 f"position must be from 1 to {error.expected}, the number of seats; not {subject}."
             )
+        case ErrorKind.CONTESTED_ONLY:
+            return f"{subject} is used only in a contested game."
+        case ErrorKind.GOLDFISH_ONLY:
+            return (
+                f"{subject} is used only in a goldfish game; in a contested game each attacked"
+                " seat declares its own blocks and each attacker attacks a seat named in targets."
+            )
+        case ErrorKind.NO_SUCH_SEAT:
+            return f"There is no seat S{error.number} in this game."
+        case ErrorKind.SEAT_OUT:
+            return f"S{error.number} has been eliminated."
+        case ErrorKind.HIDDEN_ZONE:
+            return f"{subject} is in a hidden zone of S{error.number}."
+        case ErrorKind.TOO_MANY_REVEALS:
+            return (
+                "A delta holds at most one of look, search and look_at_hand."
+                " Record them in separate calls."
+            )
+        case ErrorKind.LOOK_AT_OWN_HAND:
+            return "look_at_hand names another seat's hand; your own hand is already in view."
+        case ErrorKind.DAMAGE_NEEDS_SEATS:
+            return 'damage in a contested game is a map from seat number to damage, like {"2": 3}.'
+        case ErrorKind.WRONG_ANSWER:
+            return f"A {error.zone} choice is not answered with {subject}. Answer it with {names}."
+        case ErrorKind.ANSWER_MAY_NOT_REVEAL:
+            return (
+                f"The delta answering a choice may not hold {subject}:"
+                " it would create another pending choice."
+            )
+        case ErrorKind.HAND_ANSWER_DELTA:
+            return (
+                "The delta answering a hand choice holds only control of cards selected to the"
+                f" battlefield; {subject} is not one."
+            )
+        case ErrorKind.NOT_YOUR_ATTACKER:
+            return f"You do not control {subject}; a seat attacks only with creatures it controls."
+        case ErrorKind.ATTACK_DECLARED:
+            return "An attack has already been declared for this combat."
+        case ErrorKind.ATTACK_AFTER_BLOCKERS:
+            return (
+                "Attackers are declared before declare_blockers; this combat's blockers are"
+                " being declared."
+            )
+        case ErrorKind.TARGET_IS_YOU:
+            return "An attacker cannot attack its own seat."
+        case ErrorKind.NO_TARGET:
+            return (
+                f"{subject} has no target. With more than one opponent, give targets for every"
+                " attacker."
+            )
+        case ErrorKind.NO_OPPONENT_LEFT:
+            return "No opponent is left in the game to attack."
+        case ErrorKind.NOT_YOUR_BLOCKER:
+            return f"You control no {subject} on the battlefield to block with."
+        case ErrorKind.NOT_ATTACKING_YOU:
+            return f"{subject} is not attacking you."
         case ErrorKind.NOT_YOUR_CALL:
             return _not_your_call(error.asked)
         case ErrorKind.NOT_ACCEPTED_NOW:
@@ -282,6 +351,10 @@ def check_text(check: FailedCheck) -> str:
             return f"{subject} entered the battlefield this turn and has no haste."
         case CheckKind.POWER_NOT_A_NUMBER:
             return f"{subject} has no numeric power; give its damage in damage."
+        case CheckKind.BLOCKER_TAPPED:
+            return f"{subject} is tapped, so it cannot block."
+        case CheckKind.BLOCKER_NOT_A_CREATURE:
+            return f"{subject} is not a creature, so it cannot block."
         case CheckKind.DECK_SIZE:
             return f"The deck has {check.number} cards, not {check.expected}."
         case CheckKind.SINGLETON:
@@ -308,6 +381,8 @@ def _overriding(tool: str | None, checks: tuple[FailedCheck, ...]) -> str:
             return "record it"
         case "attack":
             return "attack"
+        case "choose":
+            return "block"
         case "advance":
             return "advance"
         case "mulligan":

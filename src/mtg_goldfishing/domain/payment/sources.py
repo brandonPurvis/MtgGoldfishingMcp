@@ -226,7 +226,7 @@ def most_of_color(sources: Iterable[Source], color: str) -> int:
     )
 
 
-# @spec PAY-012, PAY-013, PAY-014, PAY-041
+# @spec PAY-012, PAY-013, PAY-014, PAY-041, PAY-045, PAY-046
 def available_sources(
     game: Game,
     deck: LoadedDeck,

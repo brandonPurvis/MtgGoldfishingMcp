@@ -150,17 +150,32 @@ class CardInstance:
 
 @dataclass
 class Attack:
-    """The declared attack, by instance id."""
+    """The declared attack, by instance id.
+
+    In a contested game `targets` maps each attacker to the seat number it attacks, and
+    `blocks` each blocker to the attacker it blocks; a goldfish game's commanders attack the
+    imaginary opponents in `commander_targets`.
+    """
 
     attackers: list[str]
     blocked: list[str] = field(default_factory=list)
     damage: dict[str, int] = field(default_factory=dict)
     commander_targets: dict[str, int] = field(default_factory=dict)
+    targets: dict[str, int] = field(default_factory=dict)
+    blocks: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class PendingChoice:
-    """A decision the game waits on from one seat: `seat` is the seat that answers it."""
+    """A decision the game waits on from one seat: `seat` is the seat that answers it.
+
+    Its `kind` is `look`, `search`, `hand`, `ask` or `blocks`.
+
+    `revealed` holds the cards a look, a search or a look at a hand shows; `asked_by` is the
+    seat whose effect asked (for a `hand` choice, the looking seat), `hand_of` the seat whose
+    hand a `hand` choice shows, `text` what an `ask` requires, and `attackers` the attackers
+    a `blocks` choice may block.
+    """
 
     choice_id: str
     seat: SeatNumber
@@ -169,6 +184,20 @@ class PendingChoice:
     revealed: list[str]
     rest: Destination | None
     from_bottom: bool = False
+    asked_by: SeatNumber | None = None
+    hand_of: SeatNumber | None = None
+    text: str = ""
+    attackers: list[str] = field(default_factory=list)
+
+
+@dataclass
+class HandLook:
+    """A look at a seat's hand that waits for the asks of the same delta to be answered, so
+    that it shows the hand those answers left."""
+
+    seat: SeatNumber
+    hand_of: SeatNumber
+    source: str
 
 
 @dataclass(frozen=True)
@@ -290,6 +319,7 @@ class Game:
     step: Step | None = None
     change: int = 0
     pending: list[PendingChoice] = field(default_factory=list)
+    hand_looks: list[HandLook] = field(default_factory=list)
     declared_attack: Attack | None = None
     tapped_by_attacks: list[str] = field(default_factory=list)  # this turn; reset on untap
     notices: list[NoticeKind] = field(default_factory=list)

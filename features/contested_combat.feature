@@ -8,7 +8,6 @@ Feature: Combat in a contested game
     And the Omnath test deck is loaded
 
   # @spec CMBT-030, CMBT-031, CMBT-037, CMBT-039, CMBT-061
-  @wip
   Scenario: Attackers attack seats, and each attacked seat declares its blockers
     Given a started contested game against 2 Omnath decks with the tested seat first
     And seat S1 puts "Grizzly Bears" onto the battlefield
@@ -36,7 +35,6 @@ Feature: Combat in a contested game
     And seat S3's life is 39
 
   # @spec CMBT-061, CMBT-062, CMBT-066
-  @wip
   Scenario: The attacking seat states what happens to the creatures, and the service deals the damage to seats
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Atraxa, Praetors' Voice" onto the battlefield

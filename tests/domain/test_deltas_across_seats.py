@@ -14,7 +14,6 @@ from mtg_goldfishing.domain.play.playing import effect, play
 from tests.support.acting import S1, S2, S3, acted, error_kinds, errors_of, events_named
 from tests.support.builders import Situation, a_game
 
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 ATRAXA = "Atraxa, Praetors' Voice"
 GOBLIN = {"name": "Goblin", "types": "Creature — Goblin", "pt": "1/1"}
 
@@ -51,7 +50,6 @@ def id_of(situation: Situation, name: str, owner: SeatNumber) -> str:
 
 
 # @spec PLAY-074
-@M3B
 @pytest.mark.parametrize(
     "delta",
     [
@@ -69,13 +67,11 @@ def test_a_goldfish_delta_may_not_use_a_key_only_a_contested_game_has(delta: obj
 
 
 # @spec PLAY-075
-@M3B
 def test_damage_in_a_contested_delta_is_a_map_from_seat_number_not_one_number() -> None:
     assert error_kinds(recorded(two_seats(), {"damage": 3})) == ["damage_needs_seats"]
 
 
 # @spec PLAY-126
-@M3B
 @pytest.mark.parametrize(
     "control",
     [["Grizzly Bears"], {"two": ["Grizzly Bears"]}, {"2": 5}, {"0": ["Grizzly Bears"]}],
@@ -87,7 +83,6 @@ def test_control_that_is_not_a_map_from_seat_number_to_cards_is_malformed(contro
 
 
 # @spec PLAY-127
-@M3B
 @pytest.mark.parametrize(
     "entry",
     [
@@ -104,21 +99,18 @@ def test_an_ask_entry_without_seats_and_text_alone_is_malformed(entry: object) -
 
 
 # @spec PLAY-128
-@M3B
 def test_look_at_hand_given_a_list_of_seats_is_malformed() -> None:
     situation = two_seats(opposing=lambda b: b.with_hand("Island"))
     assert error_kinds(recorded(situation, {"look_at_hand": [2]})) == ["malformed_argument"]
 
 
 # @spec PLAY-128
-@M3B
 def test_look_at_hand_may_not_name_the_acting_seat() -> None:
     situation = two_seats(tested=lambda b: b.with_hand("Island"))
     assert error_kinds(recorded(situation, {"look_at_hand": 1})) == ["look_at_own_hand"]
 
 
 # @spec PLAY-076
-@M3B
 @pytest.mark.parametrize(
     "reveal",
     [{"look": {"n": 1, "rest": "library_top"}}, {"search": {}}],
@@ -135,7 +127,6 @@ def test_look_at_hand_with_a_look_or_search_in_one_delta_is_an_error(
 
 
 # @spec PLAY-077
-@M3B
 @pytest.mark.parametrize(
     "delta",
     [
@@ -153,7 +144,6 @@ def test_a_seat_number_not_in_the_game_is_an_error(delta: object) -> None:
 
 
 # @spec PLAY-077
-@M3B
 @pytest.mark.parametrize(
     "delta",
     [
@@ -177,7 +167,6 @@ def test_a_seat_number_of_an_eliminated_seat_is_an_error(delta: object) -> None:
 
 
 # @spec PLAY-079, GAME-157
-@M3B
 @pytest.mark.parametrize("key", ["move", "discard", "fetch", "tap"])
 @pytest.mark.parametrize("zone", ["hand", "library"])
 def test_an_instance_id_in_another_seat_s_hidden_zone_is_a_hidden_zone_error(
@@ -222,7 +211,6 @@ def test_a_name_held_only_in_another_seat_s_hand_gets_the_error_of_a_name_held_n
 
 
 # @spec PLAY-115
-@M3B
 @pytest.mark.parametrize(
     "delta",
     [
@@ -242,7 +230,6 @@ def test_a_delta_name_found_nowhere_in_view_adds_that_hidden_zones_are_reached_t
 
 
 # @spec GAME-157
-@M3B
 def test_playing_an_instance_id_from_another_seat_s_hand_is_a_hidden_zone_error() -> None:
     situation = two_seats(opposing=lambda b: b.with_hand("Lightning Bolt"))
     bolt = id_of(situation, "Lightning Bolt", S2)
@@ -293,7 +280,6 @@ def test_an_instance_id_names_another_seat_s_permanent() -> None:
 
 
 # @spec GAME-099
-@M3B
 def test_the_chosen_instance_is_named_when_the_matching_cards_differ_in_controller() -> None:
     situation = two_seats(
         tested=lambda b: b.with_battlefield("Grizzly Bears"),
@@ -333,7 +319,6 @@ def test_a_card_moved_by_another_seat_goes_to_its_owner_s_zone(
 
 
 # @spec PLAY-089
-@M3B
 def test_a_card_moved_onto_the_battlefield_enters_under_the_acting_seat_s_control() -> None:
     situation = two_seats(opposing=lambda b: b.with_graveyard("Grizzly Bears"))
     acted(situation, recorded(situation, {"move": {"battlefield": ["Grizzly Bears"]}}))
@@ -342,7 +327,6 @@ def test_a_card_moved_onto_the_battlefield_enters_under_the_acting_seat_s_contro
 
 
 # @spec PLAY-119
-@M3B
 def test_a_permanent_moved_to_the_battlefield_from_the_battlefield_arrives_again() -> None:
     situation = two_seats(
         opposing=lambda b: b.with_battlefield(
@@ -383,7 +367,6 @@ def test_a_delta_moves_another_seat_s_card_out_of_its_graveyard() -> None:
 
 
 # @spec PLAY-091
-@M3B
 def test_life_as_a_map_changes_each_named_seat_s_life() -> None:
     situation = three_seats()
     acted(situation, recorded(situation, {"life": {"1": 3, "3": -4}}))
@@ -391,7 +374,6 @@ def test_life_as_a_map_changes_each_named_seat_s_life() -> None:
 
 
 # @spec PLAY-092
-@M3B
 def test_damage_as_a_map_is_taken_from_each_named_seat_s_life() -> None:
     situation = three_seats()
     result = acted(situation, recorded(situation, {"damage": {"2": 3, "3": 5}}))
@@ -403,7 +385,6 @@ def test_damage_as_a_map_is_taken_from_each_named_seat_s_life() -> None:
 
 
 # @spec PLAY-093
-@M3B
 def test_a_delta_s_damage_never_counts_as_commander_damage() -> None:
     situation = two_seats(tested=lambda b: b.with_commander(ATRAXA, zone=Zone.BATTLEFIELD))
     acted(situation, recorded(situation, {"damage": {"2": 5}}))
@@ -421,7 +402,6 @@ def test_life_as_one_number_in_a_contested_game_is_the_acting_seat_s_own() -> No
 
 
 # @spec PLAY-094
-@M3B
 def test_control_makes_the_named_seat_the_controller_of_the_listed_permanents() -> None:
     situation = two_seats(opposing=lambda b: b.with_battlefield("Grizzly Bears"))
     result = acted(situation, recorded(situation, {"control": {"1": ["Grizzly Bears"]}}))
@@ -434,7 +414,6 @@ def test_control_makes_the_named_seat_the_controller_of_the_listed_permanents() 
 
 
 # @spec PLAY-117
-@M3B
 def test_a_permanent_that_changes_controller_counts_as_arrived_and_keeps_its_state() -> None:
     situation = two_seats(
         opposing=lambda b: b.with_battlefield(
@@ -451,7 +430,6 @@ def test_a_permanent_that_changes_controller_counts_as_arrived_and_keeps_its_sta
 
 
 # @spec PLAY-118
-@M3B
 def test_control_given_to_the_seat_that_already_controls_it_changes_nothing_and_says_so() -> None:
     situation = two_seats(opposing=lambda b: b.with_battlefield("Grizzly Bears", entered_turn=1))
     result = acted(situation, recorded(situation, {"control": {"2": ["Grizzly Bears"]}}))
@@ -461,7 +439,6 @@ def test_control_given_to_the_seat_that_already_controls_it_changes_nothing_and_
 
 
 # @spec PLAY-124
-@M3B
 def test_control_naming_a_card_not_on_the_battlefield_is_an_error() -> None:
     situation = two_seats(opposing=lambda b: b.with_graveyard("Grizzly Bears"))
     result = recorded(situation, {"control": {"1": ["Grizzly Bears"]}})
@@ -469,7 +446,6 @@ def test_control_naming_a_card_not_on_the_battlefield_is_an_error() -> None:
 
 
 # @spec PLAY-085
-@M3B
 def test_tokens_are_created_before_control_is_given_in_one_delta() -> None:
     situation = two_seats()
     delta = {"control": {"2": ["Goblin"]}, "tokens": [GOBLIN]}
@@ -482,7 +458,6 @@ def test_tokens_are_created_before_control_is_given_in_one_delta() -> None:
 
 
 # @spec PLAY-080
-@M3B
 def test_a_seat_casts_another_seat_s_card_from_that_seat_s_graveyard() -> None:
     situation = two_seats(
         tested=lambda b: b.with_battlefield("Forest", "Forest"),
@@ -497,7 +472,6 @@ def test_a_seat_casts_another_seat_s_card_from_that_seat_s_graveyard() -> None:
 
 
 # @spec PLAY-129
-@M3B
 def test_casting_another_seat_s_commander_pays_its_tax_and_raises_it_for_its_owner() -> None:
     situation = two_seats(
         opposing=lambda b: b.with_commander(ATRAXA).with_commander_casts(ATRAXA, 2)
@@ -522,7 +496,6 @@ def test_casting_another_seat_s_commander_pays_its_tax_and_raises_it_for_its_own
 
 
 # @spec PLAY-007
-@M3B
 def test_play_without_from_looks_only_in_the_acting_seat_s_own_command_zone() -> None:
     situation = two_seats(opposing=lambda b: b.with_commander(ATRAXA))
     (error,) = errors_of(play(situation.game, situation.deck, S1, card=ATRAXA))
@@ -533,7 +506,6 @@ def test_play_without_from_looks_only_in_the_acting_seat_s_own_command_zone() ->
 
 
 # @spec PLAY-108
-@M3B
 def test_damage_dealt_is_no_expect_key_in_a_contested_game() -> None:
     situation = two_seats()
     result = effect(
@@ -566,7 +538,6 @@ def test_expected_lands_count_the_lands_the_acting_seat_controls_whoever_owns_th
 
 
 # @spec PLAY-084
-@M3B
 @pytest.mark.parametrize("immediate", [True, False])
 def test_immediate_changes_nothing_in_a_goldfish_game(immediate: bool) -> None:
     situation = a_game().with_library("Forest", "Island").build()

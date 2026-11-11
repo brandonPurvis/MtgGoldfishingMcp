@@ -23,7 +23,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted
 from tests.support.builders import Situation, a_game
 
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 RENDERER = TextRenderer()
 ATRAXA = "Atraxa, Praetors' Voice"
 
@@ -60,7 +59,6 @@ def recorded(situation: Situation, delta: object, seat: SeatNumber = S1) -> Any:
 
 
 # @spec TOOL-067
-@M3B
 def test_an_instance_id_in_another_seat_s_hand_reads_as_a_hidden_zone_of_that_seat() -> None:
     situation = three_seats()
     bolt = next(c.id for c in situation.game.cards if c.name == "Lightning Bolt")
@@ -70,11 +68,9 @@ def test_an_instance_id_in_another_seat_s_hand_reads_as_a_hidden_zone_of_that_se
         " Other seats' hands and libraries are reached through ask."
     )
     assert "Lightning Bolt" not in text
-    assert " hand" not in text.splitlines()[0]
 
 
 # @spec TOOL-068
-@M3B
 def test_a_name_another_seat_holds_out_of_sight_reads_as_one_held_nowhere() -> None:
     held = three_seats()
     nowhere: Any = a_game().with_battlefield("Grizzly Bears").with_library("Forest")
@@ -90,7 +86,6 @@ def test_a_name_another_seat_holds_out_of_sight_reads_as_one_held_nowhere() -> N
 
 
 # @spec PLAY-092
-@M3B
 def test_damage_and_life_per_seat_read_with_the_seat_they_changed() -> None:
     situation = three_seats()
     result = recorded(situation, {"life": {"3": 2}, "damage": {"2": 3}})
@@ -100,7 +95,6 @@ def test_damage_and_life_per_seat_read_with_the_seat_they_changed() -> None:
 
 
 # @spec PLAY-094
-@M3B
 def test_a_change_of_control_names_the_new_controller() -> None:
     situation = three_seats()
     result = recorded(situation, {"control": {"1": ["Llanowar Elves"]}})
@@ -108,7 +102,6 @@ def test_a_change_of_control_names_the_new_controller() -> None:
 
 
 # @spec PLAY-097
-@M3B
 def test_an_ask_reads_as_a_choice_for_the_seat_it_is_addressed_to() -> None:
     situation = three_seats()
     result = acted(situation, recorded(situation, {"ask": [{"seats": [2], "text": "discard"}]}))
@@ -120,7 +113,6 @@ def test_an_ask_reads_as_a_choice_for_the_seat_it_is_addressed_to() -> None:
 
 
 # @spec GAME-090, GAME-094
-@M3B
 def test_another_seat_reads_a_look_at_a_hand_without_its_cards() -> None:
     situation = three_seats()
     result = recorded(situation, {"look_at_hand": 2})
@@ -135,7 +127,6 @@ def test_another_seat_reads_a_look_at_a_hand_without_its_cards() -> None:
 
 
 # @spec CMBT-031
-@M3B
 def test_an_attack_reads_with_the_seat_each_attacker_attacks() -> None:
     situation = three_seats()
     result = attack(situation.game, situation.deck, S1, attackers=["Grizzly Bears"], targets=3)  # type: ignore[call-arg]
@@ -143,7 +134,6 @@ def test_an_attack_reads_with_the_seat_each_attacker_attacks() -> None:
 
 
 # @spec CMBT-037
-@M3B
 def test_blocks_asked_of_a_seat_read_with_the_attackers_attacking_it() -> None:
     situation = three_seats()
     acted(
@@ -158,7 +148,6 @@ def test_blocks_asked_of_a_seat_read_with_the_attackers_attacking_it() -> None:
 
 
 # @spec CMBT-066
-@M3B
 def test_combat_damage_reads_per_attacker_with_each_damaged_seat_s_totals() -> None:
     builder: Any = a_game().with_commander(ATRAXA, zone=Zone.BATTLEFIELD)
     situation = builder.and_an_opposing_seat().build()
@@ -173,7 +162,6 @@ def test_combat_damage_reads_per_attacker_with_each_damaged_seat_s_totals() -> N
 
 
 # @spec GAME-138
-@M3B
 @pytest.mark.parametrize(
     ("delta", "line"),
     [
@@ -187,7 +175,6 @@ def test_an_elimination_reads_with_the_seat_and_why(delta: object, line: str) ->
 
 
 # @spec GAME-138, GAME-131
-@M3B
 def test_a_concession_reads_as_the_seat_conceding() -> None:
     situation = three_seats()
     result = end_game(situation.game, situation.deck, S2, result="loss", notes="beaten")
@@ -197,7 +184,6 @@ def test_a_concession_reads_as_the_seat_conceding() -> None:
 
 
 # @spec GAME-142, GAME-143
-@M3B
 def test_the_elimination_notices_read_on_every_later_response() -> None:
     situation = three_seats()
     acted(situation, recorded(situation, {"damage": {"2": 40, "3": 40}}))

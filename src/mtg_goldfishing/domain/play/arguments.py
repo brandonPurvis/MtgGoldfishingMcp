@@ -13,6 +13,7 @@ from mtg_goldfishing.domain.deck.definitions import read_definition
 from mtg_goldfishing.domain.deck.model import CardDefinition
 from mtg_goldfishing.domain.events import Error, ErrorKind
 from mtg_goldfishing.domain.game.model import Destination, TokenSpec
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.steps import Step
 
@@ -33,6 +34,27 @@ DELTA_KEYS: tuple[str, ...] = (
     "look",
     "search",
 )
+CONTESTED_DELTA_KEYS: tuple[str, ...] = (
+    "untap",
+    "tap",
+    "mana",
+    "tokens",
+    "counters",
+    "control",
+    "move",
+    "commander_stays",
+    "discard",
+    "fetch",
+    "draw",
+    "life",
+    "damage",
+    "shuffle",
+    "ask",
+    "look_at_hand",
+    "look",
+    "search",
+)
+"""The delta keys of a contested game, in the order they are applied."""
 EXPECT_KEYS: tuple[str, ...] = (
     "hand",
     "lands",
@@ -44,13 +66,18 @@ EXPECT_KEYS: tuple[str, ...] = (
     "damage_dealt",
     "step",
 )
+CONTESTED_EXPECT_KEYS: tuple[str, ...] = tuple(key for key in EXPECT_KEYS if key != "damage_dealt")
 _CHOICES_KEYS = ("x", "extra_cost", "modes", "targets", "notes", "definition")
 _TOKEN_KEYS = ("name", "count", "types", "pt", "produces", "sacrifice_to_produce", "tapped")
 _LOOK_KEYS = ("n", "from", "rest")
 _SEARCH_KEYS = ("filter",)
+_ASK_KEYS = ("seats", "text")
+_REVEALS = ("look", "search", "look_at_hand")
 
 Names = tuple[str, ...]
 ByDestination = tuple[tuple[Destination, Names], ...]
+BySeat = tuple[tuple[SeatNumber, int], ...]
+"""Signed amounts by seat number, in the order given."""
 
 
 def _malformed(subject: str, names: Names = ()) -> Error:
@@ -140,30 +167,76 @@ class CounterChange:
 
 
 @dataclass(frozen=True)
+class AskEntry:
+    """What an effect requires of other seats: `seats` by number, or every other seat still
+    in the game when `opponents`; `text` says what is required."""
+
+    text: str
+    seats: tuple[SeatNumber, ...] = ()
+    opponents: bool = False
+
+    def __post_init__(self) -> None:
+        if self.opponents == bool(self.seats):
+            raise ValueError("an ask names its seats, or the opponents, and not both")
+
+
+@dataclass(frozen=True)
 class Delta:
-    """The outcome of a play or effect, applied in the fixed order of its fields."""
+    """The outcome of a play or effect, applied in the fixed order of its fields.
+
+    `life_by_seat`, `damage_by_seat`, `control`, `ask` and `look_at_hand` belong to a
+    contested game; `damage` to a goldfish game.
+    """
 
     untap: Names = ()
     tap: Names = ()
     mana: ManaString | None = None
     tokens: tuple[TokenSpec, ...] = ()
     counters: tuple[CounterChange, ...] = ()
+    control: tuple[tuple[SeatNumber, Names], ...] = ()
     move: ByDestination = ()
     commander_stays: bool = False
     discard: Names = ()
     fetch: ByDestination = ()
     draw: int = 0
     life: int = 0
+    life_by_seat: BySeat = ()
     damage: int = 0
+    damage_by_seat: BySeat = ()
     shuffle: bool = False
+    ask: tuple[AskEntry, ...] = ()
+    look_at_hand: SeatNumber | None = None
     look: Look | None = None
     search: Search | None = None
 
     def __post_init__(self) -> None:
-        if self.look is not None and self.search is not None:
-            raise ValueError("a delta holds a look or a search, not both")
+        reveals = [self.look, self.search, self.look_at_hand]
+        if sum(reveal is not None for reveal in reveals) > 1:
+            raise ValueError("a delta holds one of look, search and look_at_hand at most")
         if self.draw < 0:
             raise ValueError("a delta draws no fewer than zero cards")
+
+    @property
+    def creates_choices(self) -> tuple[str, ...]:
+        """The keys it holds that create pending choices."""
+        held = {
+            "ask": bool(self.ask),
+            "look_at_hand": self.look_at_hand is not None,
+            "look": self.look is not None,
+            "search": self.search is not None,
+        }
+        return tuple(key for key, given in held.items() if given)
+
+    @property
+    def seats_named(self) -> tuple[SeatNumber, ...]:
+        """Every seat number the delta names, in the order its keys give them."""
+        named = [seat for seat, _ in self.control]
+        named += [seat for seat, _ in self.life_by_seat]
+        named += [seat for seat, _ in self.damage_by_seat]
+        named += [seat for entry in self.ask for seat in entry.seats]
+        if self.look_at_hand is not None:
+            named.append(self.look_at_hand)
+        return tuple(named)
 
 
 def _read_token(value: object) -> TokenSpec | Error:
@@ -268,18 +341,104 @@ def _read_bool(value: object, key: str) -> bool | Error:
     return value if isinstance(value, bool) else _malformed(key)
 
 
-# @spec PLAY-005, PLAY-057, APP-028
-def read_delta(data: object) -> Delta | Error:
-    """Read a delta as received: unknown keys, bad mana and unknown destinations are errors."""
+def _seat_number(value: object) -> SeatNumber | None:
+    """A seat number given as a whole number from 1, or as text holding one (a JSON key)."""
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value.strip())
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        return None
+    return SeatNumber(value)
+
+
+def _read_by_seat(value: object, key: str) -> BySeat | Error:
+    """`{ seat number: signed amount }`."""
+    if not isinstance(value, Mapping):
+        return _malformed(key)
+    amounts: list[tuple[SeatNumber, int]] = []
+    for seat_key, amount in value.items():
+        seat = _seat_number(seat_key)
+        change = _whole(amount)
+        if seat is None or change is None:
+            return _malformed(key)
+        amounts.append((seat, change))
+    return tuple(amounts)
+
+
+def _read_control(value: object) -> tuple[tuple[SeatNumber, Names], ...] | Error:
+    """`{ seat number: [name] }`: the permanents each seat now controls."""
+    if not isinstance(value, Mapping):
+        return _malformed("control")
+    entries: list[tuple[SeatNumber, Names]] = []
+    for seat_key, names in value.items():
+        seat = _seat_number(seat_key)
+        read = read_names(names, "control")
+        if seat is None or isinstance(read, Error):
+            return _malformed("control")
+        entries.append((seat, read))
+    return tuple(entries)
+
+
+def _read_ask_entry(value: object) -> AskEntry | Error:
+    if not isinstance(value, Mapping) or set(value) != set(_ASK_KEYS):
+        return _malformed("ask", _unknown(value, _ASK_KEYS) if isinstance(value, Mapping) else ())
+    text, seats = value["text"], value["seats"]
+    if not isinstance(text, str) or not text.strip():
+        return _malformed("ask.text")
+    if seats == "opponents":
+        return AskEntry(text.strip(), opponents=True)
+    if not isinstance(seats, list) or not seats:
+        return _malformed("ask.seats")
+    numbers = [_seat_number(seat) if not isinstance(seat, str) else None for seat in seats]
+    if any(number is None for number in numbers):
+        return _malformed("ask.seats")
+    return AskEntry(text.strip(), seats=tuple(n for n in numbers if n is not None))
+
+
+def _read_ask(value: object) -> tuple[AskEntry, ...] | Error:
+    if not isinstance(value, list) or not value:
+        return _malformed("ask")
+    entries: list[AskEntry] = []
+    for item in value:
+        entry = _read_ask_entry(item)
+        if isinstance(entry, Error):
+            return entry
+        entries.append(entry)
+    return tuple(entries)
+
+
+def _read_look_at_hand(value: object) -> SeatNumber | Error:
+    seat = None if isinstance(value, str) else _seat_number(value)
+    return _malformed("look_at_hand") if seat is None else seat
+
+
+# @spec PLAY-005, PLAY-057, PLAY-074, PLAY-075, PLAY-076, PLAY-126, PLAY-127, PLAY-128
+# @spec APP-028
+def read_delta(data: object, *, contested: bool = False) -> Delta | Error:
+    """Read a delta as received: unknown keys, bad mana and unknown destinations are errors.
+
+    A goldfish game's delta may not use what only a contested game has (`control`, `ask`,
+    `look_at_hand`, `life` or `damage` as a map from seat number); a contested game's gives
+    `damage` only as such a map.
+    """
     if data is None:
         return Delta()
     if not isinstance(data, Mapping):
         return _malformed("delta")
-    unknown = _unknown(data, DELTA_KEYS)
+    keys = CONTESTED_DELTA_KEYS if contested else DELTA_KEYS
+    unknown = _unknown(data, CONTESTED_DELTA_KEYS)
     if unknown:
-        return Error(ErrorKind.UNKNOWN_DELTA_KEY, subject=unknown[0], names=DELTA_KEYS)
+        return Error(ErrorKind.UNKNOWN_DELTA_KEY, subject=unknown[0], names=keys)
+    if not contested:
+        only = [k for k in CONTESTED_DELTA_KEYS if k not in DELTA_KEYS and data.get(k) is not None]
+        only += [k for k in ("life", "damage") if isinstance(data.get(k), Mapping)]
+        if only:
+            return Error(ErrorKind.CONTESTED_ONLY, subject=only[0])
     if data.get("look") is not None and data.get("search") is not None:
         return Error(ErrorKind.LOOK_AND_SEARCH)
+    if sum(data.get(key) is not None for key in _REVEALS) > 1:
+        return Error(ErrorKind.TOO_MANY_REVEALS)
+    if contested and data.get("damage") is not None and not isinstance(data["damage"], Mapping):
+        return Error(ErrorKind.DAMAGE_NEEDS_SEATS)
     fields: dict[str, object] = {}
     readers: dict[str, Callable[[object], object]] = {
         "untap": lambda v: read_names(v, "untap"),
@@ -297,14 +456,23 @@ def read_delta(data: object) -> Delta | Error:
         "shuffle": lambda v: _read_bool(v, "shuffle"),
         "look": _read_look,
         "search": _read_search,
+        "control": _read_control,
+        "ask": _read_ask,
+        "look_at_hand": _read_look_at_hand,
     }
-    for key in DELTA_KEYS:
-        if data.get(key) is None:
+    for key in keys:
+        value = data.get(key)
+        if value is None:
             continue
-        read = readers[key](data[key])
+        field_name = key
+        if key in ("life", "damage") and isinstance(value, Mapping):
+            read: object = _read_by_seat(value, key)
+            field_name = f"{key}_by_seat"
+        else:
+            read = readers[key](value)
         if isinstance(read, Error):
             return read
-        fields[key] = read
+        fields[field_name] = read
     return Delta(**fields)  # type: ignore[arg-type]
 
 
@@ -410,18 +578,20 @@ def _read_expected(key: str, value: object) -> ExpectedValue | Error:
     return _read_int(value, f"expect.{key}")
 
 
-# @spec PLAY-005, PLAY-070, APP-028
-def read_expect(data: object) -> tuple[Expectation, ...] | Error:
-    """Read `expect`; any key not allowed is an error listing the allowed keys."""
+# @spec PLAY-005, PLAY-070, PLAY-108, APP-028
+def read_expect(data: object, *, contested: bool = False) -> tuple[Expectation, ...] | Error:
+    """Read `expect`; any key not allowed is an error listing the allowed keys. A contested
+    game has no `damage_dealt`."""
     if data is None:
         return ()
     if not isinstance(data, Mapping):
         return _malformed("expect")
-    unknown = _unknown(data, EXPECT_KEYS)
+    allowed = CONTESTED_EXPECT_KEYS if contested else EXPECT_KEYS
+    unknown = _unknown(data, allowed)
     if unknown:
-        return Error(ErrorKind.UNKNOWN_EXPECT_KEY, subject=unknown[0], names=EXPECT_KEYS)
+        return Error(ErrorKind.UNKNOWN_EXPECT_KEY, subject=unknown[0], names=allowed)
     expectations: list[Expectation] = []
-    for key in EXPECT_KEYS:
+    for key in allowed:
         if key not in data:
             continue
         value = _read_expected(key, data[key])
@@ -432,6 +602,17 @@ def read_expect(data: object) -> tuple[Expectation, ...] | Error:
 
 
 # ----------------------------------------------------------------------------- selections
+
+
+def read_blocks(data: object) -> tuple[tuple[str, str], ...] | Error:
+    """`{ blocker: attacker }`, keeping the order given."""
+    if data is None:
+        return ()
+    if not isinstance(data, Mapping) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in data.items()
+    ):
+        return _malformed("blocks")
+    return tuple((str(key), str(value)) for key, value in data.items())
 
 
 # @spec APP-028

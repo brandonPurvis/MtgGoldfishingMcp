@@ -5,16 +5,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.domain.events import CardsRevealed
 from mtg_goldfishing.domain.game.model import GameStatus
 from tests.support.builders import a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
-
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 
 
 def holding_three_seats() -> ServiceHarness:
@@ -43,7 +39,6 @@ def waiting_choice(harness: ServiceHarness) -> str:
 
 
 # @spec PLAY-097, PLAY-099, GAME-109
-@M3B
 def test_the_asked_seat_is_told_it_is_asked_and_answers_with_its_own_delta() -> None:
     harness = holding_three_seats()
     asking(harness, {"ask": [{"seats": [2], "text": "discard a card"}]})
@@ -57,7 +52,6 @@ def test_the_asked_seat_is_told_it_is_asked_and_answers_with_its_own_delta() -> 
 
 
 # @spec GAME-090, PLAY-116
-@M3B
 def test_the_seat_whose_answer_opens_a_look_at_another_hand_is_not_shown_its_cards() -> None:
     harness = holding_three_seats()
     asking(harness, {"ask": [{"seats": [2], "text": "discard a card"}], "look_at_hand": 3})
@@ -67,7 +61,6 @@ def test_the_seat_whose_answer_opens_a_look_at_another_hand_is_not_shown_its_car
 
 
 # @spec GAME-090, PLAY-102
-@M3B
 def test_the_looking_seat_is_shown_the_hand_it_looks_at_with_a_choice() -> None:
     harness = holding_three_seats()
     answer = asking(harness, {"look_at_hand": 2})
@@ -76,7 +69,6 @@ def test_the_looking_seat_is_shown_the_hand_it_looks_at_with_a_choice() -> None:
 
 
 # @spec GAME-131
-@M3B
 def test_an_opposing_seat_s_end_game_concedes_and_the_game_is_not_ended() -> None:
     harness = holding_three_seats()
     answer = call_as(harness, 2, "end_game", result="loss", notes="beaten")
@@ -88,7 +80,6 @@ def test_an_opposing_seat_s_end_game_concedes_and_the_game_is_not_ended() -> Non
 
 
 # @spec GAME-148
-@M3B
 def test_the_tested_seat_ends_the_game_while_another_seat_owes_an_answer() -> None:
     harness = holding_three_seats()
     asking(harness, {"ask": [{"seats": [2], "text": "discard a card"}]})
@@ -99,7 +90,6 @@ def test_the_tested_seat_ends_the_game_while_another_seat_owes_an_answer() -> No
 
 
 # @spec GAME-119
-@M3B
 def test_a_seat_that_conceded_may_make_no_further_changing_call() -> None:
     harness = holding_three_seats()
     call_as(harness, 2, "end_game", result="loss")

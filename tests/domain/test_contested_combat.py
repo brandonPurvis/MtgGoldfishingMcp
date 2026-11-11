@@ -20,7 +20,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted, check_kinds, error_kinds, events_named
 from tests.support.builders import Situation, a_game
 
-M3B = pytest.mark.xfail(strict=True, reason="M3b: not built")
 ATRAXA = "Atraxa, Praetors' Voice"
 
 
@@ -97,7 +96,6 @@ def test_a_seat_that_is_not_the_active_seat_may_not_attack() -> None:
 
 
 # @spec CMBT-030
-@M3B
 def test_one_seat_number_as_targets_sends_every_attacker_at_that_seat() -> None:
     situation = a_table(3)
     acted(situation, attacking(situation, attackers=["Grizzly Bears", "Shivan Dragon"], targets=3))
@@ -105,7 +103,6 @@ def test_one_seat_number_as_targets_sends_every_attacker_at_that_seat() -> None:
 
 
 # @spec CMBT-031
-@M3B
 def test_targets_as_a_map_sends_each_attacker_at_its_own_seat() -> None:
     situation = a_table(3)
     targets = {"Grizzly Bears": 2, "Shivan Dragon": 3}
@@ -118,7 +115,6 @@ def test_targets_as_a_map_sends_each_attacker_at_its_own_seat() -> None:
 
 
 # @spec CMBT-032
-@M3B
 def test_with_one_opponent_left_an_attacker_without_a_target_attacks_it() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat()
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -127,7 +123,6 @@ def test_with_one_opponent_left_an_attacker_without_a_target_attacks_it() -> Non
 
 
 # @spec CMBT-059
-@M3B
 def test_an_attacker_without_a_target_while_several_opponents_remain_is_an_error() -> None:
     situation = a_table(3)
     result = attacking(
@@ -137,7 +132,6 @@ def test_an_attacker_without_a_target_while_several_opponents_remain_is_an_error
 
 
 # @spec CMBT-076
-@M3B
 def test_attacking_with_no_opponent_left_is_an_error() -> None:
     situation = (
         a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat().eliminated().build()
@@ -146,7 +140,6 @@ def test_attacking_with_no_opponent_left_is_an_error() -> None:
 
 
 # @spec CMBT-058
-@M3B
 @pytest.mark.parametrize(
     ("target", "kind"), [(1, "target_is_you"), (5, "no_such_seat"), (3, "seat_out")]
 )
@@ -160,7 +153,6 @@ def test_a_target_that_is_the_attacker_itself_absent_or_eliminated_is_an_error(
 
 
 # @spec CMBT-057
-@M3B
 def test_a_target_for_something_that_is_not_an_attacker_is_an_error() -> None:
     situation = a_table()
     result = attacking(situation, attackers=["Grizzly Bears"], targets={"Shivan Dragon": 2})
@@ -168,21 +160,18 @@ def test_a_target_for_something_that_is_not_an_attacker_is_an_error() -> None:
 
 
 # @spec CMBT-054
-@M3B
 def test_blocked_is_not_given_in_a_contested_game() -> None:
     result = attacking(a_table(), attackers=["Grizzly Bears"], blocked=["Grizzly Bears"])
     assert error_kinds(result) == ["goldfish_only"]
 
 
 # @spec CMBT-055
-@M3B
 def test_commander_target_is_not_given_in_a_contested_game() -> None:
     result = attacking(a_table(), attackers=["Grizzly Bears"], commander_target=1)
     assert error_kinds(result) == ["goldfish_only"]
 
 
 # @spec CMBT-056
-@M3B
 def test_targets_are_not_given_in_a_goldfish_game() -> None:
     situation = a_game().with_battlefield("Grizzly Bears").build()
     assert error_kinds(attacking(situation, attackers=["Grizzly Bears"], targets=2)) == [
@@ -191,14 +180,12 @@ def test_targets_are_not_given_in_a_goldfish_game() -> None:
 
 
 # @spec CMBT-068
-@M3B
 def test_attacking_with_another_seat_s_creature_is_an_error() -> None:
     situation = a_table(attackers=("Grizzly Bears",), blockers=("Shivan Dragon",))
     assert error_kinds(attacking(situation, attackers=["Shivan Dragon"])) == ["not_your_attacker"]
 
 
 # @spec CMBT-053
-@M3B
 def test_an_attacker_in_another_seat_s_hand_is_reported_as_in_a_hidden_zone() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat()
     situation = builder.with_hand("Shivan Dragon").build()
@@ -225,7 +212,6 @@ def test_a_contested_attacker_with_no_numeric_power_needs_a_damage_entry() -> No
 
 
 # @spec CMBT-069
-@M3B
 def test_a_second_attack_in_one_combat_is_an_error() -> None:
     situation = a_table()
     acted(situation, attacking(situation, attackers=["Grizzly Bears"]))
@@ -233,7 +219,6 @@ def test_a_second_attack_in_one_combat_is_an_error() -> None:
 
 
 # @spec CMBT-070
-@M3B
 def test_after_an_empty_attack_a_later_attack_is_the_combat_s_first() -> None:
     situation = a_table()
     acted(situation, attacking(situation, attackers=[]))
@@ -242,7 +227,6 @@ def test_after_an_empty_attack_a_later_attack_is_the_combat_s_first() -> None:
 
 
 # @spec CMBT-071
-@M3B
 def test_an_additional_combat_takes_its_own_declaration() -> None:
     situation = a_table(blockers=())
     acted(situation, attacking(situation, attackers=["Grizzly Bears"]))
@@ -255,7 +239,6 @@ def test_an_additional_combat_takes_its_own_declaration() -> None:
 
 
 # @spec CMBT-072
-@M3B
 def test_attacking_in_declare_blockers_is_an_error() -> None:
     situation = a_table(step=Step.DECLARE_BLOCKERS)
     assert error_kinds(attacking(situation, attackers=["Grizzly Bears"])) == [
@@ -272,7 +255,6 @@ def attacked(situation: Situation, **arguments: object) -> Situation:
 
 
 # @spec CMBT-037, CMBT-047
-@M3B
 def test_entering_declare_blockers_asks_each_attacked_seat_with_an_untapped_creature() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears", "Shivan Dragon")
     builder = builder.and_an_opposing_seat().with_battlefield("Llanowar Elves", tapped=True)
@@ -288,7 +270,6 @@ def test_entering_declare_blockers_asks_each_attacked_seat_with_an_untapped_crea
 
 
 # @spec CMBT-037
-@M3B
 def test_blocks_choices_are_created_in_turn_order_from_the_seat_after_the_active_seat() -> None:
     situation = attacked(
         a_table(3),
@@ -300,7 +281,6 @@ def test_blocks_choices_are_created_in_turn_order_from_the_seat_after_the_active
 
 
 # @spec CMBT-049
-@M3B
 def test_a_blocks_choice_shows_only_the_attackers_attacking_that_seat() -> None:
     situation = attacked(
         a_table(3),
@@ -314,7 +294,6 @@ def test_a_blocks_choice_shows_only_the_attackers_attacking_that_seat() -> None:
 
 
 # @spec CMBT-038
-@M3B
 def test_an_advance_stops_in_declare_blockers_when_blocks_are_asked_for() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears"])
     advanced(situation, "combat_damage")
@@ -322,7 +301,6 @@ def test_an_advance_stops_in_declare_blockers_when_blocks_are_asked_for() -> Non
 
 
 # @spec CMBT-039, CMBT-048
-@M3B
 def test_an_attacker_named_in_a_blocks_answer_is_blocked_and_the_active_seat_acts_again() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears", "Shivan Dragon"])
     advanced(situation, "declare_blockers")
@@ -339,7 +317,6 @@ def test_an_attacker_named_in_a_blocks_answer_is_blocked_and_the_active_seat_act
 
 
 # @spec CMBT-040
-@M3B
 def test_several_blockers_may_block_one_attacker() -> None:
     situation = attacked(
         a_table(blockers=("Llanowar Elves", "Grizzly Bears")), attackers=["Shivan Dragon"]
@@ -351,7 +328,6 @@ def test_several_blockers_may_block_one_attacker() -> None:
 
 
 # @spec CMBT-041
-@M3B
 def test_an_empty_blocks_answer_declares_no_blocks() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears"])
     advanced(situation, "declare_blockers")
@@ -361,7 +337,6 @@ def test_an_empty_blocks_answer_declares_no_blocks() -> None:
 
 
 # @spec CMBT-042
-@M3B
 def test_a_blocker_the_answering_seat_does_not_control_is_an_error() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears"])
     advanced(situation, "declare_blockers")
@@ -370,7 +345,6 @@ def test_a_blocker_the_answering_seat_does_not_control_is_an_error() -> None:
 
 
 # @spec CMBT-043
-@M3B
 def test_blocking_an_attacker_that_is_not_attacking_the_answering_seat_is_an_error() -> None:
     situation = attacked(
         a_table(3),
@@ -383,7 +357,6 @@ def test_blocking_an_attacker_that_is_not_attacking_the_answering_seat_is_an_err
 
 
 # @spec CMBT-044
-@M3B
 def test_naming_one_blocker_twice_is_an_error() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears", "Shivan Dragon"])
     advanced(situation, "declare_blockers")
@@ -394,7 +367,6 @@ def test_naming_one_blocker_twice_is_an_error() -> None:
 
 
 # @spec CMBT-045
-@M3B
 def test_a_tapped_blocker_fails_a_rule_check_that_override_passes() -> None:
     situation = attacked(
         a_table(blockers=("Llanowar Elves", "Grizzly Bears")), attackers=["Shivan Dragon"]
@@ -408,7 +380,6 @@ def test_a_tapped_blocker_fails_a_rule_check_that_override_passes() -> None:
 
 
 # @spec CMBT-046
-@M3B
 def test_a_blocker_that_is_not_a_creature_fails_a_rule_check() -> None:
     situation = attacked(
         a_table(blockers=("Llanowar Elves", "Sol Ring")), attackers=["Grizzly Bears"]
@@ -422,7 +393,6 @@ def test_a_blocker_that_is_not_a_creature_fails_a_rule_check() -> None:
 
 
 # @spec CMBT-034
-@M3B
 def test_an_attacker_that_left_the_battlefield_is_removed_before_blocks() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears", "Shivan Dragon"])
     recorded(situation, {"move": {"graveyard": ["Grizzly Bears"]}})
@@ -433,7 +403,6 @@ def test_an_attacker_that_left_the_battlefield_is_removed_before_blocks() -> Non
 
 
 # @spec CMBT-035
-@M3B
 def test_an_attacker_whose_controller_changed_is_removed_before_blocks() -> None:
     situation = attacked(a_table(), attackers=["Grizzly Bears", "Shivan Dragon"])
     recorded(situation, {"control": {"2": ["Grizzly Bears"]}})
@@ -443,7 +412,6 @@ def test_an_attacker_whose_controller_changed_is_removed_before_blocks() -> None
 
 
 # @spec CMBT-036
-@M3B
 def test_an_attacker_whose_target_seat_was_eliminated_is_removed_before_blocks() -> None:
     situation = attacked(
         a_table(3),
@@ -458,7 +426,6 @@ def test_an_attacker_whose_target_seat_was_eliminated_is_removed_before_blocks()
 
 
 # @spec CMBT-074
-@M3B
 def test_an_attacker_whose_controller_changed_after_blocks_deals_no_damage() -> None:
     situation = attacked(a_table(blockers=()), attackers=["Grizzly Bears", "Shivan Dragon"])
     advanced(situation, "declare_blockers")
@@ -468,7 +435,6 @@ def test_an_attacker_whose_controller_changed_after_blocks_deals_no_damage() -> 
 
 
 # @spec CMBT-075
-@M3B
 def test_an_attacker_whose_target_was_eliminated_after_blocks_deals_no_damage() -> None:
     situation = attacked(
         a_table(3, blockers=()),
@@ -487,7 +453,6 @@ def test_an_attacker_whose_target_was_eliminated_after_blocks_deals_no_damage() 
 
 
 # @spec CMBT-061, CMBT-067
-@M3B
 def test_an_unblocked_attacker_s_damage_comes_off_the_life_of_the_seat_it_attacks() -> None:
     situation = attacked(a_table(3, blockers=()), attackers=["Grizzly Bears"], targets=3)
     advanced(situation, "combat_damage")
@@ -496,7 +461,6 @@ def test_an_unblocked_attacker_s_damage_comes_off_the_life_of_the_seat_it_attack
 
 
 # @spec CMBT-062
-@M3B
 def test_an_attacking_commander_s_damage_counts_against_the_seat_it_attacks() -> None:
     builder: Any = a_game().with_commander(ATRAXA, zone=Zone.BATTLEFIELD)
     situation = builder.and_an_opposing_seat().and_an_opposing_seat().build()
@@ -507,7 +471,6 @@ def test_an_attacking_commander_s_damage_counts_against_the_seat_it_attacks() ->
 
 
 # @spec CMBT-063
-@M3B
 def test_a_blocked_attacker_with_a_damage_entry_deals_it_all_to_the_seat_it_attacks() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 3})
     advanced(situation, "declare_blockers")
@@ -517,7 +480,6 @@ def test_a_blocked_attacker_with_a_damage_entry_deals_it_all_to_the_seat_it_atta
 
 
 # @spec CMBT-064, CMBT-050
-@M3B
 def test_a_blocked_attacker_without_a_damage_entry_deals_nothing_and_nothing_dies() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"])
     advanced(situation, "declare_blockers")
@@ -529,7 +491,6 @@ def test_a_blocked_attacker_without_a_damage_entry_deals_nothing_and_nothing_die
 
 
 # @spec CMBT-077
-@M3B
 def test_a_blocked_attacker_no_longer_on_the_battlefield_deals_nothing() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 3})
     advanced(situation, "declare_blockers")
@@ -540,7 +501,6 @@ def test_a_blocked_attacker_no_longer_on_the_battlefield_deals_nothing() -> None
 
 
 # @spec CMBT-051
-@M3B
 def test_the_attacking_seat_states_the_result_of_combat_with_an_immediate_effect() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"])
     advanced(situation, "declare_blockers")
@@ -552,7 +512,6 @@ def test_the_attacking_seat_states_the_result_of_combat_with_an_immediate_effect
 
 
 # @spec CMBT-052
-@M3B
 def test_combat_damage_is_dealt_in_full_whatever_an_earlier_effect_stated() -> None:
     situation = attacked(a_table(blockers=()), attackers=["Grizzly Bears"])
     advanced(situation, "declare_blockers")
@@ -562,7 +521,6 @@ def test_combat_damage_is_dealt_in_full_whatever_an_earlier_effect_stated() -> N
 
 
 # @spec CMBT-065
-@M3B
 def test_a_seat_brought_to_0_life_by_combat_damage_is_eliminated_within_the_call() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat().with_life(2)
     situation = attacked(
@@ -574,7 +532,6 @@ def test_a_seat_brought_to_0_life_by_combat_damage_is_eliminated_within_the_call
 
 
 # @spec CMBT-066
-@M3B
 def test_the_combat_damage_outcome_gives_each_hit_and_each_damaged_seat_s_totals() -> None:
     builder: Any = (
         a_game().with_battlefield("Grizzly Bears").with_commander(ATRAXA, zone=Zone.BATTLEFIELD)

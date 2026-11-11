@@ -22,6 +22,8 @@ from mtg_goldfishing.domain.events import (
     FailedCheck,
 )
 from mtg_goldfishing.domain.game.cards_in_play import card_of, reading_of
+from mtg_goldfishing.domain.game.decks import Decks
+from mtg_goldfishing.domain.game.elimination import check_eliminations
 from mtg_goldfishing.domain.game.model import CardInstance, Destination, Game, Zone
 from mtg_goldfishing.domain.game.movement import move
 from mtg_goldfishing.domain.game.naming import is_instance_id, resolve_one
@@ -46,6 +48,7 @@ from mtg_goldfishing.domain.play.arguments import (
 )
 from mtg_goldfishing.domain.play.delta import apply_delta
 from mtg_goldfishing.domain.play.expectations import compare
+from mtg_goldfishing.domain.play.settling import settle
 from mtg_goldfishing.domain.reading.reader import read_card
 from mtg_goldfishing.domain.records.reminders import names_reminded_permanent
 
@@ -122,9 +125,9 @@ class _Arguments:
 
 
 def _read_arguments(
-    delta: object, choices: object, pay: object, expect: object
+    delta: object, choices: object, pay: object, expect: object, *, contested: bool
 ) -> _Arguments | Error:
-    read_d = read_delta(delta)
+    read_d = read_delta(delta, contested=contested)
     if isinstance(read_d, Error):
         return read_d
     read_c = read_choices(choices)
@@ -133,15 +136,16 @@ def _read_arguments(
     read_p = read_pay(pay)
     if isinstance(read_p, Error):
         return read_p
-    read_e = read_expect(expect)
+    read_e = read_expect(expect, contested=contested)
     if isinstance(read_e, Error):
         return read_e
     return _Arguments(read_d, read_c, read_p, read_e)
 
 
+# @spec GAME-128, PLAY-051
 def _finish(
     changed: Game,
-    deck: LoadedDeck,
+    decks: Decks,
     seat: SeatNumber,
     problems: Problems,
     *,
@@ -150,14 +154,21 @@ def _finish(
     events: list[Event],
     expectations: tuple[Expectation, ...],
 ) -> Result:
-    """Judge the call; if applied, compare expectations and re-examine end conditions."""
+    """Judge the call; if applied, compare expectations, re-examine end conditions, check
+    every seat for elimination now that the delta has been applied in full, and end the
+    turn of an active seat that has been eliminated."""
     judged = problems.judge(override)
     if isinstance(judged, Refusal):
         return judged
     reported: list[Event] = [judged] if isinstance(judged, ChecksOverridden) else []
     reported.extend(events)
-    reported.extend(compare(changed, deck, seat, expectations))
+    reported.extend(compare(changed, decks.of(seat), seat, expectations, decks=decks))
     reported.extend(examine_end_conditions(changed))
+    reported.extend(check_eliminations(changed))
+    walk = settle(changed, decks)
+    if walk.entered:
+        reported.append(walk.summary)
+    reported.extend(walk.events)
     return Applied(changed, summary, tuple(reported))
 
 
@@ -208,7 +219,6 @@ def _played_face(deck: LoadedDeck, instance: CardInstance, name: str) -> tuple[i
 
 def _spell_cost(
     game: Game,
-    seat: SeatNumber,
     instance: CardInstance,
     face: Face,
     *,
@@ -222,7 +232,7 @@ def _spell_cost(
     if not face.has_mana_cost:
         events.append(AssumptionMade(AssumptionKind.NO_MANA_COST, face.name))
     cost = face.mana_cost + (choices.extra_cost or ManaString())
-    tax = game.seat(seat).commander_tax(instance) if instance.is_commander else 0
+    tax = game.seat(instance.owner).commander_tax(instance) if instance.is_commander else 0
     if from_zone is Zone.COMMAND and tax:
         cost = cost + ManaString.parse(f"{{{tax}}}")
     cost, assumed = _x_replaced(cost, choices, face.name)
@@ -244,7 +254,7 @@ def _check_timing(
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-007, PLAY-008, PLAY-009, PLAY-010
 # @spec PLAY-011, PLAY-012, PLAY-013, PLAY-014, PLAY-015, PLAY-016, PLAY-017, PLAY-018
 # @spec PLAY-019, PLAY-020, PLAY-021, PLAY-022, PLAY-023, PLAY-024, PLAY-025, PLAY-026
-# @spec PLAY-027, PLAY-028, PLAY-051, PAY-037, GAME-061, APP-031
+# @spec PLAY-027, PLAY-028, PLAY-051, PAY-037, GAME-061, APP-031, PLAY-080, PLAY-129
 def play(
     game: Game,
     deck: LoadedDeck,
@@ -260,11 +270,17 @@ def play(
     reason: object = None,
     override: str | None = None,
     outside: Card | None = None,
+    decks: Decks | None = None,
 ) -> Result:
     """The acting seat plays a land, a spell or its commander, then applies the call's delta.
 
-    The land drop, the commander's cast count and the payment are the acting seat's own.
+    Without `from` the card is looked for in the acting seat's own hand and command zone;
+    from a public zone it may be another seat's card. The land drop and the payment are the
+    acting seat's own; a commander's cast count is the commander's, kept by its owner. A
+    permanent enters under the acting seat's control. `decks` gives each seat's deck;
+    omitted, every seat plays `deck`.
     """
+    every = decks or Decks.everyone_playing(game, deck)
     del reason  # recorded with the call by the application; never judged
     if not isinstance(card, str) or not card.strip():
         return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="card"))
@@ -274,7 +290,7 @@ def play(
     destination = read_destination(to) if to is not None else None
     if isinstance(destination, Error):
         return Refusal.error(destination)
-    arguments = _read_arguments(delta, choices, pay, expect)
+    arguments = _read_arguments(delta, choices, pay, expect, contested=game.contested)
     if isinstance(arguments, Error):
         return Refusal.error(arguments)
     the_choices, instructions = arguments.choices, arguments.pay
@@ -288,13 +304,16 @@ def play(
         instance, origin = found, OUTSIDE
     else:
         zones = [_FROM_ZONES[str(requested)]] if requested is not None else list(_WITHOUT_FROM)
-        resolved = resolve_one(changed, deck, seat, card, zones)
+        resolved = resolve_one(
+            changed, deck, seat, card, zones, decks=every, own_only=requested is None
+        )
         if isinstance(resolved, Error):
             return Refusal.error(resolved)
         instance, chosen = resolved
         origin = instance.zone.value
         events.extend(chosen)
-    played = _played_face(deck, instance, card)
+    owners_deck = every.of(instance.owner)
+    played = _played_face(owners_deck, instance, card)
     if played is None:
         return Refusal.error(Error(ErrorKind.CARD_NOT_IN_ZONE, subject=card))
     index, face = played
@@ -303,7 +322,7 @@ def play(
 
     acting = changed.seat(seat)
     problems = Problems()
-    problems.add(_check_timing(changed, deck, instance, face))
+    problems.add(_check_timing(changed, owners_deck, instance, face))
     if face.is_land:
         if acting.land_drops_used >= 1:
             problems.add(
@@ -319,7 +338,6 @@ def play(
             )
         cost, assumed = _spell_cost(
             changed,
-            seat,
             instance,
             face,
             from_zone=from_zone_found,
@@ -341,17 +359,18 @@ def play(
         )
         events.extend(assumed)
         if from_zone_found is Zone.COMMAND and instance.is_commander:
-            acting.commander_casts[instance.id] = acting.commander_casts.get(instance.id, 0) + 1
+            casts = changed.seat(instance.owner).commander_casts
+            casts[instance.id] = casts.get(instance.id, 0) + 1
 
     if destination is None:
         destination = Destination.BATTLEFIELD if face.is_permanent else Destination.GRAVEYARD
-    moved = move(changed, deck, instance, destination)
+    moved = move(changed, owners_deck, instance, destination, arriving_under=seat)
     arrived = next(e for e in moved if isinstance(e, CardMoved))
     events.extend(e for e in moved if not isinstance(e, CardMoved) or e.commander_redirected)
     if instance.zone is not Zone.BATTLEFIELD:
         instance.face = 0
 
-    applied = apply_delta(changed, deck, seat, arguments.delta, source=instance.name)
+    applied = apply_delta(changed, deck, seat, arguments.delta, source=instance.name, decks=every)
     if isinstance(applied, Error):
         problems.add(applied)
     else:
@@ -359,7 +378,7 @@ def play(
     summary = CardPlayed(instance.name, face.name, origin, arrived.to, face.is_land)
     return _finish(
         changed,
-        deck,
+        every,
         seat,
         problems,
         override=override,
@@ -387,7 +406,7 @@ def _answer_reminders(changed: Game, seat: SeatNumber, source: str) -> None:
 
 
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-021, PLAY-022, PLAY-029, PLAY-030
-# @spec PLAY-031, PLAY-032, PLAY-051, PAY-040, GAME-061, APP-031
+# @spec PLAY-031, PLAY-032, PLAY-051, PAY-040, GAME-061, APP-031, PLAY-084, CMBT-051
 def effect(
     game: Game,
     deck: LoadedDeck,
@@ -400,13 +419,23 @@ def effect(
     expect: object = None,
     reason: object = None,
     override: str | None = None,
+    immediate: object = None,
+    decks: Decks | None = None,
 ) -> Result:
     """The acting seat records a change not caused by playing a card, paying `pay` first
-    when it is given."""
+    when it is given.
+
+    Every effect is applied at once, so `immediate` — which in a contested game keeps an
+    effect off the stack, as for the result of combat — changes nothing about how it is
+    applied. `decks` gives each seat's deck; omitted, every seat plays `deck`.
+    """
     del reason  # recorded with the call by the application; never judged
+    every = decks or Decks.everyone_playing(game, deck)
     if not isinstance(source, str):
         return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="source"))
-    arguments = _read_arguments(delta, choices, pay, expect)
+    if immediate is not None and not isinstance(immediate, bool):
+        return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="immediate"))
+    arguments = _read_arguments(delta, choices, pay, expect, contested=game.contested)
     if isinstance(arguments, Error):
         return Refusal.error(arguments)
     the_choices, instructions = arguments.choices, arguments.pay
@@ -431,7 +460,7 @@ def effect(
             )
         )
         events.extend(assumed)
-    applied = apply_delta(changed, deck, seat, arguments.delta, source=source)
+    applied = apply_delta(changed, deck, seat, arguments.delta, source=source, decks=every)
     if isinstance(applied, Error):
         problems.add(applied)
     else:
@@ -439,7 +468,7 @@ def effect(
     _answer_reminders(changed, seat, source)
     return _finish(
         changed,
-        deck,
+        every,
         seat,
         problems,
         override=override,

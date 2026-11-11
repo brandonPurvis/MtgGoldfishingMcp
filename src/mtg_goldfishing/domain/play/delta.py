@@ -1,8 +1,14 @@
-"""Applying a delta to a game, key by key in the fixed order, with the implied bookkeeping."""
+"""Applying a delta to a game, key by key in the fixed order, with the implied bookkeeping.
+
+A delta is the acting seat's. In a contested game it may reach other seats' public cards,
+their life, and the control of their permanents, and ask other seats for what they must
+decide; it never reaches another seat's hand or library by name or id.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import (
@@ -11,6 +17,8 @@ from mtg_goldfishing.domain.events import (
     CardMoved,
     CardsDiscarded,
     CardsRevealed,
+    ChoiceAsked,
+    ControlChanged,
     CountersChanged,
     DamageAdded,
     Error,
@@ -20,16 +28,19 @@ from mtg_goldfishing.domain.events import (
     ManaAdded,
     NothingRevealed,
     RevealedCard,
+    SeatDamaged,
     Tapped,
     TokensCreated,
     Untapped,
 )
 from mtg_goldfishing.domain.game.cards_in_play import card_of, face_name, names_of
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import (
     CardInstance,
     Destination,
     Game,
     GameStatus,
+    HandLook,
     PendingChoice,
     TokenSpec,
     Zone,
@@ -38,11 +49,19 @@ from mtg_goldfishing.domain.game.movement import draw, move
 from mtg_goldfishing.domain.game.naming import Purpose, resolve
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.shuffling import shuffle_library
-from mtg_goldfishing.domain.play.arguments import ByDestination, CounterChange, Delta, Look, Search
+from mtg_goldfishing.domain.play.arguments import (
+    AskEntry,
+    ByDestination,
+    CounterChange,
+    Delta,
+    Look,
+    Search,
+)
 
 # Where `move` finds cards: the hand, then the public zones. Never the library.
 MOVE_ZONES = (Zone.HAND, Zone.BATTLEFIELD, Zone.GRAVEYARD, Zone.EXILE, Zone.COMMAND)
 _LIBRARY = (Destination.LIBRARY_TOP, Destination.LIBRARY_BOTTOM)
+_NAMING_ERRORS = (ErrorKind.CARD_NOT_IN_ZONE, ErrorKind.NOT_IN_LIBRARY, ErrorKind.HIDDEN_ZONE)
 
 
 def place_all(
@@ -52,12 +71,28 @@ def place_all(
     destination: Destination,
     *,
     commander_stays: bool = False,
+    decks: Decks | None = None,
+    arriving_under: SeatNumber | None = None,
 ) -> list[Event]:
-    """Move cards to one destination; for the library, list order is top to bottom."""
+    """Move cards to one destination; for the library, list order is top to bottom.
+
+    Each card is read from its owner's deck (`decks`; omitted, every seat plays `deck`), and
+    enters the battlefield under `arriving_under`, or its owner when none is named.
+    """
+    every = decks or Decks.everyone_playing(game, deck)
     ordered = list(reversed(cards)) if destination is Destination.LIBRARY_TOP else list(cards)
     events: list[Event] = []
     for card in ordered:
-        events.extend(move(game, deck, card, destination, commander_stays=commander_stays))
+        events.extend(
+            move(
+                game,
+                every.of(card.owner),
+                card,
+                destination,
+                commander_stays=commander_stays,
+                arriving_under=arriving_under,
+            )
+        )
     return events
 
 
@@ -69,55 +104,65 @@ def put_back(game: Game, cards: Sequence[CardInstance], destination: Destination
     return [CardMoved(card.name, Zone.LIBRARY.value, destination.value) for card in cards]
 
 
+def _through_ask(game: Game, found: object) -> object:
+    """In a contested game, an error about a delta's names adds that other seats' hands and
+    libraries are reached through `ask`."""
+    if game.contested and isinstance(found, Error) and found.kind in _NAMING_ERRORS:
+        return replace(found, through_ask=True)
+    return found
+
+
 def _resolved(
     game: Game,
-    deck: LoadedDeck,
+    decks: Decks,
     seat: SeatNumber,
     entries: ByDestination,
     zones: Sequence[Zone],
 ) -> list[tuple[Destination, list[CardInstance]]] | Error:
     """Resolve every name of a `{destination: [name]}` map at once, so each is a different card."""
     names = [name for _, listed in entries for name in listed]
-    found = resolve(game, deck, seat, names, zones)
+    found = resolve(game, decks.of(seat), seat, names, zones, decks=decks)
     if isinstance(found, Error):
         return found
     cards = iter(found[0])
     return [(destination, [next(cards) for _ in listed]) for destination, listed in entries]
 
 
-def _untap(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, names: Sequence[str]
-) -> list[Event] | Error:
-    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.UNTAP)
+def _untap(game: Game, decks: Decks, seat: SeatNumber, names: Sequence[str]) -> list[Event] | Error:
+    found = resolve(
+        game, decks.of(seat), seat, names, [Zone.BATTLEFIELD], purpose=Purpose.UNTAP, decks=decks
+    )
     if isinstance(found, Error):
         return found
     events: list[Event] = list(found[1])
     untapped: list[str] = []
     for card in found[0]:
+        name = face_name(decks.of(card.owner), card)
         if not card.tapped:
-            events.append(AlreadySo(face_name(deck, card), AlreadySoKind.ALREADY_UNTAPPED))
+            events.append(AlreadySo(name, AlreadySoKind.ALREADY_UNTAPPED))
             continue
         card.tapped = False
-        untapped.append(face_name(deck, card))
+        untapped.append(name)
     if untapped:
         events.insert(0, Untapped(tuple(untapped)))
     return events
 
 
-def _tap(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, names: Sequence[str]
-) -> list[Event] | Error:
-    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP)
+def _tap(game: Game, decks: Decks, seat: SeatNumber, names: Sequence[str]) -> list[Event] | Error:
+    found = resolve(
+        game, decks.of(seat), seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP, decks=decks
+    )
     if isinstance(found, Error):
         return found
     events: list[Event] = list(found[1])
     tapped: list[str] = []
     for card in found[0]:
+        name = face_name(decks.of(card.owner), card)
         if card.tapped:
-            events.append(AlreadySo(face_name(deck, card), AlreadySoKind.ALREADY_TAPPED))
+            events.append(AlreadySo(name, AlreadySoKind.ALREADY_TAPPED))
             continue
         card.tapped = True
-        tapped.append(face_name(deck, card))
+        tapped.append(name)
     if tapped:
         events.insert(0, Tapped(tuple(tapped)))
     return events
@@ -145,16 +190,16 @@ def _tokens(game: Game, seat: SeatNumber, specs: Sequence[TokenSpec]) -> list[Ev
 
 
 def _counters(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, changes: Sequence[CounterChange]
+    game: Game, decks: Decks, seat: SeatNumber, changes: Sequence[CounterChange]
 ) -> list[Event] | Error:
     events: list[Event] = []
     for change in changes:
-        found = resolve(game, deck, seat, [change.card], [Zone.BATTLEFIELD])
+        found = resolve(game, decks.of(seat), seat, [change.card], [Zone.BATTLEFIELD], decks=decks)
         if isinstance(found, Error):
             return found
         events.extend(found[1])
         card = found[0][0]
-        name = face_name(deck, card)
+        name = face_name(decks.of(card.owner), card)
         for kind, amount in change.changes:
             before = card.counters.get(kind, 0)
             after = before + amount
@@ -170,20 +215,52 @@ def _counters(
     return events
 
 
-def _move(game: Game, deck: LoadedDeck, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
-    resolved = _resolved(game, deck, seat, delta.move, MOVE_ZONES)
+# @spec PLAY-094, PLAY-117, PLAY-118, PLAY-124
+def _control(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
+    """Each listed permanent comes under the control of the seat it is listed under, counting
+    as newly arrived for it; one already under that seat's control is left as it is."""
+    names = [name for _, listed in delta.control for name in listed]
+    found = resolve(game, decks.of(seat), seat, names, [Zone.BATTLEFIELD], decks=decks)
+    if isinstance(found, Error):
+        return found
+    events: list[Event] = list(found[1])
+    cards = iter(found[0])
+    for controller, listed in delta.control:
+        for _ in listed:
+            card = next(cards)
+            name = face_name(decks.of(card.owner), card)
+            if card.controller == controller:
+                events.append(AlreadySo(name, AlreadySoKind.ALREADY_CONTROLLED))
+                continue
+            card.controller = controller
+            card.entered_turn = game.turn
+            events.append(ControlChanged(name, controller))
+    return events
+
+
+def _move(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
+    resolved = _resolved(game, decks, seat, delta.move, MOVE_ZONES)
     if isinstance(resolved, Error):
         return resolved
     events: list[Event] = []
     for destination, cards in resolved:
         events.extend(
-            place_all(game, deck, cards, destination, commander_stays=delta.commander_stays)
+            place_all(
+                game,
+                decks.of(seat),
+                cards,
+                destination,
+                commander_stays=delta.commander_stays,
+                decks=decks,
+                arriving_under=seat,
+            )
         )
     return events
 
 
-def _discard(game: Game, deck: LoadedDeck, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
-    found = resolve(game, deck, seat, delta.discard, [Zone.HAND])
+def _discard(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
+    deck = decks.of(seat)
+    found = resolve(game, deck, seat, delta.discard, [Zone.HAND], decks=decks)
     if isinstance(found, Error):
         return found
     events: list[Event] = [*found[1], CardsDiscarded(tuple(c.name for c in found[0]))]
@@ -221,13 +298,15 @@ def take_shuffle_place(
     return events
 
 
-def _fetch(game: Game, deck: LoadedDeck, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
-    resolved = _resolved(game, deck, seat, delta.fetch, [Zone.LIBRARY])
+def _fetch(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
+    resolved = _resolved(game, decks, seat, delta.fetch, [Zone.LIBRARY])
     if isinstance(resolved, Error):
         if resolved.kind is ErrorKind.CARD_NOT_IN_ZONE:
             return Error(ErrorKind.NOT_IN_LIBRARY, subject=resolved.subject)
         return resolved
-    return take_shuffle_place(game, deck, seat, resolved, commander_stays=delta.commander_stays)
+    return take_shuffle_place(
+        game, decks.of(seat), seat, resolved, commander_stays=delta.commander_stays
+    )
 
 
 def _revealed(card: CardInstance) -> RevealedCard:
@@ -244,13 +323,27 @@ def _pend(
     *,
     rest: Destination | None,
     from_bottom: bool = False,
+    hand_of: SeatNumber | None = None,
 ) -> list[Event]:
+    """A pending choice for `seat` that reveals `cards` to it alone."""
     choice_id = game.new_choice_id()
     game.pending.append(
-        PendingChoice(choice_id, seat, source, kind, [c.id for c in cards], rest, from_bottom)
+        PendingChoice(
+            choice_id,
+            seat,
+            source,
+            kind,
+            [c.id for c in cards],
+            rest,
+            from_bottom,
+            asked_by=seat if hand_of is not None else None,
+            hand_of=hand_of,
+        )
     )
     game.status = GameStatus.PENDING_CHOICE
-    return [CardsRevealed(choice_id, kind, tuple(_revealed(c) for c in cards))]
+    shown_to = seat if game.contested else None
+    revealed = tuple(_revealed(c) for c in cards)
+    return [CardsRevealed(choice_id, kind, revealed, shown_to, hand_of)]
 
 
 def _look(game: Game, seat: SeatNumber, look: Look, source: str) -> list[Event]:
@@ -290,41 +383,152 @@ def _search(
     return _pend(game, seat, source, "search", cards, rest=None)
 
 
+def _life(game: Game, seat: SeatNumber, delta: Delta) -> list[Event]:
+    """A number changes the acting seat's life; a map, each named seat's."""
+    changes = list(delta.life_by_seat)
+    if delta.life:
+        changes.insert(0, (seat, delta.life))
+    events: list[Event] = []
+    for changed, amount in changes:
+        if not amount:
+            continue
+        target = game.seat(changed)
+        target.life += amount
+        events.append(LifeChanged(amount, target.life, changed if game.contested else None))
+    return events
+
+
+# @spec PLAY-092, PLAY-093
+def _damage(game: Game, delta: Delta) -> list[Event]:
+    """Noncombat damage: pooled against a goldfish game's imaginary opponents, or taken from
+    each named seat's life; never commander damage."""
+    events: list[Event] = []
+    for damaged, amount in delta.damage_by_seat:
+        target = game.seat(damaged)
+        target.life -= amount
+        events.append(SeatDamaged(damaged, amount, target.life))
+    if delta.damage:
+        imaginary = game.imaginary_opponents
+        imaginary.damage_dealt += delta.damage
+        events.append(DamageAdded(delta.damage, imaginary.damage_dealt))
+    return events
+
+
+def _asked_seats(game: Game, seat: SeatNumber, entry: AskEntry) -> list[SeatNumber]:
+    """The seats one `ask` entry names, in turn order from the seat after the acting seat,
+    so that the acting seat itself comes last."""
+    in_turn_order = [other.number for other in game.others_from(seat)] + [seat]
+    if entry.opponents:
+        return [n for n in in_turn_order if n != seat and game.seat(n).in_game]
+    return [n for n in in_turn_order if n in entry.seats]
+
+
+# @spec PLAY-097, PLAY-098, PLAY-120
+def _ask(game: Game, seat: SeatNumber, delta: Delta, source: str) -> list[Event]:
+    """One `ask` pending choice for each seat each entry names, entry by entry."""
+    events: list[Event] = []
+    for entry in delta.ask:
+        for asked in _asked_seats(game, seat, entry):
+            choice_id = game.new_choice_id()
+            game.pending.append(
+                PendingChoice(
+                    choice_id, asked, source, "ask", [], None, asked_by=seat, text=entry.text
+                )
+            )
+            events.append(ChoiceAsked(choice_id, asked, seat, entry.text))
+    if events:
+        game.status = GameStatus.PENDING_CHOICE
+    return events
+
+
+def open_hand_look(game: Game, look: HandLook) -> list[Event]:
+    """Reveal a seat's hand, as it is now, to the looking seat, for a `hand` pending choice."""
+    hand = game.hand_of(look.hand_of)
+    if not hand:
+        return [NothingRevealed("hand")]
+    return _pend(game, look.seat, look.source, "hand", hand, rest=None, hand_of=look.hand_of)
+
+
+# @spec PLAY-102, PLAY-104, PLAY-116
+def _look_at_hand(game: Game, seat: SeatNumber, hand_of: SeatNumber, source: str) -> list[Event]:
+    """A look at another seat's hand; while asks are waiting, it waits for their answers."""
+    look = HandLook(seat, hand_of, source)
+    if game.pending:
+        game.hand_looks.append(look)
+        return []
+    return open_hand_look(game, look)
+
+
+# @spec PLAY-077, PLAY-128
+def _check_seats(game: Game, seat: SeatNumber, delta: Delta) -> Error | None:
+    """Every seat the delta names must be in the game and still in it; a look at a hand
+    names another seat."""
+    numbers = {other.number for other in game.seats}
+    for named in delta.seats_named:
+        if named not in numbers:
+            return Error(ErrorKind.NO_SUCH_SEAT, number=named.value)
+        if not game.seat(named).in_game:
+            return Error(ErrorKind.SEAT_OUT, number=named.value)
+    if delta.look_at_hand == seat:
+        return Error(ErrorKind.LOOK_AT_OWN_HAND)
+    return None
+
+
 # @spec PLAY-033, PLAY-034, PLAY-035, PLAY-036, PLAY-037, PLAY-038, PLAY-039, PLAY-040
 # @spec PLAY-041, PLAY-042, PLAY-043, PLAY-044, PLAY-045, PLAY-050, PLAY-056, PLAY-058
-# @spec PLAY-059, PLAY-060, PLAY-006, GAME-019, GAME-061, PAY-044
+# @spec PLAY-059, PLAY-060, PLAY-006, GAME-019, GAME-061, PAY-044, PLAY-085, PLAY-087
+# @spec PLAY-091, PLAY-095, PLAY-079, PLAY-114, PLAY-115
 def apply_delta(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, delta: Delta, *, source: str
+    game: Game,
+    deck: LoadedDeck,
+    seat: SeatNumber,
+    delta: Delta,
+    *,
+    source: str,
+    decks: Decks | None = None,
 ) -> list[Event] | Error:
     """Apply the acting seat's delta, in the fixed key order, whatever order it was written in.
 
-    Mana goes to the acting seat's pool, life changes are its own, and draws, shuffles,
+    Mana goes to the acting seat's pool, a life number is its own, and draws, shuffles,
     looks and searches are of its own library; damage goes to a goldfish game's imaginary
-    opponents. An error stops the application; the caller then discards the game it was
-    applied to. `look` and `search` come last and leave a pending choice when they reveal
-    anything.
+    opponents, or to the seats a contested game's names. Names are read from each card's
+    owner's deck (`decks`; omitted, every seat plays `deck`). An error stops the
+    application; the caller then discards the game it was applied to. `ask`, then
+    `look_at_hand`, `look` and `search` come last and leave pending choices.
     """
+    every = decks or Decks.everyone_playing(game, deck)
+    named = _check_seats(game, seat, delta)
+    if named is not None:
+        return named
     events: list[Event] = []
-    steps = (
-        lambda: _untap(game, deck, seat, delta.untap) if delta.untap else [],
-        lambda: _tap(game, deck, seat, delta.tap) if delta.tap else [],
+    steps: tuple[Callable[[], object], ...] = (
+        lambda: _untap(game, every, seat, delta.untap) if delta.untap else [],
+        lambda: _through_ask(game, _tap(game, every, seat, delta.tap)) if delta.tap else [],
         lambda: _mana(game, seat, delta),
         lambda: _tokens(game, seat, delta.tokens),
-        lambda: _counters(game, deck, seat, delta.counters),
-        lambda: _move(game, deck, seat, delta) if delta.move else [],
-        lambda: _discard(game, deck, seat, delta) if delta.discard else [],
-        lambda: _fetch(game, deck, seat, delta) if delta.fetch else [],
+        lambda: _counters(game, every, seat, delta.counters),
+        lambda: _control(game, every, seat, delta) if delta.control else [],
+        lambda: _through_ask(game, _move(game, every, seat, delta)) if delta.move else [],
+        lambda: _through_ask(game, _discard(game, every, seat, delta)) if delta.discard else [],
+        lambda: _through_ask(game, _fetch(game, every, seat, delta)) if delta.fetch else [],
         lambda: draw(game, seat, delta.draw) if delta.draw else [],
         lambda: _life(game, seat, delta),
         lambda: _damage(game, delta),
         lambda: [shuffle_library(game, seat)] if delta.shuffle else [],
+        lambda: _ask(game, seat, delta, source) if delta.ask else [],
+        lambda: (
+            _look_at_hand(game, seat, delta.look_at_hand, source)
+            if delta.look_at_hand is not None
+            else []
+        ),
         lambda: _look(game, seat, delta.look, source) if delta.look else [],
-        lambda: _search(game, deck, seat, delta.search, source) if delta.search else [],
+        lambda: _search(game, every.of(seat), seat, delta.search, source) if delta.search else [],
     )
     for step in steps:
         done = step()
         if isinstance(done, Error):
             return done
+        assert isinstance(done, list)
         events.extend(done)
     return events
 
@@ -335,19 +539,3 @@ def _mana(game: Game, seat: SeatNumber, delta: Delta) -> list[Event]:
     making = game.seat(seat)
     making.mana_pool = making.mana_pool.add(delta.mana)
     return [ManaAdded(str(delta.mana))]
-
-
-def _life(game: Game, seat: SeatNumber, delta: Delta) -> list[Event]:
-    if not delta.life:
-        return []
-    changing = game.seat(seat)
-    changing.life += delta.life
-    return [LifeChanged(delta.life, changing.life)]
-
-
-def _damage(game: Game, delta: Delta) -> list[Event]:
-    if not delta.damage:
-        return []
-    imaginary = game.imaginary_opponents
-    imaginary.damage_dealt += delta.damage
-    return [DamageAdded(delta.damage, imaginary.damage_dealt)]

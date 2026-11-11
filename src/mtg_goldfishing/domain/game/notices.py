@@ -23,7 +23,7 @@ def _commander_damage_reached(imaginary: ImaginaryOpponents) -> bool:
     )
 
 
-# @spec GAME-038, GAME-039, GAME-041, GAME-140, PLAY-051
+# @spec GAME-038, GAME-039, GAME-041, GAME-140, PLAY-051, GAME-146
 def examine_end_conditions(game: Game) -> list[Event]:
     """Raise every notice whose end condition now holds and has not been raised before.
 

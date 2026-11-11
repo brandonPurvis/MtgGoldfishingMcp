@@ -40,7 +40,7 @@ def _take_mulligan(game: Game, seat: SeatNumber) -> Applied:
     return Applied(game, MulliganTaken(taking.mulligans, hand))
 
 
-def _start(game: Game, decks: Decks) -> Walk:
+def start_first_turn(game: Game, decks: Decks) -> Walk:
     """Start a game every seat has kept: the first seat in turn order still in the game
     takes the first turn, through its untap, upkeep and draw steps to its first main step,
     as an advance to `main1` would; in a contested game it stops where a reminder stops it."""
@@ -97,7 +97,7 @@ def mulligan(
     )
     if not all(other.kept for other in changed.seats if other.in_game):
         return Applied(changed, summary, (judged,) if judged is not None else ())
-    walk = _start(changed, decks or Decks.everyone_playing(changed, deck))
+    walk = start_first_turn(changed, decks or Decks.everyone_playing(changed, deck))
     events: list[Event] = [walk.summary]
     if judged is not None:
         events.append(judged)

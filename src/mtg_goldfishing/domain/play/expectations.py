@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import ExpectationMismatched
 from mtg_goldfishing.domain.game.cards_in_play import is_land
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
@@ -19,9 +20,9 @@ def next_cast_tax(game: Game, seat: SeatNumber) -> int:
     return max((game.seat(seat).commander_tax(c) for c in game.commanders_of(seat)), default=0)
 
 
-def _counted(game: Game, deck: LoadedDeck, seat: SeatNumber, key: str) -> int:
+def _counted(game: Game, decks: Decks, seat: SeatNumber, key: str) -> int:
     counted = game.seat(seat)
-    lands = [card for card in game.battlefield_of(seat) if is_land(deck, card)]
+    lands = [card for card in game.battlefield_of(seat) if is_land(decks.of(card.owner), card)]
     imaginary = game.imaginary
     values = {
         "hand": lambda: len(game.hand_of(seat)),
@@ -36,7 +37,7 @@ def _counted(game: Game, deck: LoadedDeck, seat: SeatNumber, key: str) -> int:
 
 
 def _mismatch(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, expected: Expectation
+    game: Game, decks: Decks, seat: SeatNumber, expected: Expectation
 ) -> ExpectationMismatched | None:
     value = expected.value
     if isinstance(value, ManaString):
@@ -49,18 +50,25 @@ def _mismatch(
             return None
         actual = game.step.value if game.step else "none"
         return ExpectationMismatched(expected.key, actual, value.value)
-    count = _counted(game, deck, seat, expected.key)
+    count = _counted(game, decks, seat, expected.key)
     if count == value:
         return None
     return ExpectationMismatched(expected.key, str(count), str(value))
 
 
-# @spec PLAY-068, PLAY-069, PLAY-071, PLAY-072, PLAY-073
+# @spec PLAY-068, PLAY-069, PLAY-071, PLAY-072, PLAY-073, PLAY-109
 def compare(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, expectations: Sequence[Expectation]
+    game: Game,
+    deck: LoadedDeck,
+    seat: SeatNumber,
+    expectations: Sequence[Expectation],
+    *,
+    decks: Decks | None = None,
 ) -> list[ExpectationMismatched]:
     """One warning per value the acting seat expects that differs from the game as it now
-    stands, as that seat's own."""
-    found = (_mismatch(game, deck, seat, expected) for expected in expectations)
+    stands, as that seat's own: its lands are those it controls, each read from its owner's
+    deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    found = (_mismatch(game, every, seat, expected) for expected in expectations)
 
     return [mismatch for mismatch in found if mismatch is not None]

@@ -28,6 +28,8 @@ def attack(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             vigilance=arguments.get("vigilance"),
             haste=arguments.get("haste"),
             override=override,
+            targets=arguments.get("targets"),
+            decks=decks,
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

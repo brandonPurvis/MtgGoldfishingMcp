@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from mtg_goldfishing.domain.combat.blocks import request_blocks
 from mtg_goldfishing.domain.combat.damage import deal_combat_damage
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import (
@@ -59,6 +60,7 @@ class Walk:
     events: list[Event] = field(default_factory=list)
     snapshots: list[TurnSnapshot] = field(default_factory=list)
     reminded: bool = False
+    blocks_asked: bool = False
 
     @property
     def summary(self) -> StepsEntered:
@@ -135,8 +137,12 @@ def enter_step(
         walk.events.extend(draw(game, active.number, 1))
     elif step is Step.MAIN1:
         active.turn_stats.mana_available = mana_available(game, deck, active.number)
+    elif step is Step.DECLARE_BLOCKERS and game.contested:
+        asked = request_blocks(game, decks)
+        walk.events.extend(asked)
+        walk.blocks_asked = bool(game.pending)
     elif step is Step.COMBAT_DAMAGE:
-        walk.events.extend(deal_combat_damage(game, deck))
+        walk.events.extend(deal_combat_damage(game, deck, decks))
     elif step is Step.CLEANUP:
         if discard:
             for card in discard:
@@ -179,7 +185,7 @@ def _cleanup_discard(
 
 # @spec TURN-001, TURN-006, TURN-007, TURN-008, TURN-009, TURN-010, TURN-012, TURN-013
 # @spec TURN-015, TURN-016, TURN-017, TURN-018, TURN-019, TURN-020, TURN-021, TURN-022
-# @spec TURN-023, TURN-024, TURN-025, APP-031, TURN-039, TURN-060
+# @spec TURN-023, TURN-024, TURN-025, APP-031, TURN-039, TURN-060, CMBT-038
 def advance(
     game: Game,
     deck: LoadedDeck,
@@ -240,6 +246,9 @@ def advance(
             entered_cleanup = True
         enter_step(moved, every, upcoming, walk, to_discard)
         if target is None or moved.step is target:
+            break
+        if walk.blocks_asked:
+            walk.events.append(AdvanceStopped(StopReason.BLOCKS, upcoming, target))
             break
         if walk.reminded:
             walk.events.append(AdvanceStopped(StopReason.REMINDER, upcoming, target))
