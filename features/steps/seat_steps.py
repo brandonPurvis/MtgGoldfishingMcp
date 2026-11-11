@@ -311,6 +311,31 @@ def step_impl(context: Any, words: str) -> None:
     assert words not in context.agent.text, context.agent.text
 
 
+@when(f"seat {SEAT} asks for the game's log of seat S{{seat:d}}")
+def step_impl(context: Any, number: int, seat: int) -> None:
+    _as_seat(context, number, "get_log", seat=seat)
+
+
+@then(f"every log entry was made by seat {SEAT}")
+def step_impl(context: Any, number: int) -> None:
+    log = json.loads(context.agent.text)
+    assert {entry["seat"] for entry in log["entries"]} == {number}, log["entries"]
+
+
+@then("the log's end_game entry holds the final state of seats {first:d} and {second:d}")
+def step_impl(context: Any, first: int, second: int) -> None:
+    log = json.loads(context.agent.text)
+    (entry,) = [entry for entry in log["entries"] if entry["tool"] == "end_game"]
+    context.final = entry["outcome"]["final"]
+    assert [seat["seat"] for seat in context.final] == [first, second], context.final
+
+
+@then(f"the final state of seat {SEAT} holds its hand")
+def step_impl(context: Any, number: int) -> None:
+    (seat,) = [seat for seat in context.final if seat["seat"] == number]
+    assert seat["hand"] == _hand_of(context, number), seat
+
+
 @then(f"the log holds seat {SEAT}'s opening hand")
 def step_impl(context: Any, number: int) -> None:
     """A kept hand in the log holds the seat's cards: those still in its hand."""

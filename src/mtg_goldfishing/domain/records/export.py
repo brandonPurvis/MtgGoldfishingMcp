@@ -6,7 +6,7 @@ The export carries the records' own fields and nothing computed from them.
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from enum import Enum
 
 from mtg_goldfishing.domain.events import Event
@@ -33,6 +33,8 @@ def export(
     calls: Sequence[CallRecord],
     *,
     since: int | None,
+    seat: SeatNumber | None = None,
+    tools: Collection[str] | None = None,
     include_snapshots: bool = True,
     include_calls: bool = False,
 ) -> dict[str, object]:

@@ -54,6 +54,7 @@ from mtg_goldfishing.domain.records.model import (
     ReminderRecord,
     ResolvedRecord,
     SeatEvents,
+    SeatFinal,
 )
 from mtg_goldfishing.domain.records.redaction import (
     opposing_seat_ids,
@@ -77,6 +78,7 @@ def log_entry(
     summary: Event,
     events: Sequence[Event],
     seat: SeatNumber | None = None,
+    final: Sequence[SeatFinal] | None = None,
 ) -> LogEntry:
     """The log entry for an accepted call that changed a game, made by `seat` (None for
     `new_game`, which no seat makes).
