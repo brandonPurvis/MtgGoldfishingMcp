@@ -6,6 +6,7 @@ returned as an error; nothing here raises for bad input.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
@@ -561,6 +562,74 @@ def read_choices(data: object) -> Choices | Error:
         notes=str(data["notes"]) if data.get("notes") is not None else None,
         definition=definition,
     )
+
+
+# --------------------------------------------------------------------------- cast triggers
+
+_CAST_TRIGGER_KEYS = ("source", "delta", "choices")
+
+
+@dataclass(frozen=True)
+class CastTrigger:
+    """A triggered ability of the casting seat's own on casting the spell, stated with the
+    `play` that casts it: what triggered, its delta read and as stated, and its choices,
+    which are recorded only."""
+
+    source: str
+    delta: Delta
+    stated: dict[str, object]
+    choices: dict[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        if not self.source.strip():
+            raise ValueError("a cast trigger names what triggered")
+
+
+def _copied(data: Mapping[object, object]) -> dict[str, object]:
+    return {str(key): copy.deepcopy(value) for key, value in data.items()}
+
+
+def _read_cast_trigger(entry: object, index: int, *, contested: bool) -> CastTrigger | Error:
+    subject = f"cast_triggers[{index}]"
+    if not isinstance(entry, Mapping):
+        return _malformed(subject)
+    unknown = _unknown(entry, _CAST_TRIGGER_KEYS)
+    if unknown:
+        return _malformed(f"{subject}.{unknown[0]}", _CAST_TRIGGER_KEYS)
+    source, delta, choices = entry.get("source"), entry.get("delta"), entry.get("choices")
+    if not isinstance(source, str) or not source.strip():
+        return _malformed(f"{subject}.source")
+    if not isinstance(delta, Mapping):
+        return _malformed(f"{subject}.delta")
+    if choices is not None and not isinstance(choices, Mapping):
+        return _malformed(f"{subject}.choices")
+    read = read_delta(delta, contested=contested)
+    if isinstance(read, Error):
+        return read
+    if not contested and (read.look is not None or read.search is not None):
+        return Error(ErrorKind.CAST_TRIGGER_REVEALS, subject=source)
+    return CastTrigger(
+        source, read, _copied(delta), _copied(choices) if choices is not None else None
+    )
+
+
+# @spec PLAY-131, PLAY-137, PLAY-142
+def read_cast_triggers(data: object, *, contested: bool) -> tuple[CastTrigger, ...] | Error:
+    """`play`'s `cast_triggers`, in the order listed: each an object with a `source` holding
+    more than whitespace, a `delta` object, possibly empty, and optionally a `choices` object,
+    and nothing else. Each delta is read as any delta of that kind of game is; in a goldfish
+    game it may not hold `look` or `search`. The choices are kept as stated, never read."""
+    if data is None:
+        return ()
+    if not isinstance(data, list | tuple):
+        return _malformed("cast_triggers")
+    triggers: list[CastTrigger] = []
+    for index, entry in enumerate(data):
+        read = _read_cast_trigger(entry, index, contested=contested)
+        if isinstance(read, Error):
+            return read
+        triggers.append(read)
+    return tuple(triggers)
 
 
 # --------------------------------------------------------------------------------- expect

@@ -104,3 +104,28 @@ def hold_ability(
         choices=_choices(choices),
     )
     return put_on_stack(game, item)
+
+
+# @spec STACK-086
+def hold_cast_trigger(
+    game: Game,
+    seat: SeatNumber,
+    *,
+    source: str,
+    delta: dict[str, object],
+    choices: dict[str, object] | None,
+    cast_with: str,
+) -> ItemStacked:
+    """Put a cast trigger on the stack: an ability of the casting seat holding the trigger's
+    source, delta and choices as stated and the id of the spell it was stated with."""
+    item = StackItem(
+        id=new_item_id(game),
+        controller=seat,
+        kind=StackItemKind.ABILITY,
+        source=source,
+        tool="play",
+        delta=delta,
+        choices=_choices(choices),
+        cast_with=cast_with,
+    )
+    return put_on_stack(game, item)

@@ -130,8 +130,6 @@ def test_attack_says_it_may_stop_undeclared_where_another_seat_has_a_reminder() 
 
 # ------------------------------------------------------------------ cast triggers and answer text
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
-
 
 def contested_part(tool: str) -> str:
     description = DEFINITIONS[tool].description
@@ -139,7 +137,6 @@ def contested_part(tool: str) -> str:
 
 
 # @spec TOOL-081
-@NOT_BUILT
 def test_play_describes_cast_triggers_for_every_game() -> None:
     cast_triggers = parameter("play", "cast_triggers")
     assert cast_triggers is not None
@@ -149,7 +146,6 @@ def test_play_describes_cast_triggers_for_every_game() -> None:
 
 
 # @spec TOOL-081
-@NOT_BUILT
 def test_play_gives_one_example_of_the_whole_cast_triggers_parameter() -> None:
     cast_triggers = parameter("play", "cast_triggers")
     assert cast_triggers is not None
@@ -158,7 +154,6 @@ def test_play_gives_one_example_of_the_whole_cast_triggers_parameter() -> None:
 
 
 # @spec TOOL-081, TOOL-010
-@NOT_BUILT
 def test_play_takes_cast_triggers_as_a_list_or_a_json_string() -> None:
     for triggers in ([{"source": "x", "delta": {}}], '[{"source": "x", "delta": {}}]'):
         arguments = {"game_id": "g1", "card": "Lightning Bolt", "cast_triggers": triggers}
@@ -166,7 +161,6 @@ def test_play_takes_cast_triggers_as_a_list_or_a_json_string() -> None:
 
 
 # @spec TOOL-082
-@NOT_BUILT
 def test_play_says_cast_triggers_go_on_the_stack_above_the_spell_before_any_seat_is_asked() -> None:
     contested = contested_part("play")
     for words in (
@@ -179,7 +173,6 @@ def test_play_says_cast_triggers_go_on_the_stack_above_the_spell_before_any_seat
 
 
 # @spec TOOL-083
-@NOT_BUILT
 def test_choose_says_an_ask_answer_may_carry_public_answer_text() -> None:
     contested = contested_part("choose")
     for words in (
@@ -194,7 +187,6 @@ def test_choose_says_an_ask_answer_may_carry_public_answer_text() -> None:
 
 
 # @spec TOOL-083, PLAY-107
-@NOT_BUILT
 def test_choose_takes_answer_text() -> None:
     arguments = {"game_id": "g1", "choice_id": "x1", "text": "Lightning Bolt"}
     assert isinstance(shape(DEFINITIONS["choose"].parameters, arguments), Shaped)

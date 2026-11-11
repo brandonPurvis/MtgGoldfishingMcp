@@ -17,6 +17,7 @@ from mtg_goldfishing.domain.events import (
     CardMoved,
     CardsDrawn,
     CardsRevealed,
+    CastTriggerApplied,
     CheckKind,
     ChecksOverridden,
     CombatDamageDealt,
@@ -185,6 +186,7 @@ def test_event_lines_appear_in_the_fixed_order_whatever_order_they_happened_in()
         CardsDrawn(("Island",)),
         TokensCreated("Treasure", 1),
         CardMoved("Forest", "graveyard", "hand"),
+        CastTriggerApplied("Thousand-Year Storm", {"draw": 1}),
         CostPaid(ManaString.parse("{G}"), tapped=("Forest",)),
         StepsEntered((EnteredStep(7, Step.UNTAP),)),
     )
@@ -192,6 +194,7 @@ def test_event_lines_appear_in_the_fixed_order_whatever_order_they_happened_in()
     assert [line.split(" ")[0] for line in lines("effect", outcome)[1:-1]] == [
         "T7",  # steps entered
         "Paid",  # payment
+        "Cast",  # cast triggers applied
         "Drew",  # moves, tokens and draws keep the order they happened in
         "Created",
         "Moved",

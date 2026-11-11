@@ -64,13 +64,11 @@ Feature: Playing cards
     And the response does not say "passed automatically"
     And the status line has no seat, Act or Stack field
 
-  @wip
   # @spec PLAY-135, TOOL-086
   Scenario: A spell's cast trigger is applied before the spell, and the response says so
-    Given "Grizzly Bears" is in my hand
+    Given "Llanowar Elves" is in my hand
     And "Forest" is on the battlefield
-    And "Forest" is on the battlefield
-    When I cast "Grizzly Bears" with cast triggers [{"source": "Thousand-Year Storm", "delta": {"draw": 1}}]
+    When I cast "Llanowar Elves" with cast triggers [{"source": "Thousand-Year Storm", "delta": {"draw": 1}}]
     Then the response is OK
     And the response says "Cast trigger: Thousand-Year Storm."
-    And "Grizzly Bears" is on the battlefield
+    And "Llanowar Elves" is on the battlefield

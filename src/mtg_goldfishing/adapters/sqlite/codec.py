@@ -204,6 +204,7 @@ def from_data(data: Any, kind: object) -> Any:
     raise CodecError(f"cannot read a value declared as {kind!r}")
 
 
+# @spec STOR-040
 def _dataclass_from_data(data: Any, declared: type) -> Any:
     if not isinstance(data, dict) or not isinstance(data.get(TYPE_TAG), str):
         raise CodecError(f"expected a stored {declared.__name__}, found {data!r}")

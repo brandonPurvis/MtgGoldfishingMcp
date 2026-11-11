@@ -12,6 +12,7 @@ from mtg_goldfishing.domain.events import (
     AssumptionMade,
     CardMoved,
     CardPlayed,
+    CastTriggerApplied,
     CheckKind,
     ChecksOverridden,
     CostPaid,
@@ -38,9 +39,11 @@ from mtg_goldfishing.domain.payment.paying import (
     read_pay,
 )
 from mtg_goldfishing.domain.play.arguments import (
+    CastTrigger,
     Choices,
     Delta,
     Expectation,
+    read_cast_triggers,
     read_choices,
     read_delta,
     read_destination,
@@ -51,7 +54,13 @@ from mtg_goldfishing.domain.play.expectations import compare
 from mtg_goldfishing.domain.play.settling import settle
 from mtg_goldfishing.domain.reading.reader import read_card
 from mtg_goldfishing.domain.records.reminders import names_reminded_permanent
-from mtg_goldfishing.domain.stack.holding import held_delta, hold_ability, hold_spell
+from mtg_goldfishing.domain.stack.holding import (
+    held_delta,
+    hold_ability,
+    hold_cast_trigger,
+    hold_spell,
+)
+from mtg_goldfishing.domain.stack.resolution import added_bookkeeping
 
 OUTSIDE = "outside"
 _FROM_ZONES = {
@@ -261,12 +270,78 @@ def _check_timing(
     return FailedCheck(CheckKind.SPELL_TIMING, subject=face.name, step=game.step)
 
 
+# @spec STACK-086, STACK-087, STACK-088
+def _stack_cast_triggers(
+    game: Game,
+    decks: Decks,
+    seat: SeatNumber,
+    triggers: tuple[CastTrigger, ...],
+    *,
+    spell: str,
+    problems: Problems,
+) -> list[Event]:
+    """Put the cast triggers on the stack above their spell, the first listed on top. Each
+    delta is checked against the stack as it stands with the spell on it and none of the
+    triggers yet, so a `counter` may name the spell but never a sibling trigger."""
+    held: list[dict[str, object]] = []
+    for trigger in triggers:
+        checked = held_delta(game, decks, seat, trigger.stated, trigger.delta)
+        if isinstance(checked, Error):
+            problems.add(checked)
+            return []
+        held.append(checked)
+    return [
+        hold_cast_trigger(
+            game,
+            seat,
+            source=trigger.source,
+            delta=delta,
+            choices=trigger.choices,
+            cast_with=spell,
+        )
+        for trigger, delta in reversed(list(zip(triggers, held, strict=True)))
+    ]
+
+
+# @spec PLAY-135, PLAY-136
+def _apply_cast_triggers(
+    game: Game,
+    decks: Decks,
+    seat: SeatNumber,
+    instance: CardInstance,
+    triggers: tuple[CastTrigger, ...],
+    *,
+    problems: Problems,
+) -> list[Event]:
+    """In a goldfish game, apply the cast triggers in the order listed while the spell's card
+    is in no zone, so that none of their deltas finds it; the card is then back, still to go
+    to its destination."""
+    if instance.zone is Zone.LIBRARY:
+        game.take_from_library(instance)
+    instance.zone = Zone.STACK
+    position = game.cards.index(instance)
+    game.cards.pop(position)
+    events: list[Event] = []
+    for trigger in triggers:
+        applied = apply_delta(
+            game, decks.of(seat), seat, trigger.delta, source=trigger.source, decks=decks
+        )
+        if isinstance(applied, Error):
+            problems.add(applied)
+            break
+        added = added_bookkeeping(applied)
+        events.append(CastTriggerApplied(trigger.source, {**trigger.stated, "added": added}))
+        events.extend(applied)
+    game.cards.insert(position, instance)
+    return events
+
+
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-007, PLAY-008, PLAY-009, PLAY-010
 # @spec PLAY-011, PLAY-012, PLAY-013, PLAY-014, PLAY-015, PLAY-016, PLAY-017, PLAY-018
 # @spec PLAY-019, PLAY-020, PLAY-021, PLAY-022, PLAY-023, PLAY-024, PLAY-025, PLAY-026
 # @spec PLAY-027, PLAY-028, PLAY-051, PAY-037, GAME-061, APP-031, PLAY-080, PLAY-129
 # @spec STACK-001, STACK-003, STACK-004, STACK-005, STACK-006, STACK-011, STACK-077, PLAY-082
-# @spec PLAY-110
+# @spec PLAY-110, PLAY-131, PLAY-132, PLAY-133, PLAY-134, PLAY-142, PLAY-143, REC-086
 def play(
     game: Game,
     deck: LoadedDeck,
@@ -278,6 +353,7 @@ def play(
     delta: object = None,
     choices: object = None,
     pay: object = None,
+    cast_triggers: object = None,
     expect: object = None,
     reason: object = None,
     override: str | None = None,
@@ -289,8 +365,10 @@ def play(
     Without `from` the card is looked for in the acting seat's own hand and command zone;
     from a public zone it may be another seat's card. The land drop and the payment are the
     acting seat's own; a commander's cast count is the commander's, kept by its owner. A
-    permanent enters under the acting seat's control. `decks` gives each seat's deck;
-    omitted, every seat plays `deck`.
+    permanent enters under the acting seat's control. A spell's cast triggers resolve before
+    it: in a contested game they go on the stack above it; in a goldfish game they are
+    applied once the cost is paid, before the card moves and the delta is applied. A land
+    takes none. `decks` gives each seat's deck; omitted, every seat plays `deck`.
     """
     every = decks or Decks.everyone_playing(game, deck)
     del reason  # recorded with the call by the application; never judged
@@ -306,6 +384,9 @@ def play(
     if isinstance(arguments, Error):
         return Refusal.error(arguments)
     the_choices, instructions = arguments.choices, arguments.pay
+    triggers = read_cast_triggers(cast_triggers, contested=game.contested)
+    if isinstance(triggers, Error):
+        return Refusal.error(triggers)
 
     changed = game.copy()
     events: list[Event] = []
@@ -329,6 +410,8 @@ def play(
     if played is None:
         return Refusal.error(Error(ErrorKind.CARD_NOT_IN_ZONE, subject=card))
     index, face = played
+    if face.is_land and triggers:
+        return Refusal.error(Error(ErrorKind.LAND_NOT_CAST, subject=face.name))
     instance.face = index
     from_zone_found = None if requested == OUTSIDE else instance.zone
 
@@ -380,8 +463,14 @@ def play(
         if isinstance(held, Error):
             problems.add(held)
         else:
-            events.append(
-                hold_spell(changed, instance, seat, delta=held, to=destination, choices=choices)
+            stacked = hold_spell(
+                changed, instance, seat, delta=held, to=destination, choices=choices
+            )
+            events.append(stacked)
+            events.extend(
+                _stack_cast_triggers(
+                    changed, every, seat, triggers, spell=stacked.item, problems=problems
+                )
             )
         return _finish(
             changed,
@@ -392,6 +481,10 @@ def play(
             summary=CardPlayed(instance.name, face.name, origin, Zone.STACK.value, False),
             events=events,
             expectations=arguments.expect,
+        )
+    if triggers:
+        events.extend(
+            _apply_cast_triggers(changed, every, seat, instance, triggers, problems=problems)
         )
     if destination is None:
         destination = Destination.BATTLEFIELD if face.is_permanent else Destination.GRAVEYARD

@@ -32,8 +32,6 @@ from tests.support.acting import (
 from tests.support.builders import Situation, a_game
 from tests.support.tables import S1_LANDS, bolt_at, three_seats, two_seats
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
-
 STORM = "Thousand-Year Storm"
 PYROMANCER = "Young Pyromancer"
 
@@ -78,7 +76,6 @@ def top(situation: Situation) -> Any:
 
 
 # @spec PLAY-131
-@NOT_BUILT
 @pytest.mark.parametrize(
     "entry",
     [
@@ -111,7 +108,6 @@ def test_a_malformed_cast_trigger_is_an_error(entry: object) -> None:
 
 
 # @spec PLAY-131
-@NOT_BUILT
 def test_a_malformed_cast_trigger_is_an_error_in_a_contested_game() -> None:
     situation = a_duel()
     result = playing(situation, S1, "Lightning Bolt", cast_triggers=[{"source": STORM}])
@@ -119,7 +115,6 @@ def test_a_malformed_cast_trigger_is_an_error_in_a_contested_game() -> None:
 
 
 # @spec PLAY-131
-@NOT_BUILT
 def test_a_cast_trigger_with_an_empty_delta_is_accepted() -> None:
     situation = a_goldfish_table()
     cast(situation, S1, "Lightning Bolt", cast_triggers=[a_trigger(STORM, {})])
@@ -127,7 +122,6 @@ def test_a_cast_trigger_with_an_empty_delta_is_accepted() -> None:
 
 
 # @spec PLAY-132
-@NOT_BUILT
 @pytest.mark.parametrize("contested", [False, True], ids=["goldfish", "contested"])
 def test_a_land_takes_no_cast_triggers(contested: bool) -> None:
     situation = two_seats(lambda b: b.with_hand("Forest")) if contested else a_goldfish_table()
@@ -136,7 +130,6 @@ def test_a_land_takes_no_cast_triggers(contested: bool) -> None:
 
 
 # @spec PLAY-134
-@NOT_BUILT
 @pytest.mark.parametrize("contested", [False, True], ids=["goldfish", "contested"])
 @pytest.mark.parametrize("card", ["Lightning Bolt", "Forest"])
 def test_an_empty_cast_triggers_changes_nothing(contested: bool, card: str) -> None:
@@ -152,7 +145,6 @@ def test_an_empty_cast_triggers_changes_nothing(contested: bool, card: str) -> N
 
 
 # @spec PLAY-142
-@NOT_BUILT
 def test_a_cast_trigger_s_x_and_extra_cost_pay_nothing() -> None:
     situation = a_goldfish_table()
     choices = {"x": 5, "extra_cost": "{3}"}
@@ -162,7 +154,6 @@ def test_a_cast_trigger_s_x_and_extra_cost_pay_nothing() -> None:
 
 
 # @spec PLAY-142
-@NOT_BUILT
 def test_a_cast_trigger_s_definition_creates_no_card() -> None:
     situation = a_goldfish_table()
     choices = {"definition": {"name": "Made Up Copy", "type_line": "Instant"}}
@@ -171,7 +162,6 @@ def test_a_cast_trigger_s_definition_creates_no_card() -> None:
 
 
 # @spec PLAY-142
-@NOT_BUILT
 @pytest.mark.parametrize(
     "choices",
     [{"x": "lots"}, {"extra_cost": "{Q}"}, {"definition": "a copy"}, {"modes": 3}],
@@ -187,7 +177,6 @@ def test_a_cast_trigger_s_choices_never_refuse_the_call(choices: dict[str, objec
 
 
 # @spec PLAY-135
-@NOT_BUILT
 def test_a_goldfish_cast_trigger_is_applied_before_the_spell_s_delta() -> None:
     situation = a_goldfish_table("Island", "Swamp")
     cast(
@@ -201,7 +190,6 @@ def test_a_goldfish_cast_trigger_is_applied_before_the_spell_s_delta() -> None:
 
 
 # @spec PLAY-135
-@NOT_BUILT
 def test_goldfish_cast_triggers_are_applied_in_the_order_listed() -> None:
     situation = a_goldfish_table("Island", "Swamp")
     cast(
@@ -217,7 +205,6 @@ def test_goldfish_cast_triggers_are_applied_in_the_order_listed() -> None:
 
 
 # @spec PLAY-135
-@NOT_BUILT
 def test_a_goldfish_spell_s_cost_is_paid_before_its_cast_triggers() -> None:
     situation = a_goldfish_table()
     cast(situation, S1, "Lightning Bolt", cast_triggers=[a_trigger(STORM, {"untap": ["Mountain"]})])
@@ -225,7 +212,6 @@ def test_a_goldfish_spell_s_cost_is_paid_before_its_cast_triggers() -> None:
 
 
 # @spec PLAY-135
-@NOT_BUILT
 def test_a_goldfish_spell_reaches_its_destination_after_its_cast_triggers() -> None:
     situation = a_game().with_hand("Grizzly Bears").with_battlefield("Forest", "Forest").build()
     cast(situation, S1, "Grizzly Bears", cast_triggers=[a_trigger(STORM, {"draw": 1})])
@@ -233,7 +219,6 @@ def test_a_goldfish_spell_reaches_its_destination_after_its_cast_triggers() -> N
 
 
 # @spec PLAY-136
-@NOT_BUILT
 def test_a_goldfish_cast_trigger_does_not_find_its_spell_s_card() -> None:
     situation = a_goldfish_table()
     trigger = a_trigger(STORM, {"move": {"exile": ["Lightning Bolt"]}})
@@ -242,7 +227,6 @@ def test_a_goldfish_cast_trigger_does_not_find_its_spell_s_card() -> None:
 
 
 # @spec PLAY-136
-@NOT_BUILT
 def test_a_goldfish_cast_trigger_naming_the_spell_s_card_finds_another_card_of_that_name() -> None:
     situation = (
         a_game()
@@ -258,7 +242,6 @@ def test_a_goldfish_cast_trigger_naming_the_spell_s_card_finds_another_card_of_t
 
 
 # @spec PLAY-136
-@NOT_BUILT
 def test_a_goldfish_cast_trigger_does_not_find_a_permanent_spell_on_the_battlefield() -> None:
     situation = a_game().with_hand("Grizzly Bears").with_battlefield("Forest", "Forest").build()
     trigger = a_trigger(STORM, {"counters": {"Grizzly Bears": {"+1/+1": 1}}})
@@ -267,7 +250,6 @@ def test_a_goldfish_cast_trigger_does_not_find_a_permanent_spell_on_the_battlefi
 
 
 # @spec PLAY-133
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("delta", "kind"),
     [
@@ -292,7 +274,6 @@ def test_an_error_in_a_goldfish_cast_trigger_refuses_the_whole_call(
 
 
 # @spec PLAY-137
-@NOT_BUILT
 @pytest.mark.parametrize(
     "delta",
     [{"look": {"n": 1, "rest": "library_top"}}, {"search": {}}],
@@ -308,7 +289,6 @@ def test_a_goldfish_cast_trigger_may_not_reveal_cards(delta: dict[str, object]) 
 
 
 # @spec STACK-086
-@NOT_BUILT
 def test_a_cast_trigger_goes_on_the_stack_above_its_spell_as_an_ability_of_the_caster() -> None:
     situation = a_duel()
     trigger = a_trigger("Guttersnipe", {"damage": {"2": 2}}, choices={"notes": "two"})
@@ -327,7 +307,6 @@ def test_a_cast_trigger_goes_on_the_stack_above_its_spell_as_an_ability_of_the_c
 
 
 # @spec STACK-086
-@NOT_BUILT
 def test_a_cast_trigger_on_the_stack_has_not_applied_its_delta() -> None:
     situation = a_duel()
 
@@ -337,7 +316,6 @@ def test_a_cast_trigger_on_the_stack_has_not_applied_its_delta() -> None:
 
 
 # @spec STACK-087
-@NOT_BUILT
 def test_cast_triggers_go_on_the_stack_so_that_the_first_listed_is_on_top() -> None:
     situation = a_duel()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"life": 2})]
@@ -349,7 +327,6 @@ def test_cast_triggers_go_on_the_stack_so_that_the_first_listed_is_on_top() -> N
 
 
 # @spec STACK-034
-@NOT_BUILT
 def test_one_window_opens_for_the_top_item_once_a_spell_and_its_cast_triggers_are_on() -> None:
     situation = a_duel()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"life": 2})]
@@ -362,7 +339,6 @@ def test_one_window_opens_for_the_top_item_once_a_spell_and_its_cast_triggers_ar
 
 
 # @spec STACK-034
-@NOT_BUILT
 def test_the_first_seat_passed_automatically_after_a_cast_is_passed_on_the_top_item() -> None:
     situation = three_seats(
         lambda b: b.with_battlefield(*S1_LANDS).with_hand("Lightning Bolt"),
@@ -379,7 +355,6 @@ def test_the_first_seat_passed_automatically_after_a_cast_is_passed_on_the_top_i
 
 
 # @spec STACK-088
-@NOT_BUILT
 def test_a_cast_trigger_may_counter_its_own_spell() -> None:
     situation = a_duel()
     trigger = a_trigger("a misfire", {"counter": ["Lightning Bolt"]})
@@ -390,7 +365,6 @@ def test_a_cast_trigger_may_counter_its_own_spell() -> None:
 
 
 # @spec STACK-088
-@NOT_BUILT
 def test_a_cast_trigger_may_counter_an_item_below_its_spell() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Lightning Bolt"),
@@ -406,7 +380,6 @@ def test_a_cast_trigger_may_counter_an_item_below_its_spell() -> None:
 
 
 # @spec STACK-088, PLAY-133
-@NOT_BUILT
 def test_a_cast_trigger_may_not_counter_another_cast_trigger_of_the_same_call() -> None:
     situation = a_duel()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"counter": ["s3"]})]
@@ -417,7 +390,6 @@ def test_a_cast_trigger_may_not_counter_another_cast_trigger_of_the_same_call() 
 
 
 # @spec PLAY-133
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("delta", "kind"),
     [
@@ -437,7 +409,6 @@ def test_an_error_in_a_contested_cast_trigger_refuses_the_whole_call(
 
 
 # @spec PLAY-133, STACK-066
-@NOT_BUILT
 def test_a_contested_cast_trigger_naming_a_card_not_in_play_is_accepted_when_cast() -> None:
     situation = a_duel()
 
@@ -449,7 +420,6 @@ def test_a_contested_cast_trigger_naming_a_card_not_in_play_is_accepted_when_cas
 
 
 # @spec PLAY-143
-@NOT_BUILT
 def test_expect_is_compared_once_the_cast_triggers_are_on_the_stack_before_any_resolves() -> None:
     situation = a_duel_nobody_answers()
 
@@ -471,7 +441,6 @@ def test_expect_is_compared_once_the_cast_triggers_are_on_the_stack_before_any_r
 
 
 # @spec STACK-089, STACK-023
-@NOT_BUILT
 def test_a_resolving_cast_trigger_leaves_its_spell_and_sibling_triggers_undisturbed() -> None:
     situation = a_duel()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"life": 2})]
@@ -484,7 +453,6 @@ def test_a_resolving_cast_trigger_leaves_its_spell_and_sibling_triggers_undistur
 
 
 # @spec STACK-089
-@NOT_BUILT
 def test_a_cast_trigger_resolving_as_restated_leaves_its_spell_and_siblings_undisturbed() -> None:
     situation = a_duel()
     triggers = [a_trigger("first", {"tap": ["Shivan Dragon"]}), a_trigger("second", {"life": 2})]
@@ -502,7 +470,6 @@ def test_a_cast_trigger_resolving_as_restated_leaves_its_spell_and_siblings_undi
 
 
 # @spec STACK-023, STACK-089
-@NOT_BUILT
 def test_another_seat_s_response_resolving_above_cast_triggers_disturbs_them_and_the_spell() -> (
     None
 ):
@@ -517,7 +484,6 @@ def test_another_seat_s_response_resolving_above_cast_triggers_disturbs_them_and
 
 
 # @spec STACK-090
-@NOT_BUILT
 def test_cast_triggers_nobody_answers_resolve_within_the_play_first_listed_first() -> None:
     situation = a_duel_nobody_answers()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"life": 2})]
@@ -528,7 +494,6 @@ def test_cast_triggers_nobody_answers_resolve_within_the_play_first_listed_first
 
 
 # @spec STACK-090
-@NOT_BUILT
 def test_cast_triggers_nobody_answers_leave_the_stack_empty_with_every_delta_applied() -> None:
     situation = a_duel_nobody_answers()
     triggers = [a_trigger("first", {"life": 1}), a_trigger("second", {"life": 2})]
@@ -539,7 +504,6 @@ def test_cast_triggers_nobody_answers_leave_the_stack_empty_with_every_delta_app
 
 
 # @spec STACK-090, STACK-070
-@NOT_BUILT
 def test_a_pending_choice_a_cast_trigger_creates_stops_the_resolving_within_the_play() -> None:
     situation = a_duel_nobody_answers()
     trigger = a_trigger("a punisher", {"ask": [{"seats": [2], "text": "discard a card"}]})
@@ -550,7 +514,6 @@ def test_a_pending_choice_a_cast_trigger_creates_stops_the_resolving_within_the_
 
 
 # @spec STACK-091
-@NOT_BUILT
 def test_a_countered_spell_leaves_its_cast_triggers_on_the_stack() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Grizzly Bears"), lambda b: b.with_hand("Counterspell")
@@ -567,7 +530,6 @@ def test_a_countered_spell_leaves_its_cast_triggers_on_the_stack() -> None:
 
 
 # @spec REC-086
-@NOT_BUILT
 @pytest.mark.parametrize("contested", [False, True], ids=["goldfish", "contested"])
 def test_a_cast_trigger_answers_no_reminder(contested: bool) -> None:
     def reminded(builder: Any) -> Any:

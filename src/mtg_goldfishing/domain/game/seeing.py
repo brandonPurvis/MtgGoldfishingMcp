@@ -102,7 +102,7 @@ def as_seen_by(events: Sequence[Event], seat: SeatNumber) -> tuple[Event, ...]:
     return tuple(shown for event in events for shown in _seen(event, seat))
 
 
-# @spec APP-033, GAME-091, GAME-092, GAME-093, GAME-094, GAME-153, GAME-168
+# @spec APP-033, GAME-091, GAME-092, GAME-093, GAME-094, GAME-153, GAME-168, GAME-179
 def public_form(events: Sequence[Event]) -> tuple[Event, ...]:
     """The events as any seat may see them: the public form of each."""
     return tuple(shown for event in events for shown in _seen(event, None))

@@ -7,8 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer, digest_line
 from mtg_goldfishing.application.outcome import DigestElement, Outcome, Status
 from mtg_goldfishing.domain.events import Refused
@@ -20,8 +18,6 @@ from mtg_goldfishing.domain.play.choosing import choose
 from mtg_goldfishing.domain.play.playing import effect
 from tests.support.acting import S1, S2, S3, a_trigger, acted, playing
 from tests.support.builders import Situation, a_game
-
-pytestmark = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 
 RENDERER = TextRenderer()
 STORM = "Thousand-Year Storm"
@@ -59,7 +55,10 @@ def a_goldfish_table() -> Situation:
 def a_storm_bolt(situation: Situation) -> Any:
     triggers = [
         a_trigger(STORM, {"draw": 1}),
-        a_trigger(PYROMANCER, {"tokens": [{"name": "Elemental", "pt": "1/1"}]}),
+        a_trigger(
+            PYROMANCER,
+            {"tokens": [{"name": "Elemental", "types": "Creature — Elemental", "pt": "1/1"}]},
+        ),
     ]
     return playing(situation, S1, "Lightning Bolt", delta={"damage": 3}, cast_triggers=triggers)
 
@@ -93,7 +92,7 @@ def test_a_land_with_cast_triggers_is_refused_saying_a_land_is_not_cast() -> Non
     result = playing(situation, S1, "Forest", cast_triggers=[a_trigger(STORM, {"draw": 1})])
     headline = lines("play", situation, S1, result)[0]
     assert headline.startswith("ERROR ")
-    for words in ("land is not cast", "`effect`"):
+    for words in ("land is not cast", "with effect"):
         assert words in headline, words
 
 
@@ -104,7 +103,7 @@ def test_a_goldfish_cast_trigger_that_reveals_is_refused_saying_to_record_it_wit
     result = playing(situation, S1, "Lightning Bolt", cast_triggers=[trigger])
     headline = lines("play", situation, S1, result)[0]
     assert headline.startswith("ERROR ")
-    for words in ("look or search", "`effect` after the `play`"):
+    for words in ("look or search", "with effect after the play"):
         assert words in headline, words
 
 

@@ -248,7 +248,7 @@ def _control(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[E
     return events
 
 
-# @spec STACK-030, STACK-033, STACK-065, STACK-081
+# @spec STACK-030, STACK-033, STACK-065, STACK-081, STACK-091
 def _counter(
     game: Game, decks: Decks, delta: Delta, countered: list[CardInstance]
 ) -> list[Event] | Error:

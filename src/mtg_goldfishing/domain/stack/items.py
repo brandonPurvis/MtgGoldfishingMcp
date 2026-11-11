@@ -62,7 +62,7 @@ def put_on_stack(game: Game, item: StackItem) -> ItemStacked:
         game.window = Window(WindowKind.STACK)
     else:
         game.window = Window(game.window.kind)
-    return ItemStacked(item.id, item.controller, item.source, item.kind.value)
+    return ItemStacked(item.id, item.controller, item.source, item.kind.value, item.cast_with)
 
 
 # @spec STACK-035, STACK-040, STACK-084, TURN-061
@@ -81,9 +81,19 @@ def begin_asking_again(game: Game) -> None:
     game.window = Window(window.kind)
 
 
-def disturb_every_item(game: Game) -> None:
-    """Mark every item on the stack as disturbed: an item above them has resolved."""
-    game.stack = [replace(item, disturbed=True) for item in game.stack]
+# @spec STACK-023, STACK-089
+def disturb_items_below(game: Game, resolved: StackItem) -> None:
+    """Mark the items still on the stack as disturbed: `resolved`, above them, has resolved.
+    A cast trigger disturbs neither the spell it was stated with nor that spell's other cast
+    triggers, which its caster stated together with it for the board it leaves."""
+    spared = resolved.cast_with
+
+    def stated_with_it(item: StackItem) -> bool:
+        return spared is not None and spared in (item.id, item.cast_with)
+
+    game.stack = [
+        item if stated_with_it(item) else replace(item, disturbed=True) for item in game.stack
+    ]
 
 
 def has_untapped_permanent(game: Game, seat: SeatNumber) -> bool:

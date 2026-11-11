@@ -26,7 +26,6 @@ TOOLS = (
 )
 GAME_SCOPED = tuple(name for name in TOOLS if name not in ("load_deck", "new_game"))
 CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "pass", "end_game")
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 NOT_CHANGING = tuple(name for name in TOOLS if name not in CHANGING)
 
 
@@ -111,7 +110,6 @@ def test_after_on_a_changing_call_answers_a_resend_once() -> None:
             "play",
             {"card": "Grizzly Bears", "cast_triggers": [{"source": "x", "delta": {"draw": 1}}]},
             "cast_triggers",
-            marks=NOT_BUILT,
         ),
     ],
 )
@@ -128,7 +126,6 @@ def test_an_object_parameter_sent_as_a_json_string_is_decoded(
 
 
 # @spec TOOL-010
-@NOT_BUILT
 def test_a_value_inside_a_list_parameter_is_not_decoded_again() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)

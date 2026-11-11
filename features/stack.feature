@@ -28,7 +28,6 @@ Feature: The stack and response windows
     And "Grizzly Bears" is on seat S1's battlefield
     And the stack is empty
 
-  @wip
   # @spec STACK-086, STACK-087, STACK-090, STACK-034
   Scenario: Cast triggers no other seat can answer resolve before their spell within the play
     Given a started contested game against 1 Omnath deck with the tested seat first
@@ -44,7 +43,6 @@ Feature: The stack and response windows
     And "Grizzly Bears" is on seat S1's battlefield
     And the stack is empty
 
-  @wip
   # @spec STACK-089, STACK-023
   Scenario: A cast trigger that resolves leaves its spell to resolve as it was cast
     Given a started contested game against 1 Omnath deck with the tested seat first
@@ -57,7 +55,7 @@ Feature: The stack and response windows
     Then the status line shows "Act S2 respond"
     When seat S2 passes
     Then the response says "s2 resolved: Guttersnipe from S1."
-    And the status line shows "Act S2 respond"
+    And the status line shows "Act you respond"
     When seat S2 passes
     Then the response says "s1 resolved: Grizzly Bears from S1."
     And "Grizzly Bears" is on seat S1's battlefield

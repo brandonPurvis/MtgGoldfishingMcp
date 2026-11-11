@@ -10,8 +10,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase, SqliteStores
 from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.domain.deck.model import DeckCard, DeckEntry, LoadedDeck
@@ -88,7 +86,6 @@ def test_a_deck_stored_before_whose_turns_were_read_reads_its_triggers_as_its_co
 
 
 # @spec STOR-040
-@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 def test_a_stack_item_stored_without_cast_with_reads_as_no_cast_trigger() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -104,7 +101,6 @@ def test_a_stack_item_stored_without_cast_with_reads_as_no_cast_trigger() -> Non
 
 
 # @spec STOR-040
-@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 def test_a_log_entry_stored_without_cast_triggers_reads_as_stating_none() -> None:
     document: Any = json.loads(encode(a_log_entry(3), LogEntry))
     document.pop("cast_triggers", None)

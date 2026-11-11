@@ -6,8 +6,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game import creation
 from mtg_goldfishing.domain.game.calls import accept_change
@@ -38,7 +36,6 @@ from tests.support.stored import (
 )
 
 ATRAXA = "Atraxa, Praetors' Voice"
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 CONTESTED_ONLY = (
     "seat",
     "active",
@@ -341,7 +338,6 @@ def a_text_answer(situation: Situation, text: str, **more: object) -> Any:
 
 
 # @spec REC-087
-@NOT_BUILT
 def test_an_ask_answer_with_answer_text_records_it_as_held_in_its_outcome() -> None:
     situation = a_table()
     entry = a_text_answer(situation, "  Lightning\n Bolt ", delta={"life": -1})
@@ -349,7 +345,6 @@ def test_an_ask_answer_with_answer_text_records_it_as_held_in_its_outcome() -> N
 
 
 # @spec REC-087, REC-003
-@NOT_BUILT
 def test_an_ask_answer_s_arguments_keep_its_answer_text_as_received() -> None:
     situation = a_table()
     entry = a_text_answer(situation, "  Lightning\n Bolt ")
@@ -357,7 +352,6 @@ def test_an_ask_answer_s_arguments_keep_its_answer_text_as_received() -> None:
 
 
 # @spec REC-088
-@NOT_BUILT
 def test_an_ask_answer_s_public_events_hold_its_answer_text() -> None:
     situation = a_table()
     (answer,) = [
@@ -367,7 +361,6 @@ def test_an_ask_answer_s_public_events_hold_its_answer_text() -> None:
 
 
 # @spec GAME-179, REC-088
-@NOT_BUILT
 def test_an_opposing_seat_id_in_answer_text_reaches_the_records_redacted() -> None:
     situation = a_table()
     third = situation.game.seat(S3).seat_id.value
@@ -380,7 +373,6 @@ def test_an_opposing_seat_id_in_answer_text_reaches_the_records_redacted() -> No
 
 
 # @spec REC-085
-@NOT_BUILT
 def test_a_contested_entry_whose_call_stated_no_cast_triggers_records_an_empty_list() -> None:
     situation = a_table()
     assert data(an_effect(situation, S1, {"life": 1}))["cast_triggers"] == []

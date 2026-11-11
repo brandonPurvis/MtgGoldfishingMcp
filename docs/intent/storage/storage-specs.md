@@ -58,4 +58,4 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-039**: When the migration to evasion and reach readings rewrites a stored game, it shall leave that game's version counter unchanged.
 - [x] **STOR-034**: The SQLite adapter shall apply each migration and record the schema version it reaches in one transaction, so that a migration that fails leaves the database at its previous schema version with nothing of that migration applied.
 - [x] **STOR-035**: The SQLite adapter shall write no copy of the database before applying a migration.
-- [ ] **STOR-040**: When the SQLite adapter reads a game document whose stack items hold no `cast_with`, or a log entry that holds no `cast_triggers`, it shall read each such stack item as no cast trigger and each such log entry as stating no cast triggers, with no migration and no change to the schema version.
+- [x] **STOR-040**: When the SQLite adapter reads a game document whose stack items hold no `cast_with`, or a log entry that holds no `cast_triggers`, it shall read each such stack item as no cast trigger and each such log entry as stating no cast triggers, with no migration and no change to the schema version.

@@ -158,6 +158,21 @@ def _error_text(error: Error) -> str:
             return 'damage in a contested game is a map from seat number to damage, like {"2": 3}.'
         case ErrorKind.WRONG_ANSWER:
             return f"A {error.zone} choice is not answered with {subject}. Answer it with {names}."
+        case ErrorKind.ANSWER_TEXT_TOO_LONG:
+            return (
+                f"The answer text is {error.number} characters long once held on one line;"
+                f" it may hold at most {error.expected}. Shorten it and send again."
+            )
+        case ErrorKind.LAND_NOT_CAST:
+            return (
+                f"{subject} is a land, and a land is not cast, so it takes no cast_triggers."
+                " Record a trigger on playing it with effect."
+            )
+        case ErrorKind.CAST_TRIGGER_REVEALS:
+            return (
+                f"The cast trigger {subject} holds look or search, which a goldfish game"
+                " cannot stop the play for. Record such a trigger with effect after the play."
+            )
         case ErrorKind.ANSWER_MAY_NOT_REVEAL:
             return (
                 f"The delta answering a choice may not hold {subject}:"

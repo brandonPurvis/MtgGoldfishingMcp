@@ -49,7 +49,7 @@ def seats_asked(game: Game) -> list[SeatNumber]:
 
 # @spec STACK-014, STACK-015, STACK-034, STACK-035, STACK-036, STACK-037, STACK-039
 # @spec STACK-040, STACK-041, STACK-046, STACK-049, STACK-060, STACK-062, STACK-070
-# @spec STACK-071, STACK-084, STACK-083, TURN-066, STACK-042, STACK-047, STACK-048
+# @spec STACK-071, STACK-084, STACK-083, TURN-066, STACK-042, STACK-047, STACK-048, STACK-090
 def go_on(game: Game, decks: Decks) -> list[Event]:
     """Go on with the open window's asking as far as it goes without a seat's call: pass
     automatically for each seat about to be asked that has no untapped permanent (a seat
