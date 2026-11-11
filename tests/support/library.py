@@ -185,6 +185,52 @@ _add(
     _card("Goblin Warchief", "{1}{R}{R}", "Creature — Goblin", pt="2/2", identity="R"),
     _reading(haste=KeywordReading(grant=KeywordGrant(includes_self=True, subtype="Goblin"))),
 )
+# Evasion and reach.
+_add(
+    _card("Wind Drake", "{2}{U}", "Creature — Drake", pt="2/2", identity="U"),
+    _reading(flying=OWN),
+)
+_add(
+    _card("Giant Spider", "{3}{G}", "Creature — Spider", pt="2/4", identity="G"),
+    _reading(reach=OWN),
+)
+_add(
+    _card("Shu Cavalry", "{2}{W}", "Creature — Human Soldier", pt="2/2", identity="W"),
+    _reading(horsemanship=OWN),
+)
+_add(
+    _card("Wu Light Cavalry", "{1}{U}", "Creature — Human Soldier", pt="1/2", identity="U"),
+    _reading(horsemanship=OWN),
+)
+_add(
+    _card("Phantom Warrior", "{1}{U}{U}", "Creature — Illusion Warrior", pt="2/2", identity="U"),
+    _reading(cant_be_blocked=OWN),
+)
+_add(
+    _card("Sky Rider", "{3}{W}", "Creature — Human Knight", pt="3/3", identity="W"),
+    _reading(flying=OWN, horsemanship=OWN),
+)
+_add(
+    _card("Island Skimmer", "{1}{U}", "Creature — Bird", pt="1/1", identity="U"),
+    _reading(flying=KeywordReading(own=True, assumptions=("assumes its condition is met",))),
+)
+_add(
+    _card("Levitation", "{2}{U}{U}", "Enchantment", identity="U"),
+    _reading(flying=KeywordReading(grant=KeywordGrant(includes_self=True))),
+)
+_add(
+    _card("Flock Leader", "{2}{W}", "Creature — Bird", pt="2/2", identity="W"),
+    _reading(flying=KeywordReading(grant=KeywordGrant(includes_self=False))),
+)
+_add(
+    _card("Spirit Banner", "{2}", "Artifact"),
+    _reading(flying=KeywordReading(grant=KeywordGrant(includes_self=True, subtype="Spirit"))),
+)
+_add(_card("Spirit Wisp", "{W}", "Creature — Spirit", pt="1/1", identity="W"))
+_add(
+    _card("Treetop Snare", "{1}{G}", "Enchantment", identity="G"),
+    _reading(reach=KeywordReading(grant=KeywordGrant(includes_self=True))),
+)
 _add(
     _card("Phyrexian Arena", "{1}{B}{B}", "Enchantment", identity="B"),
     _reading(step_triggers=(StepTrigger(Step.UPKEEP),)),

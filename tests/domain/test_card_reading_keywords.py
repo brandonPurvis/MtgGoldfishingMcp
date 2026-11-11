@@ -1,4 +1,6 @@
-"""The card reader's reading of haste, vigilance and flash."""
+"""The card reader's reading of haste, vigilance and flash, and of evasion and reach."""
+
+import pytest
 
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.reading.model import (
@@ -210,4 +212,206 @@ def test_a_grant_under_a_condition_is_a_grant_with_the_condition_assumed() -> No
     )
     assert face_reading(anger).haste == KeywordReading(
         own=True, grant=KeywordGrant(), assumptions=(ASSUMES_CONDITION_MET,)
+    )
+
+
+# ------------------------------------------------------------------ evasion and reach
+
+NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
+
+
+# @spec READ-055
+@NOT_BUILT
+def test_flying_on_a_line_of_its_own_is_the_cards_own() -> None:
+    wind_drake = a_card("Wind Drake", "Flying", "Creature — Drake")
+    assert face_reading(wind_drake).flying == KeywordReading(own=True)
+
+
+# @spec READ-055
+@NOT_BUILT
+def test_flying_in_a_comma_separated_keyword_line_is_the_cards_own() -> None:
+    serra_angel = a_card("Serra Angel", "Flying, vigilance", "Creature — Angel")
+    assert face_reading(serra_angel).flying == KeywordReading(own=True)
+
+
+# @spec READ-055
+@NOT_BUILT
+def test_reach_followed_by_reminder_text_is_the_cards_own() -> None:
+    giant_spider = a_card(
+        "Giant Spider",
+        "Reach (This creature can block creatures with flying.)",
+        "Creature — Spider",
+    )
+    assert face_reading(giant_spider).reach == KeywordReading(own=True)
+
+
+# @spec READ-055
+@NOT_BUILT
+def test_horsemanship_followed_by_reminder_text_is_the_cards_own() -> None:
+    shu_cavalry = a_card(
+        "Shu Cavalry",
+        "Horsemanship (This creature can't be blocked except by creatures with horsemanship.)",
+        "Creature — Human Soldier",
+    )
+    reading = face_reading(shu_cavalry)
+    assert (reading.horsemanship, reading.cant_be_blocked) == (KeywordReading(own=True), NO_KEYWORD)
+
+
+# @spec READ-056
+@NOT_BUILT
+def test_creatures_you_control_have_flying_is_a_grant_that_includes_the_card() -> None:
+    levitation = a_card("Levitation", "Creatures you control have flying.", "Enchantment")
+    assert face_reading(levitation).flying == KeywordReading(grant=KeywordGrant())
+
+
+# @spec READ-056
+@NOT_BUILT
+def test_other_subtype_creatures_get_and_have_reach_is_a_grant_limited_to_the_subtype() -> None:
+    card = a_card(
+        "Spider Matriarch",
+        "Other Spider creatures you control get +1/+1 and have reach.",
+        "Creature — Spider",
+    )
+    assert face_reading(card).reach == KeywordReading(
+        grant=KeywordGrant(includes_self=False, subtype="Spider")
+    )
+
+
+# @spec READ-057
+@NOT_BUILT
+def test_spirits_you_control_have_flying_is_a_grant_limited_to_spirit() -> None:
+    card = a_card("Spirit Lord", "Spirits you control have flying.", "Creature — Spirit")
+    assert face_reading(card).flying == KeywordReading(grant=KeywordGrant(subtype="Spirit"))
+
+
+# @spec READ-058
+@NOT_BUILT
+def test_this_creature_can_t_be_blocked_is_the_cards_own() -> None:
+    phantom_warrior = a_card(
+        "Phantom Warrior", "This creature can't be blocked.", "Creature — Illusion Warrior"
+    )
+    assert face_reading(phantom_warrior).cant_be_blocked == KeywordReading(own=True)
+
+
+# @spec READ-058
+@NOT_BUILT
+def test_a_card_that_says_by_name_it_can_t_be_blocked_has_it_as_its_own() -> None:
+    card = a_card(
+        "Invisible Stalker",
+        "Hexproof\nInvisible Stalker can't be blocked.",
+        "Creature — Human Rogue",
+    )
+    assert face_reading(card).cant_be_blocked == KeywordReading(own=True)
+
+
+# @spec READ-059
+@NOT_BUILT
+def test_other_rogues_you_control_can_t_be_blocked_is_a_grant_limited_to_rogue() -> None:
+    card = a_card(
+        "Rogue Captain", "Other Rogues you control can't be blocked.", "Creature — Human Rogue"
+    )
+    assert face_reading(card).cant_be_blocked == KeywordReading(
+        grant=KeywordGrant(includes_self=False, subtype="Rogue")
+    )
+
+
+# @spec READ-059
+@NOT_BUILT
+def test_creatures_you_control_can_t_be_blocked_is_a_grant_that_includes_the_card() -> None:
+    card = a_card("Unseen Host", "Creatures you control can't be blocked.", "Enchantment")
+    assert face_reading(card).cant_be_blocked == KeywordReading(grant=KeywordGrant())
+
+
+# @spec READ-060
+@pytest.mark.parametrize(
+    "qualification",
+    ["except by creatures with flying", "by Walls", "by more than one creature"],
+)
+def test_can_t_be_blocked_with_a_qualification_of_what_may_block_is_not_read(
+    qualification: str,
+) -> None:
+    card = a_card(
+        "Qualified Sneak", f"This creature can't be blocked {qualification}.", "Creature — Rogue"
+    )
+    assert face_reading(card).cant_be_blocked == NO_KEYWORD
+
+
+# @spec READ-061
+@pytest.mark.parametrize(
+    ("text", "keyword"),
+    [
+        ("Creatures you control gain flying until end of turn.", "flying"),
+        ("Target creature can't be blocked this turn.", "cant_be_blocked"),
+        ("{2}{U}: This creature gains flying until end of turn.", "flying"),
+        ("{G}: This creature gains reach.", "reach"),
+        ("Whenever this creature attacks, it can't be blocked this turn.", "cant_be_blocked"),
+        ("Whenever this creature attacks, it gains flying.", "flying"),
+    ],
+    ids=[
+        "a spell until end of turn",
+        "a spell this turn",
+        "an activated ability until end of turn",
+        "an activated ability with no duration",
+        "a triggered ability this turn",
+        "a triggered ability with no duration",
+    ],
+)
+def test_evasion_or_reach_for_a_limited_time_or_from_an_ability_is_not_read(
+    text: str, keyword: str
+) -> None:
+    card = a_card("Fleeting Wings", text, "Creature — Bird")
+    assert getattr(face_reading(card), keyword) == NO_KEYWORD
+
+
+# @spec READ-062
+@pytest.mark.parametrize(
+    ("text", "keyword"),
+    [
+        ("Equipped creature has flying.\nEquip {2}", "flying"),
+        ("Enchant creature\nEnchanted creature gets +1/+1 and has reach.", "reach"),
+        ("Enchant creature\nEnchanted creature can't be blocked.", "cant_be_blocked"),
+    ],
+    ids=["equipment", "an aura's keyword", "an aura's can't be blocked"],
+)
+def test_evasion_or_reach_conferred_through_attachment_is_not_read(text: str, keyword: str) -> None:
+    card = a_card("Attached Gift", text, "Artifact — Equipment")
+    assert getattr(face_reading(card), keyword) == NO_KEYWORD
+
+
+# @spec READ-063
+@NOT_BUILT
+def test_flying_under_a_condition_before_it_is_the_cards_own_with_the_condition_assumed() -> None:
+    card = a_card(
+        "Island Skimmer",
+        "As long as you control an Island, this creature has flying.",
+        "Creature — Bird",
+    )
+    assert face_reading(card).flying == KeywordReading(
+        own=True, assumptions=(ASSUMES_CONDITION_MET,)
+    )
+
+
+# @spec READ-063
+@NOT_BUILT
+def test_can_t_be_blocked_under_a_condition_after_it_is_the_cards_own_with_it_assumed() -> None:
+    card = a_card(
+        "Tidal Lurker",
+        "This creature can't be blocked as long as defending player controls an Island.",
+        "Creature — Fish",
+    )
+    assert face_reading(card).cant_be_blocked == KeywordReading(
+        own=True, assumptions=(ASSUMES_CONDITION_MET,)
+    )
+
+
+# @spec READ-063
+@NOT_BUILT
+def test_a_grant_of_horsemanship_under_an_if_condition_is_a_grant_with_it_assumed() -> None:
+    card = a_card(
+        "Cavalry Banner",
+        "If you control a commander, creatures you control have horsemanship.",
+        "Artifact",
+    )
+    assert face_reading(card).horsemanship == KeywordReading(
+        grant=KeywordGrant(), assumptions=(ASSUMES_CONDITION_MET,)
     )

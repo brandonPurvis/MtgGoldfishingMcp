@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from mtg_goldfishing.domain.cards import Card, CardSource, Face
 from mtg_goldfishing.domain.deck.definitions import (
     apply_definition,
@@ -113,6 +115,17 @@ def test_haste_vigilance_and_flash_in_keywords_become_the_cards_own() -> None:
     assert isinstance(definition, CardDefinition)
     face = definition_reading(card("Grizzly Bears"), definition).face(0)
     assert (face.haste.own, face.vigilance.own, face.flash.own) == (True, True, True)
+
+
+# @spec DECK-040
+@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
+def test_flying_horsemanship_and_reach_in_keywords_become_the_cards_own() -> None:
+    definition = read_definition(
+        {"name": "Grizzly Bears", "keywords": ["flying", "Horsemanship", "Reach"]}
+    )
+    assert isinstance(definition, CardDefinition)
+    face = definition_reading(card("Grizzly Bears"), definition).face(0)
+    assert (face.flying.own, face.horsemanship.own, face.reach.own) == (True, True, True)
 
 
 # @spec DECK-017

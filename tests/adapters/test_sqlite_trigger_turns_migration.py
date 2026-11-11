@@ -13,6 +13,8 @@ from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase
 
 BEFORE_TRIGGER_TURNS = MIGRATIONS[:2]
 """The migrations of a database written before step triggers recorded whose turns."""
+THROUGH_TRIGGER_TURNS = MIGRATIONS[:3]
+"""The migrations up to and including the one to step triggers that record whose turns."""
 
 EACH = {"__type__": "StepTrigger", "step": "end", "whose": "each"}
 
@@ -53,7 +55,9 @@ def _stored_before_trigger_turns(path: Path, deck: str, game: str, version: int 
 
 
 def _migrated(path: Path) -> None:
-    SqliteDatabase(path).close()
+    """Migrated to schema 3. The documents here hold only what that migration reads, not the
+    card data later migrations read again."""
+    SqliteDatabase(path, migrations=THROUGH_TRIGGER_TURNS).close()
 
 
 def _query(path: Path, sql: str) -> list[tuple[Any, ...]]:
