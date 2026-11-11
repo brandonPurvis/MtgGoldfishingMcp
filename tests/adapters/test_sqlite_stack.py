@@ -1,6 +1,7 @@
-"""The stack, an open response window and a `resolve` choice are stored and read back whole,
-and a loaded deck stored before step triggers were read with whose turns they happen on is
-read with its triggers on its controller's turns."""
+"""The stack, an open response window and a `resolve` choice are stored and read back whole;
+a loaded deck stored before step triggers were read with whose turns they happen on is read
+with its triggers on its controller's turns; and stack items and log entries stored before
+cast triggers read as holding none."""
 
 from __future__ import annotations
 
@@ -9,14 +10,18 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase, SqliteStores
 from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.domain.deck.model import DeckCard, DeckEntry, LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
+from mtg_goldfishing.domain.records.model import LogEntry
 from mtg_goldfishing.domain.stack.passing import pass_
 from tests.support.acting import S2, acted
 from tests.support.library import card
+from tests.support.stored import a_log_entry
 from tests.support.tables import bolt_at, three_seats, two_seats
 
 
@@ -80,3 +85,30 @@ def test_a_deck_stored_before_whose_turns_were_read_reads_its_triggers_as_its_co
     assert loaded is not None
     (trigger,) = loaded.cards[0].reading.faces[0].step_triggers
     assert (trigger.step.value, trigger.whose.value) == ("upkeep", "controller")  # type: ignore[attr-defined]
+
+
+# @spec STOR-040
+@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+def test_a_stack_item_stored_without_cast_with_reads_as_no_cast_trigger() -> None:
+    situation = two_seats(
+        lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
+        lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}),
+    )
+    document: Any = json.loads(encode(situation.game, Game))
+    for item in document["stack"]:
+        item.pop("cast_with", None)
+
+    read: Game = decode(json.dumps(document), Game)
+
+    assert [item.cast_with for item in read.stack] == [None, None]
+
+
+# @spec STOR-040
+@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+def test_a_log_entry_stored_without_cast_triggers_reads_as_stating_none() -> None:
+    document: Any = json.loads(encode(a_log_entry(3), LogEntry))
+    document.pop("cast_triggers", None)
+
+    read: LogEntry = decode(json.dumps(document), LogEntry)
+
+    assert read.cast_triggers == ()

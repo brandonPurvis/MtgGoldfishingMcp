@@ -26,6 +26,7 @@ TOOLS = (
 )
 GAME_SCOPED = tuple(name for name in TOOLS if name not in ("load_deck", "new_game"))
 CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "pass", "end_game")
+NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
 NOT_CHANGING = tuple(name for name in TOOLS if name not in CHANGING)
 
 
@@ -106,6 +107,12 @@ def test_after_on_a_changing_call_answers_a_resend_once() -> None:
         ("play", {"card": "Grizzly Bears", "choices": {"notes": "first threat"}}, "choices"),
         ("play", {"card": "Grizzly Bears", "pay": {"with": ["Forest"]}}, "pay"),
         ("play", {"card": "Grizzly Bears", "expect": {"hand": 1}}, "expect"),
+        pytest.param(
+            "play",
+            {"card": "Grizzly Bears", "cast_triggers": [{"source": "x", "delta": {"draw": 1}}]},
+            "cast_triggers",
+            marks=NOT_BUILT,
+        ),
     ],
 )
 def test_an_object_parameter_sent_as_a_json_string_is_decoded(
@@ -118,6 +125,20 @@ def test_an_object_parameter_sent_as_a_json_string_is_decoded(
     surface.call(tool, sent)
 
     assert harness.last_call().arguments[encoded] == arguments[encoded]
+
+
+# @spec TOOL-010
+@NOT_BUILT
+def test_a_value_inside_a_list_parameter_is_not_decoded_again() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    triggers = [{"source": "x", "delta": json.dumps({"draw": 1})}]
+
+    response = surface.call(
+        "play", {"game_id": game_id, "card": "Grizzly Bears", "cast_triggers": triggers}
+    )
+
+    assert response.text.startswith("ERROR Argument cast_triggers[0].delta is malformed.")
 
 
 # @spec TOOL-010

@@ -22,6 +22,17 @@ Feature: Effects that reach other seats in a contested game
     And seat S2's graveyard holds 1 card
     And the status line shows "Act S1 turn"
 
+  @wip
+  # @spec PLAY-138, GAME-179, TOOL-087
+  Scenario: An answer naming a card shows its answer text to every seat
+    Given a started contested game against 2 Omnath decks with the tested seat first
+    When seat S1 records an effect with delta {"ask": [{"seats": [2], "text": "name a card"}]}
+    And seat S2 answers its ask choice with text "Lightning Bolt"
+    Then the response is OK
+    And the response says "(ask): "Lightning Bolt"."
+    When seat S3 asks for the state
+    Then the digest says "(ask): "Lightning Bolt""
+
   # @spec PLAY-102, PLAY-103, GAME-090
   Scenario: Looking at another seat's hand shows those cards to the looking seat only
     Given a started contested game against 2 Omnath decks with the tested seat first

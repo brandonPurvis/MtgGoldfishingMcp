@@ -320,3 +320,21 @@ def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_tra
         "before combat damage",
     ):
         assert words in contested, words
+
+
+# @spec TOOL-084
+@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+def test_the_contested_section_says_to_state_cast_triggers_in_the_play_that_casts() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in ('"whenever you cast" triggers', "`cast_triggers`", "resolves within that call"):
+        assert words in contested, words
+
+
+# @spec TOOL-085
+@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+def test_the_contested_section_says_to_give_a_named_card_or_guess_as_text() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in ("name a card, guess or choose a number", "`text`", "every seat sees it"):
+        assert words in contested, words
