@@ -17,9 +17,12 @@ TOOLS = (
     "choose",
     "attack",
     "advance",
+    "pass",
+    "wait",
     "end_game",
     "get_log",
 )
+CONTESTED_SECTION = "## Contested games"
 
 
 def _front_matter() -> dict[str, str]:
@@ -34,6 +37,14 @@ def _front_matter() -> dict[str, str]:
 
 def _body() -> str:
     return BRIEF.read_text(encoding="utf-8").split("---\n", 2)[2]
+
+
+def _section(heading: str) -> str:
+    """The brief's section under `heading`, up to the next heading of the same level."""
+    body = _body()
+    assert heading in body, f"no section {heading!r}"
+    after = body.split(heading, 1)[1]
+    return after.split("\n## ", 1)[0]
 
 
 # @spec TOOL-006
@@ -73,3 +84,36 @@ def test_the_player_brief_instructs_the_subagent(instruction: str, words: tuple[
     body = _body()
 
     assert all(word in body for word in words), instruction
+
+
+# @spec TOOL-052
+def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_instead() -> None:
+    given = _section("## What you are given")
+
+    assert all(words in given for words in ("seat id", "which seat you play")), given
+
+
+# @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055
+@pytest.mark.parametrize(
+    ("instruction", "words"),
+    [
+        ("TOOL-053: play its seat to win unless told otherwise", ("to win", "another goal")),
+        ("TOOL-053: wait whenever not the seat to act", ("`wait`", "not the seat to act")),
+        ("TOOL-053: read the digest", ("top of each response", "other seats did")),
+        ("TOOL-053: respond, or pass", ("`play` or `effect`", "`pass`")),
+        ("TOOL-053: answer choices addressed to it", ("`choose`", "blocks", "other seats")),
+        ("TOOL-053: state combat after blocks", ("`effect`", "`immediate: true`", "after blocks")),
+        ("TOOL-072: leave out the damage to seats", ("leave out", "damage to seats")),
+        ("TOOL-072: damage past blockers only", ("`damage`", "gets past")),
+        ("TOOL-073: attack not declared", ("not declared", "`wait`", "same `attack`")),
+        ("TOOL-054: the tested seat's verdict", ("tested seat", "what the opposition did")),
+        ("TOOL-054: an opposing seat concedes", ("concede", "until the game ends")),
+        ("TOOL-055: return the seat, the id and the verdict", ("Seat:", "Id:", "Verdict:")),
+    ],
+)
+def test_the_player_brief_has_a_section_on_contested_games(
+    instruction: str, words: tuple[str, ...]
+) -> None:
+    contested = _section(CONTESTED_SECTION)
+
+    assert all(word in contested for word in words), instruction

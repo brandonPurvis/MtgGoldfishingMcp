@@ -10,7 +10,7 @@ prefix: READ
 The service does not know what cards do. This component holds the deliberate exceptions: four narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and attack bookkeeping possible.
 
 1. **Mana sources**: how much mana of which colors a permanent makes, and what using it costs.
-2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in.
+2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in, and on whose turns.
 3. **Haste and vigilance**: whether a permanent has either keyword itself or grants it to others.
 4. **Entering tapped**: whether a permanent enters the battlefield tapped.
 
@@ -18,7 +18,7 @@ Every mana ability reading, keyword reading and enters-tapped reading carries a 
 
 Reading follows the tenet *Best guess, shown*. When text matches a known form only partly, the reader returns its best reading together with a plain statement of what it assumed. It returns "no reading" only when it has nothing usable. It never guesses silently.
 
-Reading is pure: text in, reading out, no game state. Readings that depend on game state (counted amounts) are returned as a rule to be evaluated later by whoever holds the state.
+Reading is pure: text in, reading out, no game state. Which deck's reading a card instance in a game is given — its owner's, whichever seat controls it — is decided by `game`. Readings that depend on game state (counted amounts) are returned as a rule to be evaluated later by whoever holds the state.
 
 ## Mana Sources
 
@@ -89,7 +89,7 @@ When an ability's text continues past a form the reader knows, or is conditioned
 
 ### No reading
 
-An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. A card with `produced_colors` but no reading for any ability is reported as **unread**.
+An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. An ability without a reading is reported as **unread** only on a card whose `produced_colors` are known; on a card without them it is left out of the report, since nothing says the card makes mana at all.
 
 ### Reporting
 
@@ -99,18 +99,31 @@ For a set of cards the reader produces lists a caller can show: mana abilities r
 
 ## Step Triggers
 
-A face is scanned for beginning-of-step phrases. Each match yields the step it belongs to.
+A face is scanned for beginning-of-step phrases. Each match yields a step trigger reading: the step it belongs to, and **whose** turns it happens on.
 
-| Phrase contains | Step |
-|---|---|
-| `At the beginning of your upkeep`, `of each upkeep`, `of each player's upkeep` | upkeep |
-| `At the beginning of your draw step`, `of each player's draw step` | draw |
-| `At the beginning of your precombat main phase`, `of your first main phase` | main1 |
-| `At the beginning of combat on your turn`, `of each combat` | begin_combat |
-| `At the beginning of your postcombat main phase`, `of your second main phase` | main2 |
-| `At the beginning of your end step`, `of each end step`, `of each player's end step`, `of the end step` | end |
+```
+StepTrigger { step: Step, whose: "controller" | "each" | "opponents" }
+```
 
-A phrase that names only opponents (`each opponent's upkeep`) yields nothing, because a goldfish game has no opponent turns. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones; the reminder is harmless when it does not apply. A face with several triggers in the same step yields that step once.
+| Phrase contains | Step | Whose |
+|---|---|---|
+| `At the beginning of your upkeep` | upkeep | controller |
+| `of each upkeep`, `of each player's upkeep` | upkeep | each |
+| `of each opponent's upkeep` | upkeep | opponents |
+| `At the beginning of your draw step` | draw | controller |
+| `of each player's draw step` | draw | each |
+| `of each opponent's draw step` | draw | opponents |
+| `At the beginning of your precombat main phase`, `of your first main phase` | main1 | controller |
+| `At the beginning of combat on your turn` | begin_combat | controller |
+| `of each combat` | begin_combat | each |
+| `At the beginning of your postcombat main phase`, `of your second main phase` | main2 | controller |
+| `At the beginning of your end step` | end | controller |
+| `of each end step`, `of each player's end step`, `of the end step` | end | each |
+| `of each opponent's end step` | end | opponents |
+
+The table is the whole list. A phrase that names opponents or other players in any other wording (`At the beginning of combat on each opponent's turn`, `of each other player's upkeep`) yields no reading; its controller records the trigger unprompted, as it records an event trigger.
+
+Which readings produce a reminder on a given turn is decided by `turn`: a goldfish game has only the controller's turns, so an `opponents` reading never produces one there. Delayed triggers created by other effects ("at the beginning of the next end step" inside a spell's text) are matched the same way as static ones: `the next` step reads as `each`, like `the end step`, since the text does not say whose turn it will be, and `your next` step reads as `controller`. The reminder is harmless when it does not apply. A face with several triggers in the same step and of the same `whose` yields that pair once.
 
 ## Haste and Vigilance
 
@@ -147,6 +160,7 @@ The reading applies to any permanent, not only lands.
 | Counted amounts | Returned as a rule, evaluated by the holder of game state | Reader takes game state | Keeps reading pure and testable from text alone. |
 | Own versus granted keyword | Decided from text position, not Scryfall's keyword list | Trust the keyword list | The list includes keywords a card grants to others, so it cannot tell a hasty creature from one that gives haste. |
 | Attachment-conferred keywords | Not read | Track attachments | Attachment tracking is rules-engine territory; the agent states haste or vigilance in the `attack` call instead. |
+| Whose turns a step trigger happens on | Read as controller, each, or opponents | Read the step only; ignore opponents-only phrases | In a contested game other seats' turns exist, and a trigger on each opponent's upkeep is the controller's to record during another seat's turn. |
 
 ## Open Questions & Future Decisions
 
@@ -154,6 +168,7 @@ The reading applies to any permanent, not only lands.
 1. Mana filters and mana-doubling triggers get no reading; the agent adds their mana with an `effect` call.
 2. Step triggers in zones other than the battlefield (a card that triggers from the graveyard at upkeep) are readable, but which zones are scanned is decided by `turn`.
 3. Additional `Count` kinds are added as cards that need them are encountered.
+4. Opponent-only step phrases beyond upkeep, draw step and end step, and wordings such as `each other player's`.
 
 ## References
 

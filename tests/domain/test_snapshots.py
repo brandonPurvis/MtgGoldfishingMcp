@@ -12,11 +12,11 @@ from mtg_goldfishing.domain.records.model import HandCard, PermanentRecord, Remi
 from mtg_goldfishing.domain.records.snapshots import take_snapshot
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.builders import Situation, a_game
+from tests.support.builders import TESTED, Situation, a_game
 
 
 def snapshot_at_cleanup(situation: Situation):  # type: ignore[no-untyped-def]
-    result = advance(situation.game, situation.deck, to="cleanup")
+    result = advance(situation.game, situation.deck, TESTED, to="cleanup")
     assert isinstance(result, Applied), result
     (snapshot,) = result.snapshots
     return snapshot
@@ -36,7 +36,7 @@ def test_entering_cleanup_writes_a_snapshot_of_the_turn() -> None:
         .with_life(33)
         .build()
     )
-    situation.game.damage_dealt = 14
+    situation.game.imaginary_opponents.damage_dealt = 14
     snapshot = snapshot_at_cleanup(situation)
     assert snapshot.turn == 5
     assert snapshot.hand == (HandCard("Cultivate", payable=False),)
@@ -53,7 +53,7 @@ def test_entering_cleanup_writes_a_snapshot_of_the_turn() -> None:
 # @spec REC-011
 def test_a_snapshot_lists_reminders_that_went_unanswered() -> None:
     situation = a_game().in_step(Step.UNTAP, turn=5).with_battlefield("Phyrexian Arena").build()
-    moved = advance(situation.game, situation.deck, to="upkeep")
+    moved = advance(situation.game, situation.deck, TESTED, to="upkeep")
     assert isinstance(moved, Applied)
     situation.game = moved.game
     snapshot = snapshot_at_cleanup(situation)
@@ -66,7 +66,7 @@ def test_a_snapshot_lists_reminders_that_went_unanswered() -> None:
 # @spec REC-012
 def test_ending_a_game_mid_turn_writes_that_turn_a_snapshot() -> None:
     situation = a_game().in_step(Step.MAIN1, turn=4).build()
-    result = end_game(situation.game, situation.deck, result="win", notes="")
+    result = end_game(situation.game, situation.deck, TESTED, result="win", notes="")
     assert isinstance(result, Applied)
     assert [s.turn for s in result.snapshots] == [4]
 
@@ -77,7 +77,7 @@ def test_a_turn_has_at_most_one_snapshot() -> None:
     snapshot_at_cleanup(situation)
     situation.game.snapshot_turns.append(4)
     assert take_snapshot(situation.game, situation.deck) is None
-    result = end_game(situation.game, situation.deck, result="win", notes="")
+    result = end_game(situation.game, situation.deck, TESTED, result="win", notes="")
     assert isinstance(result, Applied)
     assert result.snapshots == ()
 
@@ -109,9 +109,9 @@ def test_mana_available_is_counted_on_entering_the_first_main_step() -> None:
         .with_battlefield("Lotus Petal")
         .build()
     )
-    result = advance(situation.game, situation.deck)
+    result = advance(situation.game, situation.deck, TESTED)
     assert isinstance(result, Applied)
-    assert result.game.turn_stats.mana_available == 3
+    assert result.game.tested.turn_stats.mana_available == 3
 
 
 # @spec REC-016
@@ -124,7 +124,7 @@ def test_mana_spent_counts_mana_symbols_paid_but_not_life() -> None:
         .build()
     )
     for card in ("Dismember", "Grizzly Bears"):
-        result = play(situation.game, situation.deck, card=card)
+        result = play(situation.game, situation.deck, TESTED, card=card)
         assert isinstance(result, Applied), result
         situation.game = result.game
     snapshot = snapshot_at_cleanup(situation)
@@ -140,9 +140,9 @@ def test_mana_available_ignores_tapped_state_and_summoning_sickness() -> None:
         .with_battlefield("Llanowar Elves", entered_turn=4)
         .build()
     )
-    result = advance(situation.game, situation.deck)
+    result = advance(situation.game, situation.deck, TESTED)
     assert isinstance(result, Applied)
-    assert result.game.turn_stats.mana_available == 2
+    assert result.game.tested.turn_stats.mana_available == 2
 
 
 # @spec REC-016
@@ -156,7 +156,7 @@ def test_mana_spent_counts_a_generic_symbol_as_its_number() -> None:
         .with_hand("Big Beast")
         .build()
     )
-    result = play(situation.game, situation.deck, card="Big Beast")
+    result = play(situation.game, situation.deck, TESTED, card="Big Beast")
     assert isinstance(result, Applied), result
     situation.game = result.game
     assert snapshot_at_cleanup(situation).mana_spent == 5

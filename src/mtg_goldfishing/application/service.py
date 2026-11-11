@@ -16,6 +16,7 @@ from mtg_goldfishing.application.ports import (
     CardCatalog,
     Clock,
     DeckRepository,
+    GameChanges,
     GameLocks,
     GameRepository,
     IdSource,
@@ -35,14 +36,16 @@ from mtg_goldfishing.application.use_cases import (
     malformed_call,
     mulligan,
     new_game,
+    passing,
     play,
+    wait,
 )
 from mtg_goldfishing.application.use_cases.handling import Ports
 
 Arguments = Mapping[str, object]
 
 
-# @spec APP-009, APP-011
+# @spec APP-009, APP-011, APP-049, APP-050
 class Service:
     """The use cases, one per tool, over the ports they reach the outside world through."""
 
@@ -58,6 +61,7 @@ class Service:
         ids: IdSource,
         clock: Clock,
         renderer: Renderer,
+        changes: GameChanges,
     ) -> None:
         self._ports = Ports(
             games=games,
@@ -69,6 +73,7 @@ class Service:
             ids=ids,
             clock=clock,
             renderer=renderer,
+            changes=changes,
         )
 
     def load_deck(self, arguments: Arguments) -> Answer:
@@ -97,7 +102,8 @@ class Service:
         return effect.effect(self._ports, arguments)
 
     def choose(self, arguments: Arguments) -> Answer:
-        """`game_id, choice_id, selections, rest_order?, after?`"""
+        """`game_id, choice_id, selections?, rest_order?, delta?, blocks?, restate?,
+        override?, after?`"""
         return choose.choose(self._ports, arguments)
 
     def attack(self, arguments: Arguments) -> Answer:
@@ -108,6 +114,14 @@ class Service:
     def advance(self, arguments: Arguments) -> Answer:
         """`game_id, to?, discard?, override?, after?`"""
         return advance.advance(self._ports, arguments)
+
+    def pass_(self, arguments: Arguments) -> Answer:
+        """`game_id, after?`"""
+        return passing.pass_(self._ports, arguments)
+
+    def wait(self, arguments: Arguments) -> Answer:
+        """`game_id, timeout?`"""
+        return wait.wait(self._ports, arguments)
 
     def end_game(self, arguments: Arguments) -> Answer:
         """`game_id, result, notes?, after?`"""

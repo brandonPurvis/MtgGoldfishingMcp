@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 
 from mtg_goldfishing.domain.deck.model import (
     CardDefinition,
@@ -46,10 +48,13 @@ from mtg_goldfishing.domain.game.model import (
     TurnStats,
     Zone,
 )
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.mana import Mana, ManaString, Restriction
 from mtg_goldfishing.domain.reading.reader import read_card
 from mtg_goldfishing.domain.records.model import (
     CallRecord,
+    ContestedEntry,
+    ContestedSnapshot,
     HandCard,
     LogEntry,
     Payment,
@@ -84,20 +89,24 @@ def a_rich_game(game_id: str = "gtest000001") -> Game:
         .build()
     )
     game = situation.game
+    seat = game.tested
     game.game_id = game_id
+    seat.seat_id = SeatId(game_id)
     game.turn_limit = 10
     game.change = 12
-    game.mulligans = 1
-    game.shuffles = 2
-    game.damage_dealt = 7
+    seat.mulligans = 1
+    seat.shuffles = 2
+    game.imaginary_opponents.damage_dealt = 7
     game.status = GameStatus.PENDING_CHOICE
-    game.turn_stats = TurnStats(
+    seat.turn_stats = TurnStats(
         mana_available=5, mana_spent=3, payments=[PaymentRecord(M("{2}{G}"), 3, life=1)]
     )
     token = CardInstance(
         id=game.new_instance_id(),
         name="Elf Warrior",
         zone=Zone.BATTLEFIELD,
+        owner=seat.number,
+        controller=seat.number,
         is_token=True,
         entered_turn=4,
         token=TokenSpec("Elf Warrior", "Creature — Elf Warrior", pt="1/1", produces=(M("{G}"),)),
@@ -106,6 +115,8 @@ def a_rich_game(game_id: str = "gtest000001") -> Game:
         id=game.new_instance_id(),
         name=BONECRUSHER.name,
         zone=Zone.HAND,
+        owner=seat.number,
+        controller=seat.number,
         face=1,
         definition=BONECRUSHER,
         reading=read_card(BONECRUSHER),
@@ -119,14 +130,21 @@ def a_rich_game(game_id: str = "gtest000001") -> Game:
         commander_targets={elves.id: 2},
     )
     game.tapped_by_attacks = [elves.id]
-    game.pending_choice = PendingChoice(
-        choice_id="x1", source="Cultivate", kind="look", revealed=["c9", "c10"], rest=None
-    )
+    game.pending = [
+        PendingChoice(
+            choice_id="x1",
+            seat=seat.number,
+            source="Cultivate",
+            kind="look",
+            revealed=["c9", "c10"],
+            rest=None,
+        )
+    ]
     game.notices = [NoticeKind.DAMAGE, NoticeKind.TURN_LIMIT]
-    game.reminders = [Reminder(elves.id, "Llanowar Elves", Step.UPKEEP, answered=True)]
+    seat.reminders = [Reminder(elves.id, "Llanowar Elves", Step.UPKEEP, answered=True)]
     game.snapshot_turns = [1, 2, 3]
     game.result = Result(GameResult.STALLED, "ran out of turns")
-    game.last_change = LastChange(
+    seat.last_change = LastChange(
         tool="play",
         arguments={"card": "Cultivate", "delta": {"search": ["Forest"], "nested": [1, None]}},
         summary=CardPlayed("Cultivate", "Cultivate", "hand", "graveyard", is_land=False),
@@ -143,6 +161,7 @@ def a_rich_game(game_id: str = "gtest000001") -> Game:
                 (FailedCheck(CheckKind.COST_NOT_PAYABLE, cost=M("{1}"), step=Step.MAIN1),),
             ),
         ),
+        change=12,
     )
     return game
 
@@ -230,4 +249,69 @@ def a_call(game_id: str | None, change: int | None, *, tool: str = "advance") ->
         response=f"OK · change {change}",
         is_override=False,
         change=change,
+    )
+
+
+# ---------------------------------------------------------------------------------------
+# Records of a contested game.
+# ---------------------------------------------------------------------------------------
+
+
+def a_contested_reminder(seat: int, table_turn: int) -> ReminderRecord:
+    """A reminder of Phyrexian Arena's upkeep trigger issued to a seat in a table turn."""
+    return ReminderRecord(
+        "Phyrexian Arena",
+        Step.UPKEEP,
+        "c4",
+        "Phyrexian Arena",
+        table_turn,
+        seat=SeatNumber(seat),
+    )
+
+
+def a_contested_log_entry(
+    seq: int,
+    *,
+    seat: int,
+    table_turn: int,
+    tool: str = "effect",
+    source: str | None = None,
+    reminders: tuple[ReminderRecord, ...] = (),
+    public: tuple[Any, ...] = (),
+) -> LogEntry:
+    """A log entry of a seat of a contested game, made in a table turn."""
+    arguments: dict[str, object] = {} if source is None else {"source": source}
+    entry: Any = replace(
+        a_log_entry(seq, tool=tool),
+        turn=1,
+        arguments=arguments,
+        card=source,
+        reminders=reminders,
+    )
+    return replace(
+        entry,
+        contested=ContestedEntry(
+            seat=SeatNumber(seat),
+            active=SeatNumber(seat),
+            table_turn=table_turn,
+            round=1,
+            public=public,
+        ),
+    )
+
+
+def a_contested_snapshot(turn: int, *, table_turn: int, written_by: int) -> TurnSnapshot:
+    """A snapshot of seat 2's own turn `turn`, in a contested game's table turn `table_turn`."""
+    snapshot: Any = replace(a_snapshot(turn, written_by=written_by), damage_dealt=0)
+    return replace(
+        snapshot,
+        commander_damage=(),
+        contested=ContestedSnapshot(
+            seat=SeatNumber(2),
+            table_turn=table_turn,
+            round=1,
+            lives=((SeatNumber(1), 40), (SeatNumber(2), 33)),
+            eliminated=(),
+            commander_damage=(("Atraxa", ((SeatNumber(1), 4),)),),
+        ),
     )

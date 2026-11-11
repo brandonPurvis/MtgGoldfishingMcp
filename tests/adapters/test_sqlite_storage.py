@@ -59,7 +59,7 @@ def _execute(path: Path, sql: str, *parameters: object) -> None:
 def test_a_saved_game_is_returned_equal_after_a_restart(stores: SqliteStores, path: Path) -> None:
     game = a_rich_game()
     stores.games.add(game)
-    game.life = 22
+    game.tested.life = 22
     stores.games.save(game, version=1)
 
     restarted = _restarted(stores, path)
@@ -204,8 +204,11 @@ def test_a_write_to_another_game_waits_at_most_for_the_open_write_and_is_saved(
     release = threading.Event()
     writer = _hold_open_unit_of_work_on(stores, threading.Event(), release)
     threading.Timer(0.2, release.set).start()
+    changed = a_rich_game(OTHER)
+    changed.tested.life = 5
 
-    saved = stores.games.save(replace(a_rich_game(OTHER), life=5), version=1)
+    saved = stores.games.save(changed, version=1)
+
     writer.join()
 
     assert saved is True

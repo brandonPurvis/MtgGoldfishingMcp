@@ -10,9 +10,18 @@ import copy
 from dataclasses import dataclass, field, replace
 from typing import Protocol
 
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    DeckRepository,
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    SeatOfGame,
+    StoredGame,
+    UnitOfWork,
+)
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 
 
@@ -24,21 +33,28 @@ class _Checkpointed(Protocol):
     def restore(self, checkpoint: object) -> None: ...
 
 
-# @spec APP-013
-class InMemoryGameRepository:
-    """Games by id, each with the version counter it was stored at."""
+# @spec APP-013, APP-045
+class InMemoryGameRepository(GameRepository):
+    """Games by id, each with the version counter it was stored at, and the game and seat
+    number each seat id names, written when the game is added and never changed."""
 
     def __init__(self) -> None:
         self._games: dict[str, StoredGame] = {}
+        self._seats: dict[SeatId, SeatOfGame] = {}
 
     def get(self, game_id: str) -> StoredGame | None:
         stored = self._games.get(game_id)
         return None if stored is None else StoredGame(stored.game.copy(), stored.version)
 
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._seats.get(seat_id)
+
     def add(self, game: Game) -> None:
         if game.game_id in self._games:
             raise ValueError(f"a game is already stored under {game.game_id}")
         self._games[game.game_id] = StoredGame(game.copy(), 1)
+        for seat in game.seats:
+            self._seats[seat.seat_id] = SeatOfGame(game.game_id, seat.number)
 
     def save(self, game: Game, *, version: int) -> bool:
         stored = self._games.get(game.game_id)
@@ -48,15 +64,17 @@ class InMemoryGameRepository:
         return True
 
     def checkpoint(self) -> object:
-        return dict(self._games)
+        return dict(self._games), dict(self._seats)
 
     def restore(self, checkpoint: object) -> None:
-        assert isinstance(checkpoint, dict)
-        self._games = dict(checkpoint)
+        assert isinstance(checkpoint, tuple)
+        games, seats = checkpoint
+        self._games = dict(games)
+        self._seats = dict(seats)
 
 
 # @spec APP-013
-class InMemoryDeckRepository:
+class InMemoryDeckRepository(DeckRepository):
     """Loaded decks by id. A deck once added is never replaced."""
 
     def __init__(self) -> None:
@@ -89,8 +107,12 @@ def _after(number: int | None, since: int | None) -> bool:
     return since is None or (number is not None and number > since)
 
 
-# @spec APP-013
-class InMemoryRecordStore:
+class SnapshotAlreadyKept(Exception):
+    """A second snapshot for a table turn of a game: a defect, never a replacement."""
+
+
+# @spec APP-013, APP-046, APP-092
+class InMemoryRecordStore(RecordStore):
     """Log entries and turn snapshots per game, and every call record, numbered as added."""
 
     def __init__(self) -> None:
@@ -100,7 +122,12 @@ class InMemoryRecordStore:
         self._records.entries.setdefault(game_id, []).append(copy.deepcopy(entry))
 
     def add_snapshot(self, game_id: str, snapshot: TurnSnapshot) -> None:
-        self._records.snapshots.setdefault(game_id, []).append(copy.deepcopy(snapshot))
+        kept = self._records.snapshots.setdefault(game_id, [])
+        if any(held.table_turn == snapshot.table_turn for held in kept):
+            raise SnapshotAlreadyKept(
+                f"game {game_id} has a snapshot of turn {snapshot.table_turn}"
+            )
+        kept.append(copy.deepcopy(snapshot))
 
     def add_call(self, record: CallRecord) -> None:
         self._records.calls.append(copy.deepcopy(replace(record, id=self._records.next_call_id)))
@@ -117,7 +144,7 @@ class InMemoryRecordStore:
                 snapshots=tuple(
                     sorted(
                         (s for s in snapshots if _after(s.written_by, since)),
-                        key=lambda s: s.turn,
+                        key=lambda s: s.table_turn,
                     )
                 ),
                 calls=tuple(
@@ -127,6 +154,14 @@ class InMemoryRecordStore:
                 ),
             )
         )
+
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        latest = [
+            call.change
+            for call in self._records.calls
+            if call.game_id == game_id and call.seat == seat and call.tool != "get_log"
+        ]
+        return latest[-1] if latest else None
 
     def calls(self) -> tuple[CallRecord, ...]:
         """Every call record in the order added, whatever game it names or none."""
@@ -141,7 +176,7 @@ class InMemoryRecordStore:
 
 
 # @spec APP-013
-class InMemoryUnitOfWork:
+class InMemoryUnitOfWork(UnitOfWork):
     """Sets aside the contents of its stores on `begin` and puts them back on `rollback`."""
 
     def __init__(self, *stores: _Checkpointed) -> None:

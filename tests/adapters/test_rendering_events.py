@@ -15,10 +15,18 @@ from mtg_goldfishing.domain.events import (
     AlreadyApplied,
     AlreadySo,
     AlreadySoKind,
+    AskAnswered,
+    Asked,
+    AskedKind,
     AssumptionKind,
     AssumptionMade,
     AttackDeclared,
     AttackerDamage,
+    AttackNotDeclared,
+    AutomaticPass,
+    BlockDeclared,
+    BlocksDeclared,
+    BlocksRequested,
     CardMoved,
     CardPlayed,
     CardsDiscarded,
@@ -26,14 +34,21 @@ from mtg_goldfishing.domain.events import (
     CardsRevealed,
     CheckKind,
     ChecksOverridden,
+    ChoiceAsked,
     ChoiceResolved,
+    ChoiceRevealedTo,
     CombatDamageDealt,
+    CombatDamageToSeats,
+    ContestedGameStarted,
+    ControlChanged,
     CostPaid,
     CountersChanged,
     DamageAdded,
+    DamagedSeat,
     DeckLoaded,
     DeckReport,
     EffectRecorded,
+    EliminationCause,
     EnteredStep,
     Error,
     ErrorKind,
@@ -41,24 +56,43 @@ from mtg_goldfishing.domain.events import (
     ExpectationMismatched,
     FailedCheck,
     GameEnded,
+    GameHasEnded,
     GameStarted,
     HandKept,
+    HiddenCardsDrawn,
+    HiddenCardsMoved,
+    HiddenHandKept,
+    HiddenMulliganTaken,
     InstanceChosen,
+    ItemCountered,
+    ItemRemoved,
+    ItemResolved,
+    ItemStacked,
     LibraryShuffled,
     LifeChanged,
     LogExported,
     ManaAdded,
     MulliganTaken,
+    NoBlocksDeclared,
     NothingRevealed,
     NoticeKind,
     NoticeRaised,
+    Passed,
     Placement,
     Refused,
     ReminderIssued,
+    ResolveAsked,
     RevealedCard,
+    SeatDamaged,
+    SeatEliminated,
+    SeatHit,
+    SeatOut,
+    SeatStarted,
+    SeatToAct,
     SnapshotWritten,
     StateListed,
     StepsEntered,
+    StillWaiting,
     StopReason,
     Tapped,
     TokensCreated,
@@ -67,6 +101,7 @@ from mtg_goldfishing.domain.events import (
 from mtg_goldfishing.domain.game.calls import accept_change, follow_change
 from mtg_goldfishing.domain.game.listing import list_state
 from mtg_goldfishing.domain.game.results import Applied, Resent
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.play.playing import play
 from mtg_goldfishing.domain.reading.model import (
@@ -80,7 +115,7 @@ from mtg_goldfishing.domain.reading.model import (
 )
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.library import taps_for, taps_for_any
 from tests.support.outcomes import ATRAXA, a_summary, outcome_of
 
@@ -106,7 +141,7 @@ def test_a_play_reports_the_card_cast_and_how_it_was_paid() -> None:
         .with_battlefield("Forest", "Forest", "Island", "Plains")
         .build()
     )
-    result = play(situation.game, situation.deck, card="Cultivate")
+    result = play(situation.game, situation.deck, TESTED, card="Cultivate")
     assert response("play", outcome_of(situation, result))[:2] == [
         "OK Cast Cultivate.",
         "Paid {2}{G}: tapped Forest, Forest, Island.",
@@ -116,7 +151,7 @@ def test_a_play_reports_the_card_cast_and_how_it_was_paid() -> None:
 # @spec TOOL-023
 def test_a_refused_play_says_the_cost_is_not_payable_and_how_much_mana_there_is() -> None:
     situation = a_game().with_hand("Shivan Dragon").with_battlefield(*("Forest",) * 5).build()
-    result = play(situation.game, situation.deck, card="Shivan Dragon")
+    result = play(situation.game, situation.deck, TESTED, card="Shivan Dragon")
     assert response("play", outcome_of(situation, result))[0] == (
         "REJECTED Cost {4}{R}{R} not payable: 5 mana available; not enough {R}."
         " Resubmit with override to cast anyway."
@@ -133,7 +168,7 @@ def test_an_advance_that_stops_for_a_reminder_says_why_and_what_to_send_next() -
         .with_library("Island")
         .build()
     )
-    result = advance(situation.game, situation.deck, to="main1")
+    result = advance(situation.game, situation.deck, TESTED, to="main1")
     assert response("advance", outcome_of(situation, result))[:3] == [
         "OK end → cleanup → T7 untap → upkeep",
         "Reminder (upkeep): Phyrexian Arena",
@@ -209,10 +244,10 @@ def test_a_resend_renders_the_original_events_and_says_it_was_already_applied() 
         a_game().with_hand("Cultivate").with_battlefield("Forest", "Forest", "Forest").build()
     )
     arguments: dict[str, object] = {"card": "Cultivate"}
-    applied = play(situation.game, situation.deck, card="Cultivate")
+    applied = play(situation.game, situation.deck, TESTED, card="Cultivate")
     assert isinstance(applied, Applied)
-    accepted = accept_change(applied, "play", arguments)
-    resent = follow_change(accepted.game, "play", {**arguments, "after": 0}, 0)
+    accepted = accept_change(applied, TESTED, "play", arguments)
+    resent = follow_change(accepted.game, TESTED, "play", {**arguments, "after": 0}, 0)
     assert isinstance(resent, Resent)
     assert response("play", outcome_of(situation, resent))[:3] == [
         "OK Cast Cultivate.",
@@ -237,7 +272,7 @@ def test_get_state_lists_the_zones_and_what_was_read_of_each_permanent() -> None
         .with_library("Swamp")
         .build()
     )
-    listing = list_state(situation.game, situation.deck)
+    listing = list_state(situation.game, situation.deck, TESTED)
     outcome = Outcome(Status.OK, StateListed("summary"), game=a_summary(), payload=listing)
     assert response("get_state", outcome)[:8] == [
         "OK State, summary detail.",
@@ -262,9 +297,9 @@ def test_get_state_in_full_adds_exile_library_size_commanders_and_payments() -> 
         .with_library("Swamp", "Island")
         .build()
     )
-    played = play(situation.game, situation.deck, card="Cultivate")
+    played = play(situation.game, situation.deck, TESTED, card="Cultivate")
     assert isinstance(played, Applied)
-    listing = list_state(played.game, situation.deck, "full")
+    listing = list_state(played.game, situation.deck, TESTED, "full")
     outcome = Outcome(Status.OK, StateListed("full"), game=a_summary(), payload=listing)
     assert response("get_state", outcome)[-5:-1] == [
         "Exile (1): Ponder",
@@ -277,7 +312,7 @@ def test_get_state_in_full_adds_exile_library_size_commanders_and_payments() -> 
 # @spec TOOL-016
 def test_get_state_never_shows_the_library_contents() -> None:
     situation = a_game().with_hand("Cultivate").with_library("Swamp", "Mountain").build()
-    listing = list_state(situation.game, situation.deck, "full")
+    listing = list_state(situation.game, situation.deck, TESTED, "full")
     outcome = Outcome(Status.OK, StateListed("full"), game=a_summary(), payload=listing)
     text = RENDERER.render("get_state", outcome).response
     assert ("Swamp" in text, "Mountain" in text) == (False, False)
@@ -370,6 +405,7 @@ def sample_of_every_event() -> list[Event]:
         StepsEntered((EnteredStep(7, Step.UNTAP), EnteredStep(7, Step.UPKEEP))),
         DeckLoaded("dabc", 100, (ATRAXA,)),
         GameStarted("gabc", 42, ("Forest", "Island")),
+        ContestedGameStarted("gabc", 42, (SeatStarted(SeatNumber(1), "gabc", "dabc", 40, True),)),
         MulliganTaken(1, ("Forest",)),
         HandKept(("Island",), ("Forest",)),
         CardPlayed("Forest", "Forest", "hand", "battlefield", is_land=True),
@@ -378,6 +414,7 @@ def sample_of_every_event() -> list[Event]:
         CardMoved("Forest", "graveyard", "hand"),
         TokensCreated("Treasure", 2),
         CardsDrawn(("Island",)),
+        HiddenCardsDrawn(SeatNumber(2), 1),
         CardsDiscarded(("Island",)),
         Tapped(("Forest",)),
         Untapped(("Forest",)),
@@ -405,6 +442,33 @@ def sample_of_every_event() -> list[Event]:
         StateListed("summary"),
         LogExported(1, 0, 0),
         Refused((Error(ErrorKind.UNKNOWN_GAME, "gabc"),), ()),
+        SeatDamaged(SeatNumber(2), 3, 37),
+        ControlChanged("Llanowar Elves", SeatNumber(1)),
+        ChoiceRevealedTo("hand", SeatNumber(1), SeatNumber(2)),
+        ChoiceAsked("x2", SeatNumber(2), SeatNumber(1), "discard a card"),
+        BlocksRequested("x3", SeatNumber(2), ("Grizzly Bears",)),
+        NoBlocksDeclared(SeatNumber(3)),
+        BlocksDeclared(SeatNumber(2), (BlockDeclared("Llanowar Elves", "Grizzly Bears"),)),
+        CombatDamageToSeats(
+            (SeatHit("Grizzly Bears", 2, SeatNumber(2)),), (DamagedSeat(SeatNumber(2), 38, ()),)
+        ),
+        SeatEliminated(SeatNumber(2), EliminationCause.LIFE),
+        AskAnswered("x2", SeatNumber(2)),
+        HiddenCardsMoved(SeatNumber(2), "hand", "library_top", 1),
+        HiddenMulliganTaken(SeatNumber(2), 2),
+        HiddenHandKept(SeatNumber(2), 6, 1),
+        SeatToAct(Asked((SeatNumber(1),), AskedKind.TURN)),
+        StillWaiting(Asked((SeatNumber(2),), AskedKind.TURN)),
+        SeatOut(SeatNumber(3)),
+        GameHasEnded(),
+        AttackNotDeclared(Step.BEGIN_COMBAT),
+        ItemStacked("s1", SeatNumber(1), "Lightning Bolt", "spell"),
+        Passed(SeatNumber(2), "s1", "stack"),
+        AutomaticPass(SeatNumber(3), "s1", "stack"),
+        ItemResolved("s1", SeatNumber(1), "Lightning Bolt", {"damage": {"2": 3}}, "graveyard"),
+        ItemCountered("s1", SeatNumber(1), "Lightning Bolt"),
+        ItemRemoved("s1", SeatNumber(1), "Lightning Bolt"),
+        ResolveAsked("x4", SeatNumber(1), "s1", "Grizzly Bears", {}, None),
     ]
 
 

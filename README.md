@@ -1,6 +1,6 @@
 # MTG Goldfishing
 
-An MCP service that holds the state of agent-played Magic: The Gathering Commander goldfish games. The agent makes every decision and says what each card does; the service owns the shuffle, the bookkeeping, the checks and the records.
+An MCP service that holds the state of agent-played Magic: The Gathering Commander test games: goldfish games against three imaginary opponents, and contested games against one to three opposing decks. The agent makes every decision and says what each card does; the service owns the shuffle, the bookkeeping, the checks and the records.
 
 - Why and what: [`docs/high-level-design.md`](docs/high-level-design.md)
 - How each part works: [`docs/intent/`](docs/intent/)
@@ -25,6 +25,8 @@ Card data is fetched from Scryfall on first use and cached in the database.
 ## Connecting an agent
 
 The repository's `.mcp.json` connects Claude Code to the running service as the MCP server `goldfishing`. The server's instructions and tool descriptions are enough for any MCP client to play a game. For Claude Code, the subagent `goldfish-player` (`.claude/agents/goldfish-player.md`) plays one game given a deck id or deck list, and optionally a seed and turn limit, and returns the game id, seed and verdict.
+
+A contested game is started with `new_game` and `opponents`, the deck ids of one to three opposing seats; the response gives each seat its own seat id. Each seat's agent passes its seat id as `game_id`, calls `wait` while another seat is to act, and answers `pass` when it is asked to respond and does nothing. Given a seat id and the seat it plays instead of a deck, `goldfish-player` plays that one seat.
 
 ## Development
 

@@ -16,7 +16,9 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     reading_of,
     type_line,
 )
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import COLORS, ManaString, Restriction, SymbolKind
 from mtg_goldfishing.domain.payment.matching import Unit
 from mtg_goldfishing.domain.reading.model import (
@@ -94,32 +96,40 @@ def _commander_identity(deck: LoadedDeck) -> tuple[str, ...]:
     return tuple(color for color in COLORS if color in colors)
 
 
-def _devotion(game: Game, deck: LoadedDeck, colors: tuple[str, ...]) -> int:
+def _devotion(game: Game, decks: Decks, seat: SeatNumber, colors: tuple[str, ...]) -> int:
     total = 0
-    for card in game.battlefield:
-        for symbol in mana_cost(deck, card).symbols:
+    for card in game.battlefield_of(seat):
+        for symbol in mana_cost(decks.of(card.owner), card).symbols:
             if symbol.kind is not SymbolKind.GENERIC and set(symbol.colors) & set(colors):
                 total += 1
     return total
 
 
-# @spec PAY-011
-def count(game: Game, deck: LoadedDeck, source: CardInstance, per: Count) -> int:
-    """Evaluate a counted amount from the game's state now."""
+# @spec PAY-011, PAY-051, PAY-054
+def count(
+    game: Game, deck: LoadedDeck, source: CardInstance, per: Count, decks: Decks | None = None
+) -> int:
+    """Evaluate a counted amount from the game's state now, as seen by the source's
+    controller: its permanents, its devotion, its hand, its graveyard. Each counted card is
+    read from its owner's deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    seat = source.controller
     match per:
         case PermanentsCount(match=word):
             return sum(
-                1 for card in game.battlefield if word.lower() in type_words(type_line(deck, card))
+                1
+                for card in game.battlefield_of(seat)
+                if word.lower() in type_words(type_line(every.of(card.owner), card))
             )
         case DevotionCount(colors=colors):
-            return _devotion(game, deck, colors)
+            return _devotion(game, every, seat, colors)
         case CardsInHandCount():
-            return len(game.hand)
+            return len(game.hand_of(seat))
         case CardsInGraveyardCount(match=word):
             return sum(
                 1
-                for card in game.in_zone(Zone.GRAVEYARD)
-                if word is None or word.lower() in type_words(type_line(deck, card))
+                for card in game.in_zone(Zone.GRAVEYARD, seat)
+                if word is None or word.lower() in type_words(type_line(every.of(card.owner), card))
             )
         case CountersOnSelfCount(counter=counter):
             return source.counters.get(counter, 0)
@@ -139,9 +149,17 @@ def _any_color_options(
 
 
 def options_of(
-    game: Game, deck: LoadedDeck, card: CardInstance, ability: ManaAbility
+    game: Game,
+    deck: LoadedDeck,
+    card: CardInstance,
+    ability: ManaAbility,
+    decks: Decks | None = None,
 ) -> tuple[Option, ...]:
-    """What an ability can make now, as a list of alternative outputs."""
+    """What an ability can make now, as a list of alternative outputs. The commander's color
+    identity it may name is that of the commanders of the seat that controls the permanent
+    (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    controller_deck = every.of(card.controller)
     produces = ability.produces
     options: list[Option]
     match produces:
@@ -150,11 +168,11 @@ def options_of(
         case Choice(options=choices):
             options = [c.produced() for c in choices if c.can_be_produced()]
         case AnyColor(amount=amount, among=among):
-            options = _any_color_options(amount, among, deck)
+            options = _any_color_options(amount, among, controller_deck)
         case Counted(per=per, mana=mana):
-            times = count(game, deck, card, per)
+            times = count(game, deck, card, per, every)
             if isinstance(mana, AnyColor):
-                options = _any_color_options(mana.amount * times, mana.among, deck)
+                options = _any_color_options(mana.amount * times, mana.among, controller_deck)
             else:
                 options = [mana.produced() * times] if mana.can_be_produced() and times else []
     return tuple(option for option in options if option)
@@ -166,13 +184,18 @@ def _rank(deck: LoadedDeck, card: CardInstance, ability: ManaAbility) -> int:
     return CREATURE if is_creature(deck, card) else OTHER_PERMANENT
 
 
-def sources_of(game: Game, deck: LoadedDeck, card: CardInstance) -> list[Source]:
-    """Every mana ability of a permanent as a source, whatever its availability."""
+def sources_of(
+    game: Game, deck: LoadedDeck, card: CardInstance, decks: Decks | None = None
+) -> list[Source]:
+    """Every mana ability of a permanent as a source, whatever its availability, the
+    permanent read from its owner's deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    owner_deck = every.of(card.owner)
     found = []
-    face = face_of(deck, card)
+    face = face_of(owner_deck, card)
     name = face.name if face else card.name
-    for ability in reading_of(deck, card).mana_abilities:
-        options = options_of(game, deck, card, ability)
+    for ability in reading_of(owner_deck, card).mana_abilities:
+        options = options_of(game, deck, card, ability, every)
         found.append(
             Source(
                 instance_id=card.id,
@@ -184,7 +207,7 @@ def sources_of(game: Game, deck: LoadedDeck, card: CardInstance) -> list[Source]
                 sacrifices=ability.sacrifices,
                 other_cost=ability.other_cost,
                 restriction=ability.restriction,
-                rank=_rank(deck, card, ability),
+                rank=_rank(owner_deck, card, ability),
             )
         )
     return found
@@ -221,23 +244,33 @@ def most_of_color(sources: Iterable[Source], color: str) -> int:
     )
 
 
-# @spec PAY-012, PAY-013, PAY-014, PAY-041
+# @spec PAY-012, PAY-013, PAY-014, PAY-041, PAY-045, PAY-046, PAY-050, PAY-054
 def available_sources(
-    game: Game, deck: LoadedDeck, *, paying_for: str | None, ignore_tapped: bool = False
+    game: Game,
+    deck: LoadedDeck,
+    seat: SeatNumber,
+    *,
+    paying_for: str | None,
+    ignore_tapped: bool = False,
+    decks: Decks | None = None,
 ) -> list[Source]:
-    """Sources the auto payment system may use for a payment, best kind and lowest id first.
+    """The paying seat's sources the auto payment system may use, best kind and lowest id
+    first.
 
-    Every usable mana ability of a permanent is a source of its own; a payment uses at
-    most one of them. `paying_for` is the type line of the card being paid for, or None
-    for an effect. A source with a restriction is used only when the card qualifies.
+    Only permanents the seat controls are its sources. Every usable mana ability of a
+    permanent is a source of its own; a payment uses at most one of them. `paying_for` is
+    the type line of the card being paid for, or None for an effect. A source with a
+    restriction is used only when the card qualifies. Each permanent is read from its owner's
+    deck (`decks`; omitted, every seat plays `deck`).
     """
+    every = decks or Decks.everyone_playing(game, deck)
     found: list[Source] = []
-    for card in game.battlefield:
+    for card in game.battlefield_of(seat):
         if card.tapped and not ignore_tapped:
             continue
-        if is_summoning_sick(game, deck, card) and not ignore_tapped:
+        if is_summoning_sick(game, every.of(card.owner), card, every) and not ignore_tapped:
             continue
-        for source in sources_of(game, deck, card):
+        for source in sources_of(game, deck, card, every):
             if not usable_on_its_own(source):
                 continue
             if source.restriction is not None and not source.restriction.allows(paying_for):

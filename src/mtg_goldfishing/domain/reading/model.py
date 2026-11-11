@@ -158,13 +158,35 @@ class EntersTappedReading:
 ENTERS_UNTAPPED = EntersTappedReading()
 
 
+class Whose(Enum):
+    """Whose turns a step trigger happens on."""
+
+    CONTROLLER = "controller"
+    EACH = "each"
+    OPPONENTS = "opponents"
+
+
+@dataclass(frozen=True)
+class StepTrigger:
+    """A beginning-of-step trigger: the step it belongs to and whose turns it happens on."""
+
+    step: Step
+    whose: Whose = Whose.CONTROLLER
+
+    def on_turn_of(self, *, controller: bool) -> bool:
+        """Whether the trigger happens on a turn that is, or is not, its controller's own."""
+        if self.whose is Whose.EACH:
+            return True
+        return (self.whose is Whose.CONTROLLER) == controller
+
+
 @dataclass(frozen=True)
 class FaceReading:
     """Everything the card reader worked out from one face."""
 
     mana_abilities: tuple[ManaAbility, ...] = ()
     unread_mana_abilities: tuple[str, ...] = ()
-    step_triggers: tuple[Step, ...] = ()
+    step_triggers: tuple[StepTrigger, ...] = ()
     haste: KeywordReading = NO_KEYWORD
     vigilance: KeywordReading = NO_KEYWORD
     flash: KeywordReading = NO_KEYWORD

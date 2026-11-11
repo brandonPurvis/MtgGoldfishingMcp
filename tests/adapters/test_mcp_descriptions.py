@@ -2,11 +2,12 @@
 
 import ast
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from mtg_goldfishing.adapters.mcp.definitions import TOOL_DEFINITIONS, ToolDefinition
+from mtg_goldfishing.adapters.mcp.definitions import PLAY, TOOL_DEFINITIONS, ToolDefinition
 from mtg_goldfishing.adapters.mcp.instructions import SERVER_INSTRUCTIONS, SERVER_NAME
 
 PURPOSES = {
@@ -19,6 +20,8 @@ PURPOSES = {
     "choose": "Finish a look or search by saying where the revealed cards go.",
     "attack": "Declare attackers and which are blocked.",
     "advance": "Move to the next step, or forward to a named step.",
+    "pass": "Decline to respond when your seat is asked (contested games).",
+    "wait": "Wait until your seat has something to do, then say what it is (contested games).",
     "end_game": "End the game with a result and verdict.",
     "get_log": "Return the game's records as JSON for analysis.",
 }
@@ -170,3 +173,137 @@ def test_the_tool_adapter_reaches_the_service_only_through_its_use_cases() -> No
     ]
 
     assert reaching_in == []
+
+
+# ------------------------------------------------------------------ contested games
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+GOLDFISH_DESCRIPTIONS: dict[str, str] = json.loads(
+    (FIXTURES / "goldfish_tool_descriptions.json").read_text(encoding="utf-8")
+)
+"""Each tool's description as an agent playing a goldfish game reads it: the descriptions the
+service gave before contested games existed, with `new_game`'s `starting_life` and `choose`'s
+optional `selections`, which goldfish games also take."""
+GOLDFISH_GUIDE = (FIXTURES / "goldfish_server_instructions.txt").read_text(encoding="utf-8")
+CONTESTED = "Contested games:"
+CONTESTED_TOOLS = ("pass", "wait")
+"""Tools that exist for contested games, and say so in their purpose."""
+
+
+def _goldfish_part(text: str) -> str:
+    """A description part without its `Contested games:` sentences, which come last."""
+    return text.split(CONTESTED, 1)[0].rstrip()
+
+
+def _as_a_goldfish_agent_reads_it(definition: ToolDefinition) -> str:
+    """The description with every part marked `Contested games:` left out: a parameter whose
+    meaning begins with it, and the end of any part from the marker on."""
+    parameters = tuple(
+        replace(parameter, meaning=_goldfish_part(parameter.meaning))
+        for parameter in definition.parameters
+        if not parameter.meaning.startswith(CONTESTED)
+    )
+    return replace(
+        definition,
+        automatic=_goldfish_part(definition.automatic),
+        parameters=parameters,
+        overridable=_goldfish_part(definition.overridable),
+    ).description
+
+
+def _contested_part(text: str) -> str:
+    return text.partition(CONTESTED)[2]
+
+
+# @spec TOOL-033
+@pytest.mark.parametrize("name", list(GOLDFISH_DESCRIPTIONS))
+def test_a_goldfish_agent_reads_every_description_as_before_once_contested_parts_are_left_out(
+    name: str,
+) -> None:
+    assert _as_a_goldfish_agent_reads_it(DEFINITIONS[name]) == GOLDFISH_DESCRIPTIONS[name]
+
+
+# @spec TOOL-033
+@pytest.mark.parametrize(
+    ("tool", "words"),
+    [
+        ("mulligan", ("every seat has kept",)),
+        ("get_state", ("every seat", "hand and library")),
+        ("play", ("stack", "every other seat has passed")),
+        ("effect", ("stack", "immediate")),
+        ("choose", ("blocks", "restate")),
+        ("attack", ("window", "send attack again")),
+        ("advance", ("end", "next seat")),
+        ("end_game", ("tested seat", "concede")),
+    ],
+)
+def test_a_tool_that_behaves_differently_in_a_contested_game_says_so_after_its_automatic_part(
+    tool: str, words: tuple[str, ...]
+) -> None:
+    contested = _contested_part(DEFINITIONS[tool].automatic)
+
+    assert all(word in contested for word in words), (tool, contested)
+
+
+# @spec TOOL-033
+@pytest.mark.parametrize(
+    ("tool", "parameter"),
+    [
+        ("new_game", "opponents"),
+        ("new_game", "position"),
+        ("effect", "immediate"),
+        ("choose", "delta"),
+        ("choose", "blocks"),
+        ("choose", "restate"),
+        ("choose", "override"),
+        ("attack", "targets"),
+    ],
+)
+def test_a_parameter_taken_only_in_a_contested_game_is_marked_contested_games(
+    tool: str, parameter: str
+) -> None:
+    meaning = next(p.meaning for p in DEFINITIONS[tool].parameters if p.name == parameter)
+
+    assert meaning.startswith(CONTESTED), meaning
+
+
+# @spec TOOL-033
+def test_the_delta_shape_names_the_counter_key_among_its_contested_keys() -> None:
+    contested = _contested_part(next(p.meaning for p in PLAY.parameters if p.name == "delta"))
+
+    assert "counter:" in contested, contested
+
+
+# @spec TOOL-033
+@pytest.mark.parametrize("tool", CONTESTED_TOOLS)
+def test_a_tool_that_exists_for_contested_games_says_so_in_its_purpose(tool: str) -> None:
+    assert PURPOSES[tool].endswith("(contested games).")
+
+
+# @spec TOOL-034
+def test_the_server_instructions_begin_with_the_guide_for_every_game_unchanged() -> None:
+    assert SERVER_INSTRUCTIONS.startswith(GOLDFISH_GUIDE)
+
+
+# @spec TOOL-034
+@pytest.mark.parametrize(
+    ("point", "words"),
+    [
+        (
+            "new_game with opponents gives a seat id per seat",
+            ("`opponents`", "seat id", "`game_id`"),
+        ),
+        ("seats act one at a time and wait", ("one at a time", "`wait`")),
+        ("the stack and responding", ("stack", "every other seat has passed", "`pass`")),
+        ("a CHOICE addressed to a seat", ("`CHOICE` addressed to you", "blocks", "`choose`")),
+        ("the attacking seat states combat", ("`immediate: true`", "damage to seats")),
+        ("the digest", ("what the other seats did",)),
+        ("only the tested seat ends the game", ("tested seat ends the game", "concedes")),
+    ],
+)
+def test_the_server_instructions_continue_with_a_section_on_contested_games(
+    point: str, words: tuple[str, ...]
+) -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    assert all(word in contested for word in words), point

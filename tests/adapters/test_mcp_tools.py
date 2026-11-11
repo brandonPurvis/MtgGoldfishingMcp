@@ -19,11 +19,13 @@ TOOLS = (
     "choose",
     "attack",
     "advance",
+    "pass",
+    "wait",
     "end_game",
     "get_log",
 )
 GAME_SCOPED = tuple(name for name in TOOLS if name not in ("load_deck", "new_game"))
-CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "end_game")
+CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "pass", "end_game")
 NOT_CHANGING = tuple(name for name in TOOLS if name not in CHANGING)
 
 
@@ -44,7 +46,7 @@ def _parameters(surface: ToolSurface, tool: str) -> list[str]:
 
 
 # @spec TOOL-007
-def test_the_surface_offers_exactly_the_eleven_tools() -> None:
+def test_the_surface_offers_exactly_the_thirteen_tools() -> None:
     surface, _ = _surface()
 
     assert sorted(surface.names) == sorted(TOOLS)
@@ -66,7 +68,7 @@ def test_a_game_scoped_tool_declares_game_id_first_in_its_input_schema(tool: str
     assert next(iter(surface.definition(tool).input_schema["properties"])) == "game_id"
 
 
-# @spec TOOL-009
+# @spec TOOL-009, TOOL-032
 @pytest.mark.parametrize("tool", CHANGING)
 def test_a_changing_tool_accepts_an_optional_after(tool: str) -> None:
     surface, _ = _surface()
@@ -124,7 +126,7 @@ def test_selections_sent_as_a_json_string_are_decoded() -> None:
     game_id = _in_main_step_with_forests(harness)
     look = {"look": {"n": 1, "from": "top", "rest": "library_bottom"}}
     surface.call("effect", {"game_id": game_id, "source": "Ponder", "delta": look})
-    choice_id = harness.game(game_id).pending_choice
+    choice_id = harness.game(game_id).waiting_choice
     assert choice_id is not None
 
     response = surface.call(

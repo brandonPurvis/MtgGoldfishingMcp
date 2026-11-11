@@ -6,11 +6,12 @@ import json
 from typing import Any
 
 from behave import then, when
+from tests.support.responses import headline
 
 
 @then("the response is {status:w}")
 def step_impl(context: Any, status: str) -> None:
-    assert context.agent.text.split(maxsplit=1)[0] == status, context.agent.text
+    assert headline(context.agent.text).split(maxsplit=1)[0] == status, context.agent.text
 
 
 @then('the response says "{words}"')

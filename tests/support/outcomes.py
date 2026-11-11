@@ -14,7 +14,7 @@ from mtg_goldfishing.domain.game.model import GameStatus
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
 from mtg_goldfishing.domain.game.summary import CommanderStatus, GameSummary, summarize
 from mtg_goldfishing.domain.steps import Step
-from tests.support.builders import Situation
+from tests.support.builders import TESTED, Situation
 
 ATRAXA = "Atraxa, Praetors' Voice"
 
@@ -48,8 +48,10 @@ def outcome_of(situation: Situation, result: Applied | Refusal | Resent) -> Outc
         return Outcome(
             status,
             Refused(result.errors, result.checks),
-            game=summarize(situation.game, situation.deck),
+            game=summarize(situation.game, situation.deck, TESTED),
         )
     game = result.game
     status = Status.CHOICE if game.status is GameStatus.PENDING_CHOICE else Status.OK
-    return Outcome(status, result.summary, result.events, game=summarize(game, situation.deck))
+    return Outcome(
+        status, result.summary, result.events, game=summarize(game, situation.deck, TESTED)
+    )

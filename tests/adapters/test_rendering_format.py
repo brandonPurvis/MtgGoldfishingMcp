@@ -46,7 +46,7 @@ from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.play.playing import effect, play
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.outcomes import ATRAXA, a_summary, outcome_of
 
 RENDERER = TextRenderer()
@@ -72,7 +72,7 @@ COST_CHECK = FailedCheck(
 # @spec TOOL-014
 def test_a_response_is_a_summary_line_then_event_lines_then_the_status_line() -> None:
     situation = a_game().with_commander(ATRAXA).with_hand("Forest").with_library("Island").build()
-    result = effect(situation.game, situation.deck, source="Brainstorm", delta={"draw": 1})
+    result = effect(situation.game, situation.deck, TESTED, source="Brainstorm", delta={"draw": 1})
     assert lines("effect", outcome_of(situation, result)) == [
         "OK Effect from Brainstorm recorded.",
         "Drew Island.",
@@ -278,7 +278,7 @@ def test_current_notices_appear_on_every_response_about_the_game(
 ) -> None:
     game = a_summary(notices=(NoticeKind.DAMAGE, NoticeKind.TURN_LIMIT))
     situation = a_game().build()
-    listing = list_state(situation.game, situation.deck)
+    listing = list_state(situation.game, situation.deck, TESTED)
     shown = Outcome(outcome.status, outcome.summary, outcome.events, game, payload=listing)
     assert lines(tool, shown)[-3:-1] == [
         "Notice: 120 damage reached",
@@ -305,7 +305,7 @@ def test_a_play_response_does_not_list_the_hand_or_the_battlefield() -> None:
     situation = (
         a_game().with_hand("Forest", "Cultivate", "Counterspell").with_battlefield("Island").build()
     )
-    result = play(situation.game, situation.deck, card="Forest")
+    result = play(situation.game, situation.deck, TESTED, card="Forest")
     response = RENDERER.render("play", outcome_of(situation, result)).response
     assert ("Cultivate" not in response, "Island" not in response) == (True, True)
 
@@ -320,7 +320,7 @@ def test_an_advance_response_does_not_list_the_hand_or_the_battlefield() -> None
         .with_library("Forest")
         .build()
     )
-    result = advance(situation.game, situation.deck, to="main1")
+    result = advance(situation.game, situation.deck, TESTED, to="main1")
     response = RENDERER.render("advance", outcome_of(situation, result)).response
     assert ("Cultivate" not in response, "Sol Ring" not in response) == (True, True)
 

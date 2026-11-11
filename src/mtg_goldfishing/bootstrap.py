@@ -1,7 +1,8 @@
 """The composition root: reads the settings, wires the adapters to the service, and serves it.
 
 This is the one module that imports adapters from more than one ring of the outside: the
-SQLite stores, the Scryfall card catalog over the SQLite card cache, in-process game locks,
+SQLite stores, the Scryfall card catalog over the SQLite card cache, in-process game locks
+and game change announcements,
 the system's randomness and clock, the text renderer, and the MCP adapter that serves it
 all over HTTP.
 
@@ -29,8 +30,13 @@ from mtg_goldfishing.adapters.mcp.app import create_app
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.scryfall import ScryfallCatalog
 from mtg_goldfishing.adapters.sqlite import SchemaTooNew, SqliteStores
-from mtg_goldfishing.adapters.system import InProcessGameLocks, RandomIdSource, SystemClock
-from mtg_goldfishing.application.ports import CardCatalog
+from mtg_goldfishing.adapters.system import (
+    InProcessGameChanges,
+    InProcessGameLocks,
+    RandomIdSource,
+    SystemClock,
+)
+from mtg_goldfishing.application.ports import CardCatalog, GameChanges
 from mtg_goldfishing.application.service import Service
 
 HOST_VARIABLE = "MTG_GOLDFISHING_HOST"
@@ -82,6 +88,7 @@ class Composition:
     service: Service
     stores: SqliteStores
     catalog: CardCatalog
+    changes: GameChanges
 
     def close(self) -> None:
         if isinstance(self.catalog, ScryfallCatalog):
@@ -89,6 +96,7 @@ class Composition:
         self.stores.database.close()
 
 
+# @spec APP-051, APP-052
 def compose(settings: Settings, *, catalog: CardCatalog | None = None) -> Composition:
     """The service over SQLite at the configured path.
 
@@ -98,6 +106,7 @@ def compose(settings: Settings, *, catalog: CardCatalog | None = None) -> Compos
     """
     stores = SqliteStores.open(settings.database)
     cards = catalog if catalog is not None else ScryfallCatalog(stores.card_cache)
+    changes = InProcessGameChanges()
     service = Service(
         games=stores.games,
         decks=stores.decks,
@@ -108,8 +117,9 @@ def compose(settings: Settings, *, catalog: CardCatalog | None = None) -> Compos
         ids=RandomIdSource(),
         clock=SystemClock(),
         renderer=TextRenderer(),
+        changes=changes,
     )
-    return Composition(service, stores, cards)
+    return Composition(service, stores, cards, changes)
 
 
 Runner = Callable[[FastAPI, str, int], None]

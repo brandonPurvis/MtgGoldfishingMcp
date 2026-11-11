@@ -19,7 +19,7 @@ from mtg_goldfishing.domain.game.model import GameStatus, Zone
 from mtg_goldfishing.domain.game.summary import summarize
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.steps import Step
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
 
 HELIX = Card("Lightning Helix", (Face("Lightning Helix", ManaString.parse("{R}{W}"), "Instant"),))
@@ -52,14 +52,14 @@ def test_playing_a_land_puts_it_on_the_battlefield() -> None:
     harness = harness_with_forest_in_hand()
     answer = harness.service.play({"game_id": GAME_ID, "card": "Forest"})
     assert answer.outcome.status is Status.OK
-    assert [card.name for card in harness.game().battlefield] == ["Forest"]
+    assert [card.name for card in harness.game().battlefield_of(TESTED)] == ["Forest"]
 
 
 def test_an_effect_changes_the_game_as_its_delta_says() -> None:
     harness = a_service()
     harness.holding(a_game().with_life(40).build())
     harness.service.effect({"game_id": GAME_ID, "source": "Phyrexian Arena", "delta": {"life": -1}})
-    assert harness.game().life == 39
+    assert harness.game().tested.life == 39
 
 
 def test_an_applied_call_that_leaves_a_choice_pending_is_answered_choice() -> None:
@@ -73,13 +73,13 @@ def test_choosing_finishes_the_pending_choice() -> None:
     harness = a_service()
     harness.holding(a_game().with_library("Island", "Forest", "Swamp").build())
     harness.service.effect({"game_id": GAME_ID, "source": "Ponder", "delta": LOOK})
-    pending = harness.game().pending_choice
+    pending = harness.game().waiting_choice
     assert pending is not None
     answer = harness.service.choose(
         {"game_id": GAME_ID, "choice_id": pending.choice_id, "selections": {"hand": ["Forest"]}}
     )
     assert answer.outcome.status is Status.OK
-    assert [card.name for card in harness.game().hand] == ["Forest"]
+    assert [card.name for card in harness.game().hand_of(TESTED)] == ["Forest"]
 
 
 def test_attacking_declares_the_attack() -> None:
@@ -116,7 +116,9 @@ def test_a_card_played_from_outside_the_game_is_made_from_the_catalog_s_card_dat
         {"game_id": GAME_ID, "card": "Lightning Helix", "from": "outside"}
     )
     assert answer.outcome.status is Status.OK
-    assert [card.name for card in harness.game().in_zone(Zone.GRAVEYARD)] == ["Lightning Helix"]
+    assert [card.name for card in harness.game().in_zone(Zone.GRAVEYARD, TESTED)] == [
+        "Lightning Helix"
+    ]
 
 
 # @spec APP-022
@@ -144,7 +146,9 @@ def test_a_definition_given_for_a_card_from_outside_replaces_only_the_fetched_fi
         }
     )
     assert answer.outcome.status is Status.OK
-    assert [card.name for card in harness.game().in_zone(Zone.GRAVEYARD)] == ["Lightning Helix"]
+    assert [card.name for card in harness.game().in_zone(Zone.GRAVEYARD, TESTED)] == [
+        "Lightning Helix"
+    ]
 
 
 # ------------------------------------------------------------------ outcomes and saving
@@ -156,7 +160,7 @@ def test_an_applied_call_s_outcome_carries_the_changed_game_s_summary() -> None:
     answer = harness.service.play({"game_id": GAME_ID, "card": "Forest"})
     deck = harness.stores.decks.get("dtest")
     assert deck is not None
-    assert answer.outcome.game == summarize(harness.game(), deck)
+    assert answer.outcome.game == summarize(harness.game(), deck, TESTED)
 
 
 # @spec APP-009
@@ -167,7 +171,7 @@ def test_a_refused_call_s_outcome_carries_the_unchanged_game_s_summary() -> None
     answer = harness.service.play({"game_id": GAME_ID, "card": "Sol Ring"})
     deck = harness.stores.decks.get("dtest")
     assert deck is not None
-    assert answer.outcome.game == summarize(before, deck)
+    assert answer.outcome.game == summarize(before, deck, TESTED)
 
 
 def test_an_applied_call_increases_the_change_number() -> None:
@@ -372,7 +376,7 @@ def test_a_choice_resent_after_it_was_made_is_answered_as_a_resend() -> None:
     harness = a_service()
     harness.holding(a_game().with_library("Island", "Forest", "Swamp").build())
     harness.service.effect({"game_id": GAME_ID, "source": "Ponder", "delta": LOOK})
-    pending = harness.game().pending_choice
+    pending = harness.game().waiting_choice
     assert pending is not None
     call = {
         "game_id": GAME_ID,

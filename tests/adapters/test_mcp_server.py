@@ -40,13 +40,13 @@ async def test_the_server_gives_its_instructions_to_a_connecting_client() -> Non
 
 
 # @spec TOOL-007
-async def test_the_server_lists_the_eleven_tools() -> None:
+async def test_the_server_lists_the_thirteen_tools() -> None:
     client, _ = _client()
 
     async with client:
         listed = await client.list_tools()
 
-    assert len({tool.name for tool in listed.tools}) == 11
+    assert len({tool.name for tool in listed.tools}) == 13
 
 
 # @spec TOOL-010, TOOL-028

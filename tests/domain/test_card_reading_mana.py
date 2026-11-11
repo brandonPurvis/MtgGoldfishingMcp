@@ -482,3 +482,11 @@ def test_an_ability_with_no_reading_on_a_card_without_produced_colors_is_not_unr
         "Pentad Prism", "Remove a charge counter from this artifact: Add one mana of any color."
     )
     assert unread_of(pentad_prism) == ()
+
+
+# @spec READ-045
+def test_an_ability_with_no_symbols_or_counts_on_a_card_without_produced_colors_is_left_out() -> (
+    None
+):
+    card = a_card("Power Mana", "{T}: Add an amount of mana of that color equal to its power.")
+    assert (abilities_of(card), unread_of(card)) == ((), ())

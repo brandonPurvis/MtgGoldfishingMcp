@@ -18,15 +18,22 @@ The adapter is deliberately plain. It turns domain objects into rows and back; i
 | `card_cache` | fetched card | lower-cased full name | Card model as JSON, fetch time. |
 | `card_names` | face name | lower-cased face name | Points at a `card_cache` row. |
 | `decks` | loaded deck | deck id | Commanders, entries, resolved card data, readings, overridden checks; JSON. |
-| `games` | game | game id | Deck id, seed, status, result, current state as one JSON document, a version counter, created and updated times. |
+| `games` | game | game id | The tested seat's deck id, seed, status, result, current state as one JSON document, a version counter, created and updated times. |
+| `seats` | seat of a game | seat id | Game id, seat number, deck id, whether it is the tested seat. Written once when the game is created; the tested seat's row has the game id as its seat id. |
 | `log_entries` | accepted state-changing call | game id + sequence | Entry as JSON. |
-| `snapshots` | completed turn | game id + turn | Snapshot as JSON. |
-| `calls` | tool call | auto-increment | Game id as supplied (nullable), tool, arguments, status, response text, whether it carried an override, the game's change number after the call (nullable), time. |
+| `snapshots` | completed turn | game id + table turn | Snapshot as JSON. In a goldfish game the table turn is the turn. |
+| `calls` | tool call | auto-increment | Game id the supplied id names, or the id as supplied when it names none (nullable); the calling seat's number (nullable); tool, arguments, status, response text, whether it carried an override, the game's change number after the call (nullable), time. |
 | `schema_version` | — | — | Single row. |
 
-A game's current state is one JSON document rather than rows per card instance. Every tool call reads the whole game and writes the whole game, nothing queries inside a game's state with SQL, and analysis reads logs and snapshots, not live state. The JSON document is authoritative; the other columns of a `games` row are copies kept for looking games up.
+A game's current state — its table, every seat, every card instance with owner and controller, the stack, any window and pending choices — is one JSON document rather than rows per seat or card instance. Every tool call reads the whole game and writes the whole game, nothing queries inside a game's state with SQL, and analysis reads logs and snapshots, not live state. The JSON document is authoritative; the other columns of a `games` row are copies kept for looking games up.
 
 Loaded decks are never updated once written. Writing a deck whose id already exists leaves the existing row in place.
+
+The `seats` table exists so that a call made with any seat id finds its game with one indexed lookup; it is a copy of what the game's document holds, written in the same transaction as the new game. A goldfish game has one row in it.
+
+A seat's digest baseline (see `application`) is the change number on its most recent call record for a tool other than `get_log`, found from `calls` by game id and seat number; an index on those columns keeps that lookup cheap. The seat number column of `calls` holds what the call record carries (see `records`): it is null for every call of a goldfish game, whose records name no seat even though the game's `seats` row has seat number 1, for a contested game's `new_game`, and for a call whose id names no seat.
+
+A table turn has one snapshot. The domain writes at most one, so a second for the same game and table turn is a defect: the adapter raises rather than replace the first or drop the second, and the call's unit of work is rolled back.
 
 ## Transactions
 
@@ -46,7 +53,14 @@ The database is a single file whose path comes from configuration (see `tools`).
 
 ## Schema Changes
 
-The `schema_version` row records the layout. On start, the module applies any forward migrations needed to reach the current layout. Faced with a database newer than itself, the service exits at start with a message naming both versions rather than risk damage.
+The `schema_version` row records the layout. On start, the adapter applies, in order, any forward migrations needed to reach the current layout. Each migration runs in one transaction together with the update of `schema_version` to the version it reaches, so a migration that fails leaves the database at its previous version. No backup copy of the database is written before a migration, and no migration can be reversed: once migrated, a database can be opened only by a service that knows its version. Faced with a database newer than itself, the service exits at start with a message naming both versions rather than risk damage.
+
+The migrations, by the version they reach:
+
+- **2, seats.** Creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, keeping every goldfish game's behavior as it was.
+- **3, whose turns a step trigger happens on.** Rewrites every step trigger reading held in a stored loaded deck or game document that names a step alone as a trigger in that step on its controller's turn, the only turns such a reading was ever reminded on; a reading that already says whose turns it happens on is left as it is. Because a loaded deck never changes once written, a deck stored before this migration keeps these readings when its list is loaded again with the same card data, and so do the games played on it: a trigger in it on each turn, or on opponents' turns, is reminded on its controller's turns only. A deck loaded afresh, under a new id, is read as usual.
+
+Neither migration changes a game's version counter: a migrated game is the same game.
 
 ## Decisions & Alternatives
 
@@ -57,11 +71,21 @@ The `schema_version` row records the layout. On start, the module applies any fo
 | Same-game ordering | Per-game lock plus version check | Lock only; version check only | The lock gives agents ordered results without retries; the version check keeps the guarantee if a second process ever shares the database. |
 | Call records on failure | Saved even when the call's other writes are not | Lost with the rollback | Refused and errored calls are exactly what a later study of the tool surface needs. |
 | Retention | Keep everything | Expire old games | Local volumes are small; analysis may want any past game. |
+| Finding a game from a seat id | A `seats` table written with the game | Scanning game documents; encoding the game id in the seat id | A scan grows with the number of games; an encoded game id would let one seat's id reveal another's. |
+| Key of a snapshot | Game id and table turn | Game id and the active seat's own turn number | In a contested game several seats each have a turn 3; the table turn is unique in a game and equals the turn in a goldfish game. |
+| Shape of a contested game's state | The same one JSON document, grown to hold seats and the stack | A row per seat | The reasons for one document hold unchanged: every call loads and saves the whole game. |
+| How a migration is applied | In one transaction with the version it reaches; no backup copy; not reversible | **Open, for the owner to choose:** write a backup copy of the database file before migrating | A failed migration already leaves the database as it was. A backup copy would also let an older service be run again after a migration that succeeded, at the cost of a second file per migration to keep or delete. |
+| Stored step trigger readings without whose turns | Rewritten as triggers on their controller's turn | Read the decks' card text again during the migration | A migration works on stored JSON alone so that it does not change as the reader does, and controller's turns are where every such reading was reminded. |
+| A second snapshot for a table turn | Raise | Replace the first; keep the first and ignore the second | It can only come from a defect, and either quiet behavior would hide it and leave a record nobody chose. |
 
 ## Open Questions & Future Decisions
 
 ### Deferred
 1. A retention or export policy, when the database is shared by many users.
+2. Re-reading the step triggers of loaded decks stored before version 3, which keep controller's-turn readings because a loaded deck never changes once written.
+
+### Open
+1. Whether a migration writes a backup copy of the database first (see Decisions & Alternatives).
 
 ## References
 

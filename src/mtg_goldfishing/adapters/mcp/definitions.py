@@ -1,4 +1,4 @@
-"""The eleven tools as an agent sees them: names, parameters and descriptions.
+"""The tools as an agent sees them: names, parameters and descriptions.
 
 Each description states, in order: what the tool is for in one sentence; what the service
 does automatically as a result; each parameter's meaning with one example value; and what
@@ -58,11 +58,13 @@ def _parameter_line(parameter: Parameter) -> str:
     return f"- {parameter.name}{required}: {parameter.meaning} Example: {example}"
 
 
+# @spec TOOL-031
 def _game_id() -> Parameter:
     return Parameter(
         "game_id",
         Kind.TEXT,
-        "The game id `new_game` returned.",
+        "The game id `new_game` returned. Contested games: your seat's seat id, the id"
+        " `new_game` gave your seat (the tested seat's is the game id).",
         GAME_ID_EXAMPLE,
         required=True,
     )
@@ -134,7 +136,15 @@ DELTA_SHAPE = (
     " {filter?}, which reveals the library sorted by name for a pending choice. A"
     " destination is hand, battlefield, battlefield_tapped, graveyard, exile, command,"
     " library_top or library_bottom. A card is named by its name, a face's name or an"
-    " instance id; a name given twice means two cards."
+    " instance id; a name given twice means two cards. Contested games: a delta may tap,"
+    " untap, put counters on and move other seats' cards in public zones, but never reach"
+    " another seat's hand or library. control: {seat number: [names]}, permanents that seat"
+    " now controls (applied after counters). life: {seat number: signed change} for any"
+    " seat. damage: {seat number: damage}, never a single number. ask: [{seats: [seat"
+    ' numbers] or "opponents", text}], what other seats must decide (a discard, a'
+    " sacrifice); each answers with its own delta (applied after shuffle). look_at_hand: a"
+    " seat number, which reveals that seat's hand to you for a pending choice. counter:"
+    " [stack item ids or spell names], items on the stack countered."
 )
 
 PAY_SHAPE = (
@@ -232,6 +242,30 @@ NEW_GAME = ToolDefinition(
             "False to skip the draw on turn 1; true by default.",
             False,
         ),
+        Parameter(
+            "starting_life",
+            Kind.WHOLE_NUMBER_OR_LIST,
+            "Starting life of every seat; 40 by default. Contested games: a list gives the"
+            " tested seat's and then each opposing seat's in `opponents` order.",
+            40,
+        ),
+        Parameter(
+            "opponents",
+            Kind.LIST,
+            "Contested games: the deck ids of one to three opposing seats, in order; a deck"
+            " may appear more than once, and may be `deck_id` itself. The response then lists"
+            " each seat in turn order with its seat number and seat id, which that seat's"
+            " agent passes as `game_id`, and shows no hand. The seed also draws the turn order"
+            " and `turn_limit` counts rounds.",
+            ["d4fa52cf065"],
+        ),
+        Parameter(
+            "position",
+            Kind.WHOLE_NUMBER,
+            "Contested games: the tested seat's place in turn order, from 1; the other seats"
+            " are ordered by the seed. Omitted, the seed orders every seat.",
+            1,
+        ),
     ),
     overridable="Nothing; an unknown deck id is an error.",
 )
@@ -244,7 +278,9 @@ MULLIGAN = ToolDefinition(
         " With keep true, puts the `bottom` cards on the bottom of the library in the order"
         " given (one card for each mulligan after the first, which is free), then starts the"
         " game and takes it through untap, upkeep and draw to turn 1's first main step,"
-        " drawing a card unless the game was started without a first-turn draw."
+        " drawing a card unless the game was started without a first-turn draw. Contested"
+        " games: each seat keeps or mulligans its own hand, and turn 1 begins once every seat"
+        " has kept."
     ),
     parameters=(
         _game_id(),
@@ -271,6 +307,7 @@ MULLIGAN = ToolDefinition(
     ),
 )
 
+# @spec TOOL-075
 GET_STATE = ToolDefinition(
     name="get_state",
     purpose="List the hand, battlefield and other zones when the status line is not enough.",
@@ -280,7 +317,10 @@ GET_STATE = ToolDefinition(
         " its step triggers), the graveyard, the command zone and notices; full adds exile,"
         " the number of cards in the library, each commander's casts and damage, and this"
         " turn's payments. The library's order is never shown. Accepted in every game"
-        " status."
+        " status. Contested games: shows every seat's battlefield, graveyard and command zone"
+        " with its life and its hand and library sizes, the stack and who is asked; of the"
+        " hands, only yours. It ends with the pending choices your seat owes, with the cards"
+        " each reveals to you or what it asks of you."
     ),
     parameters=(
         _game_id(),
@@ -305,7 +345,10 @@ PLAY = ToolDefinition(
         " destination: a permanent to the battlefield (tapped if it enters tapped), an"
         " instant or sorcery to the graveyard. The delta is applied last. The library is"
         " shuffled after a fetch, a commander bound for the graveyard or exile goes to the"
-        " command zone, and a token that leaves the battlefield ceases to exist."
+        " command zone, and a token that leaves the battlefield ceases to exist. Contested"
+        " games: a spell goes on the stack with its cost paid, and resolves once every other"
+        " seat has passed: only then does the card move and the delta apply. A land does not"
+        " use the stack."
     ),
     parameters=(
         _game_id(),
@@ -359,6 +402,7 @@ PLAY = ToolDefinition(
     ),
 )
 
+# @spec TOOL-069
 EFFECT = ToolDefinition(
     name="effect",
     purpose="Record anything that happens without playing a card.",
@@ -367,7 +411,9 @@ EFFECT = ToolDefinition(
         " same bookkeeping as `play`: the library is shuffled after a fetch, a commander"
         " bound for the graveyard or exile goes to the command zone, and a token that leaves"
         " the battlefield ceases to exist. When `source` names one of your permanents, the"
-        " call answers that permanent's reminder."
+        " call answers that permanent's reminder. Contested games: the effect goes on the"
+        " stack with its cost paid, and its delta is applied when it resolves, unless"
+        " immediate."
     ),
     parameters=(
         _game_id(),
@@ -398,6 +444,16 @@ EFFECT = ToolDefinition(
         _reason("cracking the Treasure now to hold up removal"),
         _override("Concordant Crossroads gives the creature haste"),
         _after(),
+        Parameter(
+            "immediate",
+            Kind.FLAG,
+            "Contested games: true for an effect that is applied at once, such as the result"
+            " of combat between creatures stated by the attacking seat once the game is in"
+            " combat_damage. A combat result gives only what happens to the creatures: the"
+            " service deals the declared attack's damage to seats on entering combat_damage,"
+            " so a life or damage entry for that damage would be applied in addition to it.",
+            True,
+        ),
     ),
     overridable=(
         "Rule checks on paying — an unpayable cost, a summoning-sick creature named in"
@@ -414,7 +470,12 @@ CHOOSE = ToolDefinition(
         " destination, in `rest_order` or else in the order revealed. For a search,"
         " unselected cards stay in the library and it is shuffled before selected cards go"
         " to its top or bottom. Cards selected to library_top end with the first one named"
-        " on top."
+        " on top. Contested games: a choice addressed to your seat is answered by its kind —"
+        " a look at another seat's hand with selections (the cards go to their owner's"
+        " zones, the rest stay in that hand), an ask with your own delta, applied at once,"
+        " blocks with blocks, and a resolve choice (a spell or ability that waited while"
+        " something resolved above it, or whose stated delta can no longer be applied) with"
+        " nothing to let it resolve as held, or with restate to say what it does now."
     ),
     parameters=(
         _game_id(),
@@ -430,7 +491,6 @@ CHOOSE = ToolDefinition(
             Kind.OBJECT,
             "Destinations mapped to revealed cards; {} selects nothing.",
             {"hand": ["Sol Ring"], "library_bottom": ["Island"]},
-            required=True,
         ),
         Parameter(
             "rest_order",
@@ -439,10 +499,46 @@ CHOOSE = ToolDefinition(
             ["Forest", "Ponder"],
         ),
         _after(),
+        Parameter(
+            "delta",
+            Kind.OBJECT,
+            "Contested games: your answer to an ask, in the delta shape described under play,"
+            " without ask, look_at_hand, look or search; omitted when you have nothing to do."
+            " For a look at a hand, only control, for selected cards put onto the battlefield"
+            " under a seat other than their owner.",
+            {"discard": ["Island"]},
+        ),
+        Parameter(
+            "blocks",
+            Kind.OBJECT,
+            "Contested games: each of your blocking creatures mapped to the attacker it"
+            " blocks; {} declares no blocks.",
+            {"Llanowar Elves": "Grizzly Bears"},
+        ),
+        Parameter(
+            "restate",
+            Kind.OBJECT,
+            "Contested games: for a resolve choice, the delta and destination the item"
+            " resolves with in place of the held ones; one left out keeps the held value.",
+            {"delta": {}, "to": "graveyard"},
+        ),
+        Parameter(
+            "override",
+            Kind.TEXT,
+            "Contested games: your reason for declaring blocks although rule checks failed; it"
+            " is recorded.",
+            "the blocker untapped in response",
+        ),
     ),
-    overridable="Nothing; a wrong choice id or a card that was not revealed is an error.",
+    overridable=(
+        "Nothing; a wrong choice id or a card that was not revealed is an error. Contested"
+        " games: a blocker that is tapped or is not a creature fails a rule check that"
+        " `override` passes, and an argument the choice's kind is not answered with is an"
+        " error."
+    ),
 )
 
+# @spec TOOL-070, TOOL-071
 ATTACK = ToolDefinition(
     name="attack",
     purpose="Declare attackers and which are blocked.",
@@ -453,7 +549,10 @@ ATTACK = ToolDefinition(
         " combat damage step, each unblocked attacker deals its power adjusted by its +1/+1"
         " and -1/-1 counters (or its `damage` entry) to the opponents, and an attacking"
         " commander's damage also counts as commander damage to its target opponent. An"
-        " empty `attackers` clears the declared attack."
+        " empty `attackers` clears the declared attack. Contested games: declaring attackers"
+        " opens a window in which the other seats may respond; an attack may stop before"
+        " attackers are declared, at a step where another seat has a reminder, and then"
+        " nothing is declared or tapped: send attack again once your seat is the seat to act."
     ),
     parameters=(
         _game_id(),
@@ -499,6 +598,17 @@ ATTACK = ToolDefinition(
         _reason("holding back Birds of Paradise for mana"),
         _override("Craterhoof Behemoth gave everything haste"),
         _after(),
+        Parameter(
+            "targets",
+            Kind.WHOLE_NUMBER_OR_OBJECT,
+            "Contested games: the seat each attacker attacks, one seat number for all or"
+            " {attacker: seat number}; needed with more than one opponent. Each attacked seat"
+            " then declares its own blocks, so blocked and commander_target are not given."
+            " A blocked attacker's damage entry is dealt in full to the seat it attacks, the"
+            " service making no reduction for blockers, so give it only for the damage that"
+            " gets past them.",
+            {"Grizzly Bears": 2, "Shivan Dragon": 3},
+        ),
     ),
     overridable=(
         "Rule checks — an attacker that is not a creature, is tapped, or entered this turn"
@@ -520,6 +630,9 @@ ADVANCE = ToolDefinition(
         " with an OK response that says why, on entering a step where one of your permanents"
         " has a step trigger (a reminder: resolve it with `effect`, or pass it), or before"
         " cleanup with more than seven cards in hand. Send `advance` again to continue."
+        " Contested games: also stops on entering end, where the other seats may respond, and"
+        " where another seat has a reminder; it never goes past your cleanup, and the next"
+        " seat's turn then goes on to its first main step."
     ),
     parameters=(
         _game_id(),
@@ -550,13 +663,55 @@ ADVANCE = ToolDefinition(
     ),
 )
 
+# @spec TOOL-032
+PASS = ToolDefinition(
+    name="pass",
+    purpose="Decline to respond when your seat is asked (contested games).",
+    automatic=(
+        "Counts your seat as having passed and asks the next seat in turn order; once every"
+        " other seat has passed in succession, the top item on the stack resolves, or an"
+        " attack or end-step window closes. When the game waits on your seat for a reminder"
+        " of a step trigger on another seat's turn, declines to record those triggers now."
+    ),
+    parameters=(_game_id(), _after()),
+    overridable=(
+        "Nothing. A pass in a goldfish game, from a seat that is not asked, from a seat that"
+        " owes a pending choice, or from the active seat with no window open, is an error."
+    ),
+)
+
+# @spec APP-072, APP-090
+WAIT = ToolDefinition(
+    name="wait",
+    purpose="Wait until your seat has something to do, then say what it is (contested games).",
+    automatic=(
+        "Changes nothing. Returns at once when your seat is the seat to act, has been"
+        " eliminated, or the game has ended; otherwise holds the call until another seat's"
+        " change makes it so, or the timeout passes, and then says who the game is still"
+        " waiting on. Like every response to a seat, it begins with what the other seats did"
+        " since your last call. In a goldfish game your seat is always the seat to act, so it"
+        " returns at once."
+    ),
+    parameters=(
+        _game_id(),
+        Parameter(
+            "timeout",
+            Kind.NUMBER,
+            "Seconds to wait, from 1 to 60; 30 when omitted.",
+            30,
+        ),
+    ),
+    overridable="Nothing; it changes nothing. A timeout outside 1 to 60 is an error.",
+)
+
 END_GAME = ToolDefinition(
     name="end_game",
     purpose="End the game with a result and verdict.",
     automatic=(
         "Discards any pending choice and declared attack, writes the turn snapshot if this"
         " turn has none, and ends the game; afterwards only `get_state` and `get_log` are"
-        " accepted."
+        " accepted. Contested games: only the tested seat ends the game; an opposing seat's"
+        " end_game concedes, which eliminates it, and the game goes on."
     ),
     parameters=(
         _game_id(),
@@ -611,7 +766,7 @@ GET_LOG = ToolDefinition(
     overridable="Nothing; it changes nothing.",
 )
 
-# @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011
+# @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011, TOOL-033
 TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
     LOAD_DECK,
     NEW_GAME,
@@ -622,6 +777,8 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
     CHOOSE,
     ATTACK,
     ADVANCE,
+    PASS,
+    WAIT,
     END_GAME,
     GET_LOG,
 )

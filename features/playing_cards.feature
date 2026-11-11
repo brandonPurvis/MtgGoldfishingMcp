@@ -52,3 +52,14 @@ Feature: Playing cards
     And the response says "Argument card is malformed."
     And the response carries the error flag
     And the call is kept as a call record
+
+  # @spec STACK-001, TOOL-039
+  Scenario: A goldfish game shows no stack, window or automatic pass
+    Given "Grizzly Bears" is in my hand
+    And "Forest" is on the battlefield
+    And "Command Tower" is on the battlefield
+    When I play "Grizzly Bears"
+    Then the response is OK
+    And the response does not say "on the stack"
+    And the response does not say "passed automatically"
+    And the status line has no seat, Act or Stack field

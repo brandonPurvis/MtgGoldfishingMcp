@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from typing import assert_never
 
-from mtg_goldfishing.domain.events import DeckReport
-from mtg_goldfishing.domain.game.listing import PermanentListing, StateListing
+from mtg_goldfishing.adapters.mcp.refusal_lines import error_text
+from mtg_goldfishing.domain.events import DeckReport, RevealedCard
+from mtg_goldfishing.domain.game.listing import (
+    ChoiceListing,
+    CommanderListing,
+    PermanentListing,
+    SeatListing,
+    StateListing,
+)
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
     ASSUMES_UNTAPPED_PREFIX,
@@ -117,14 +126,107 @@ def _permanent(permanent: PermanentListing) -> str:
         details.append("haste")
     if permanent.vigilance:
         details.append("vigilance")
-    if permanent.triggers:
-        details.append("trigger in " + ", ".join(step.value for step in permanent.triggers))
+    steps = [step.value for step in permanent.triggers]
+    steps.extend(f"{step.value} (opp)" for step in permanent.opponent_triggers)
+    if steps:
+        details.append("trigger in " + ", ".join(steps))
     described = f": {'; '.join(details)}" if details else ""
-    return f"  {permanent.instance_id} {permanent.name}{described}"
+    owner = f" (owner {permanent.owner})" if permanent.owner is not None else ""
+    return f"  {permanent.instance_id} {permanent.name}{owner}{described}"
+
+
+def _payments(listing: StateListing) -> list[str]:
+    if listing.payments is None:
+        return []
+    paid = [
+        f"{payment.cost} ({payment.mana_spent} mana"
+        + (f", {payment.life} life" if payment.life else "")
+        + ")"
+        for payment in listing.payments
+    ]
+    return [f"Payments this turn: {', '.join(paid) if paid else 'none'}"]
+
+
+def _commander_damage(commander: CommanderListing, others: list[SeatNumber]) -> str:
+    damage = " / ".join(f"{seat} {n}" for seat, n in zip(others, commander.damage, strict=True))
+    return f"Commander {commander.name}: cast {_times(commander.casts)}, damage {damage}"
+
+
+def _seat_lines(each: SeatListing, calling: SeatNumber, everyone: list[SeatNumber]) -> list[str]:
+    """One seat as any seat may see it: its standing, then its public zones."""
+    you = " (you)" if each.seat == calling else ""
+    out = " · Out" if each.eliminated else ""
+    lines = [
+        f"{each.seat}{you} · Life {each.life} · Hand {each.hand_size}"
+        f" · Library {each.library_size}{out}",
+        f"Battlefield ({len(each.battlefield)}):" + ("" if each.battlefield else " none"),
+        *(_permanent(permanent) for permanent in each.battlefield),
+        f"Graveyard ({len(each.graveyard)}): {_names(each.graveyard)}",
+        f"Command zone ({len(each.command)}): {_names(each.command)}",
+    ]
+    if each.exile is not None:
+        lines.append(f"Exile ({len(each.exile)}): {_names(each.exile)}")
+    others = [seat for seat in everyone if seat != each.seat]
+    lines.extend(_commander_damage(commander, others) for commander in each.commanders or ())
+    return lines
+
+
+def _cards(cards: tuple[RevealedCard, ...]) -> str:
+    return ", ".join(f"{card.name} ({card.instance_id})" for card in cards)
+
+
+def _choice(choice: ChoiceListing) -> str:
+    """One pending choice the calling seat owes, and what it asks."""
+    head = f"  {choice.choice_id} ({choice.kind})"
+    match choice.kind:
+        case "ask":
+            return f"{head} from {choice.asked_by}: {choice.text}"
+        case "blocks":
+            return f"{head}: attacked by {_cards(choice.attackers)}"
+        case "resolve":
+            held = json.dumps(dict(choice.delta), separators=(", ", ": "))
+            to = choice.to or "its default destination"
+            line = f"{head}: {choice.item} {choice.source} holds delta {held} and goes to {to}"
+            if choice.error is not None:
+                line += f". It cannot resolve as held: {error_text(choice.error)}"
+            return line
+        case _:
+            return f"{head}: revealed {_cards(choice.revealed)}"
+
+
+# @spec TOOL-074
+def _choice_lines(listing: StateListing) -> list[str]:
+    """The pending choices the calling seat owes, in the order they will be answered."""
+    if not listing.choices:
+        return []
+    return [
+        f"Your pending choices ({len(listing.choices)}):",
+        *(_choice(choice) for choice in listing.choices),
+    ]
+
+
+# @spec TOOL-051, TOOL-066, GAME-122
+def contested_state_lines(listing: StateListing, seats: tuple[SeatListing, ...]) -> list[str]:
+    """A contested game's listing: the calling seat's hand, then every seat in turn order."""
+    calling = listing.seat
+    assert calling is not None, "a contested game's listing names its calling seat"
+    everyone = [each.seat for each in seats]
+    lines = [f"Hand ({len(listing.hand)}): {_names(listing.hand)}"]
+    for each in seats:
+        lines.extend(_seat_lines(each, calling, everyone))
+    if listing.stack:
+        items = "; ".join(f"{i.item} {i.source} from {i.controller}" for i in listing.stack)
+        lines.append(f"Stack ({len(listing.stack)}): {items}")
+    if listing.window is not None:
+        asking = f"asking {listing.window.asking}" if listing.window.asking else "waiting"
+        lines.append(f"Response window ({listing.window.kind}): {asking}")
+    return [*lines, *_choice_lines(listing), *_payments(listing)]
 
 
 def state_lines(listing: StateListing) -> list[str]:
     """get_state's listing. The library's contents are never part of it."""
+    if listing.seats is not None:
+        return contested_state_lines(listing, listing.seats)
     lines = [
         f"Hand ({len(listing.hand)}): {_names(listing.hand)}",
         f"Battlefield ({len(listing.battlefield)}):" + ("" if listing.battlefield else " none"),
@@ -140,15 +242,7 @@ def state_lines(listing: StateListing) -> list[str]:
     for commander in listing.commanders or ():
         damage = "/".join(str(n) for n in commander.damage)
         lines.append(f"Commander {commander.name}: cast {_times(commander.casts)}, damage {damage}")
-    if listing.payments is not None:
-        paid = [
-            f"{payment.cost} ({payment.mana_spent} mana"
-            + (f", {payment.life} life" if payment.life else "")
-            + ")"
-            for payment in listing.payments
-        ]
-        lines.append(f"Payments this turn: {', '.join(paid) if paid else 'none'}")
-    return lines
+    return [*lines, *_payments(listing)]
 
 
 def _untapped_condition(text: str) -> str:

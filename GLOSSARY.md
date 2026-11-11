@@ -62,6 +62,10 @@ _Avoid_: Multiplayer game, versus game, match
 One player's place in a game, with its own zones, life, mana pool, land drop and commander tax, played by an agent.
 _Avoid_: Player, side, opponent slot
 
+**Table**:
+What all the seats of a game share: its seed, turn order, active seat, step, stack, change number, notices and result.
+_Avoid_: Board, lobby
+
 **Tested seat**:
 The seat whose deck the game is judging; every game has exactly one.
 _Avoid_: Hero, home seat, main seat
@@ -77,6 +81,10 @@ _Avoid_: Dummy, phantom opponent
 **Seat id**:
 The unguessable id naming one seat of one game; a call made with it acts as that seat and sees what that seat may see.
 _Avoid_: Player token, seat key
+
+**Seat number**:
+A seat's place in turn order, from 1, by which calls and responses name seats to one another.
+_Avoid_: Seat index, player number
 
 **Seed**:
 The number that fixes every shuffle of a game and the order of its seats, so that the same loaded decks and seed give the same game.
@@ -95,12 +103,28 @@ The seat that currently controls a permanent or an item on the stack; its owner 
 _Avoid_: Holder, user
 
 **Zone**:
-Where a card instance is: library, hand, battlefield, graveyard, exile or the command zone.
+Where a card instance is: library, hand, battlefield, graveyard, exile, the command zone, or, in a contested game, the stack.
 _Avoid_: Area, pile, location
+
+**Hidden zone**:
+A seat's hand or library, whose cards no other seat may see; no seat sees the order of any library.
+_Avoid_: Private zone, secret zone
+
+**Active seat**:
+The seat whose turn it is.
+_Avoid_: Current player, active player, turn owner
+
+**Seat to act**:
+A seat whose call the game is waiting on before it can go on.
+_Avoid_: Priority holder, awaited seat, current player
 
 **Round**:
 One turn for each seat still in the game.
 _Avoid_: Cycle, go-around
+
+**Table turn**:
+The count of turns taken by all the seats of a game together. A seat's own count of the turns it has taken is what `T<n>` shows.
+_Avoid_: Global turn, game turn, absolute turn
 
 **Elimination**:
 A seat leaving a contested game, at 0 life, at 21 damage from one commander, or by conceding; it takes no more turns and the cards it owns leave the game.
@@ -162,6 +186,10 @@ _Avoid_: Assertion, check
 The plays and effects of a contested game that have been made but not yet resolved, newest on top, each holding the delta its controller stated.
 _Avoid_: Queue, chain, pending plays
 
+**Stack item**:
+One play or effect on the stack, with its controller and the delta that controller stated.
+_Avoid_: Stack entry, spell object
+
 **Resolve**:
 To apply the delta of the newest item on the stack, once every other seat has passed on it.
 _Avoid_: Execute, commit
@@ -179,8 +207,16 @@ A pass the service makes for a seat that has no untapped permanents.
 _Avoid_: Auto-skip, implicit pass
 
 **Digest**:
-The short account, at the start of a seat's response, of the other seats' public events since that seat's last call.
+The short account, at the start of a seat's response, of the other seats' public events, and of what their calls did to the reading seat's own hidden zones, since that seat's digest baseline.
 _Avoid_: Feed, recap, catch-up
+
+**Digest baseline**:
+The change number up to which a seat has been shown the other seats' changes: that of its last response that carried a digest.
+_Avoid_: Read marker, cursor
+
+**Public form**:
+What every seat may see of an event: cards that stay hidden are shown as a count, and cards in public view, or that were in public view, by name.
+_Avoid_: Redacted event, censored event
 
 ### Mana and payment
 
@@ -233,5 +269,5 @@ The state of a game at the end of a turn, kept for analysis.
 _Avoid_: Checkpoint, save
 
 **Call record**:
-The record of one tool call exactly as it was made and answered, refused or not.
+The record of one tool call as it was made and answered, refused or not, with any opposing seat's seat id left out.
 _Avoid_: Request log, audit entry

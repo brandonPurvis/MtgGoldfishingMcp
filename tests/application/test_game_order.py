@@ -10,8 +10,16 @@ from contextlib import AbstractContextManager, contextmanager
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.adapters.system import InProcessGameLocks
 from mtg_goldfishing.application.outcome import Answer, Status
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    GameLocks,
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    SeatOfGame,
+    StoredGame,
+)
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from tests.support.builders import a_game
 from tests.support.service import GAME_ID, a_service
@@ -36,7 +44,7 @@ class Journal:
         return JournaledRecords(self, inner)
 
 
-class JournaledLocks:
+class JournaledLocks(GameLocks):
     def __init__(self, journal: Journal) -> None:
         self._journal = journal
         self._inner = InProcessGameLocks()
@@ -54,7 +62,7 @@ class JournaledLocks:
         return self._hold(game_id)
 
 
-class JournaledGames:
+class JournaledGames(GameRepository):
     def __init__(self, journal: Journal, inner: InMemoryGameRepository) -> None:
         self._journal = journal
         self._inner = inner
@@ -62,6 +70,9 @@ class JournaledGames:
     def get(self, game_id: str) -> StoredGame | None:
         self._journal.happened.append("game loaded")
         return self._inner.get(game_id)
+
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
 
     def add(self, game: Game) -> None:
         self._inner.add(game)
@@ -71,7 +82,7 @@ class JournaledGames:
         return self._inner.save(game, version=version)
 
 
-class JournaledRecords:
+class JournaledRecords(RecordStore):
     def __init__(self, journal: Journal, inner: InMemoryRecordStore) -> None:
         self._journal = journal
         self._inner = inner
@@ -90,8 +101,11 @@ class JournaledRecords:
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
 
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
 
-class SlowToLoad:
+
+class SlowToLoad(GameRepository):
     """A game repository that takes a moment to load, widening any race between two calls."""
 
     def __init__(self, inner: InMemoryGameRepository) -> None:
@@ -101,6 +115,9 @@ class SlowToLoad:
         stored = self._inner.get(game_id)
         time.sleep(0.05)
         return stored
+
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
 
     def add(self, game: Game) -> None:
         self._inner.add(game)
@@ -151,7 +168,7 @@ def test_two_calls_for_one_game_at_once_are_applied_one_after_the_other() -> Non
 
     assert sorted(a.outcome.game.change for a in answers if a.outcome.game) == [1, 2]
     assert [a.outcome.status for a in answers] == [Status.OK, Status.OK]
-    assert harness.game().life == 38
+    assert harness.game().tested.life == 38
 
 
 # @spec APP-016

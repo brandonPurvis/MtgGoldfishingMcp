@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -49,3 +50,26 @@ def test_a_fixed_id_source_yields_its_seeds_in_order() -> None:
 def test_a_fixed_id_source_refuses_a_game_id_that_is_not_ten_letters_or_digits() -> None:
     with pytest.raises(ValueError, match="game id"):
         FixedIdSource(game_ids=["Not-An-Id"])
+
+
+# @spec APP-047, GAME-077
+def test_a_seat_id_has_the_form_of_a_game_id(ids: IdSource) -> None:
+    source: Any = ids
+    assert GAME_ID_CHARACTERS.match(source.new_seat_id())
+
+
+# @spec APP-047, GAME-077
+def test_seat_ids_and_game_ids_come_from_one_source_and_differ(ids: IdSource) -> None:
+    source: Any = ids
+    taken = [ids.new_game_id(), source.new_seat_id(), source.new_seat_id()]
+    assert len(set(taken)) == 3
+
+
+# @spec APP-047, APP-087
+def test_a_fixed_id_source_yields_seat_ids_from_its_one_sequence_of_ids() -> None:
+    ids: Any = FixedIdSource(game_ids=["aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc"])
+    assert [ids.new_game_id(), ids.new_seat_id(), ids.new_seat_id()] == [
+        "aaaaaaaaaa",
+        "bbbbbbbbbb",
+        "cccccccccc",
+    ]

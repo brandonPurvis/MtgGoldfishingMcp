@@ -5,6 +5,7 @@ from __future__ import annotations
 from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.adapters.sqlite.database import SqliteDatabase
 from mtg_goldfishing.adapters.sqlite.repositories import Now, utc_now
+from mtg_goldfishing.application.ports import CardCache
 from mtg_goldfishing.domain.cards import Card
 
 
@@ -14,7 +15,7 @@ def _key(name: str) -> str:
 
 
 # @spec STOR-001, CARD-006, CARD-007, CARD-017, CARD-018
-class SqliteCardCache:
+class SqliteCardCache(CardCache):
     """Cached cards keyed by lower-cased full name, with a `card_names` row per face name.
 
     A face name that several cards share resolves to the card whose full name sorts first.

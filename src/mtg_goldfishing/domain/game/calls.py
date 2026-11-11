@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from mtg_goldfishing.domain.events import AlreadyApplied, Error, ErrorKind
 from mtg_goldfishing.domain.game.model import Game, GameStatus, LastChange, arguments_without_after
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 GAME_TOOLS = (
     "mulligan",
@@ -39,49 +40,62 @@ def check_accepted(game: Game, tool: str) -> Error | None:
     )
 
 
-# @spec GAME-036, GAME-054
+# @spec GAME-036, GAME-054, GAME-126
 def resend_of(
-    game: Game, tool: str, arguments: Mapping[str, object], after: int | None
+    game: Game,
+    seat: SeatNumber,
+    tool: str,
+    arguments: Mapping[str, object],
+    after: int | None,
 ) -> Resent | None:
-    """The most recent change's original report when the call resends it, else None.
+    """The calling seat's most recent change's original report when the call resends it.
 
-    A resend is recognised whatever the game's status, so it is asked before the status is.
+    A call resends that change when its tool and arguments other than `after` are the same
+    and its `after` is one less than that change's number. A resend is recognised whatever
+    the game's status, so it is asked before the status is. None when it is no resend.
     """
-    last = game.last_change
+    last = game.seat(seat).last_change
     if (
         after is not None
-        and after == game.change - 1
         and last is not None
+        and after == last.change - 1
         and last.tool == tool
         and last.arguments == arguments_without_after(arguments)
     ):
-        return Resent(game, last.summary, (*last.events, AlreadyApplied(game.change)))
+        return Resent(game, last.summary, (*last.events, AlreadyApplied(last.change)))
     return None
 
 
-# @spec GAME-035, GAME-036, GAME-037
+# @spec GAME-035, GAME-036, GAME-037, GAME-127
 def follow_change(
-    game: Game, tool: str, arguments: Mapping[str, object], after: int | None
+    game: Game,
+    seat: SeatNumber,
+    tool: str,
+    arguments: Mapping[str, object],
+    after: int | None,
 ) -> Resent | Refusal | None:
     """Whether a changing call follows the game's change number.
 
-    None means apply the call. A resend of the most recent change is answered with that
-    change's original report; any other stale `after` is an error.
+    None means apply the call. A resend of the calling seat's most recent change is answered
+    with that change's original report; any other stale `after` is an error.
     """
     if after is None or after == game.change:
         return None
-    resent = resend_of(game, tool, arguments, after)
+    resent = resend_of(game, seat, tool, arguments, after)
     if resent is not None:
         return resent
     return Refusal.error(Error(ErrorKind.STALE_CHANGE, number=game.change))
 
 
 # @spec GAME-033
-def accept_change(applied: Applied, tool: str, arguments: Mapping[str, object]) -> Applied:
-    """Count an applied call as the game's next change and remember it."""
+def accept_change(
+    applied: Applied, seat: SeatNumber, tool: str, arguments: Mapping[str, object]
+) -> Applied:
+    """Count an applied call as the game's next change, whichever seat made it, and remember
+    it as the calling seat's most recent change."""
     game = applied.game
     game.change += 1
-    game.last_change = LastChange(
-        tool, arguments_without_after(arguments), applied.summary, applied.events
+    game.seat(seat).last_change = LastChange(
+        tool, arguments_without_after(arguments), applied.summary, applied.events, game.change
     )
     return applied

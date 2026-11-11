@@ -14,18 +14,21 @@ from mtg_goldfishing.domain.events import (
 )
 from mtg_goldfishing.domain.game.cards_in_play import face_name, reading_of
 from mtg_goldfishing.domain.game.model import CardInstance, Destination, Game, Zone
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 
 def _leave(game: Game, card: CardInstance) -> None:
     if card.zone is Zone.LIBRARY:
-        game.take_from_library(card.id)
+        game.take_from_library(card)
     if card.zone is Zone.BATTLEFIELD:
         card.tapped = False
         card.counters = {}
         card.face = 0
+        card.controller = card.owner
 
 
 # @spec PLAY-046, PLAY-047, PLAY-048, PLAY-049, PLAY-052, PLAY-053, PLAY-054, GAME-020
+# @spec GAME-101, PLAY-088, PLAY-089, PLAY-119
 def move(
     game: Game,
     deck: LoadedDeck,
@@ -33,15 +36,21 @@ def move(
     destination: Destination,
     *,
     commander_stays: bool = False,
+    arriving_under: SeatNumber | None = None,
 ) -> list[Event]:
-    """Move a card to a destination.
+    """Move a card to a destination; `deck` is the card's owner's.
 
     A commander bound for the graveyard or exile goes to the command zone instead unless
     `commander_stays`. A card leaving the battlefield loses its tapped state, counters and
-    face; a token leaving it ceases to exist. A permanent arriving on the battlefield
-    enters tapped when its reading says so, or always for `battlefield_tapped`.
+    face and returns to its owner's control; a token leaving it ceases to exist. A card
+    bound for a hand, graveyard, exile, command zone or library goes to its owner's. A
+    permanent arriving on the battlefield enters under the control of `arriving_under`, or
+    its owner when none is named, tapped when its reading says so, or always for
+    `battlefield_tapped`. In a contested game a permanent moved from the battlefield to the
+    battlefield leaves and arrives again.
     """
     from_zone = card.zone
+    owner = card.owner if game.contested else None
     redirected = False
     if (
         card.is_commander
@@ -51,14 +60,17 @@ def move(
         destination = Destination.COMMAND
         redirected = True
     events: list[Event] = []
-    if from_zone is Zone.BATTLEFIELD and destination.zone is Zone.BATTLEFIELD:
+    arriving_again = from_zone is Zone.BATTLEFIELD and destination.zone is Zone.BATTLEFIELD
+    if arriving_again and not game.contested:
         if destination is Destination.BATTLEFIELD_TAPPED:
             card.tapped = True
-        return [CardMoved(card.name, from_zone.value, destination.value)]
+        return [CardMoved(card.name, from_zone.value, destination.value, owner=owner)]
     _leave(game, card)
-    if card.is_token and from_zone is Zone.BATTLEFIELD:
+    if card.is_token and from_zone is Zone.BATTLEFIELD and not arriving_again:
         game.remove_token(card)
-        return [CardMoved(card.name, from_zone.value, destination.value, token_gone=True)]
+        return [
+            CardMoved(card.name, from_zone.value, destination.value, token_gone=True, owner=owner)
+        ]
     enters_tapped = False
     if destination.zone is Zone.BATTLEFIELD:
         reading = reading_of(deck, card).enters_tapped
@@ -68,23 +80,35 @@ def move(
             for text in reading.assumptions
         )
     game.put(card, destination, tapped=enters_tapped)
-    events.insert(0, CardMoved(card.name, from_zone.value, destination.value, redirected))
+    if card.zone is Zone.BATTLEFIELD:
+        card.controller = arriving_under or card.owner
+    events.insert(
+        0, CardMoved(card.name, from_zone.value, destination.value, redirected, owner=owner)
+    )
     return events
 
 
-def draw(game: Game, count: int) -> list[Event]:
-    """Draw cards from the top of the library; too few cards raises the empty library notice."""
+def draw(game: Game, seat: SeatNumber, count: int) -> list[Event]:
+    """A seat draws from the top of its library; too few cards raises the empty library notice.
+
+    In a contested game the draw names the seat that drew, so that the cards can be shown
+    to that seat alone.
+    """
+    library = game.seat(seat).library
     drawn: list[str] = []
     events: list[Event] = []
     for _ in range(count):
-        if not game.library:
+        if not library:
             break
-        card = game.instance(game.library.pop(0))
+        card = game.instance(library.pop(0))
         card.zone = Zone.HAND
         drawn.append(card.name)
-    events.append(CardsDrawn(tuple(drawn)))
+    events.append(CardsDrawn(tuple(drawn), seat if game.contested else None))
     if len(drawn) < count:
-        events.extend(raise_notice(game, NoticeKind.EMPTY_LIBRARY))
+        if game.contested:
+            events.extend(raise_seat_notice(game, seat, NoticeKind.EMPTY_LIBRARY))
+        else:
+            events.extend(raise_notice(game, NoticeKind.EMPTY_LIBRARY))
     return events
 
 
@@ -93,3 +117,13 @@ def raise_notice(game: Game, notice: NoticeKind) -> list[Event]:
         return []
     game.notices.append(notice)
     return [NoticeRaised(notice)]
+
+
+# @spec GAME-145, GAME-165
+def raise_seat_notice(game: Game, seat: SeatNumber, notice: NoticeKind) -> list[Event]:
+    """Raise a notice of one seat's own, naming it, unless that seat's is already raised."""
+    notices = game.seat(seat).notices
+    if notice in notices:
+        return []
+    notices.append(notice)
+    return [NoticeRaised(notice, seat)]

@@ -38,7 +38,7 @@ from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.results import Applied, Result
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.play.playing import effect
-from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
+from mtg_goldfishing.domain.reading.model import CardReading, FaceReading, StepTrigger
 from mtg_goldfishing.domain.records.export import export, log_entry_to_data
 from mtg_goldfishing.domain.records.log import log_entry
 from mtg_goldfishing.domain.records.model import (
@@ -52,7 +52,7 @@ from mtg_goldfishing.domain.records.reminders import JudgedReminder, judge_remin
 from mtg_goldfishing.domain.records.snapshots import take_snapshot
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.builders import Situation, a_game
+from tests.support.builders import TESTED, Situation, a_game
 from tests.support.library import LIBRARY
 
 # ---------------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ def applied(result: Result) -> Applied:
 
 def logged(tool: str, arguments: Mapping[str, object], before: Game, result: Result) -> LogEntry:
     """The log entry for an operation's applied result, counted as the game's next change."""
-    change = accept_change(applied(result), tool, arguments)
+    change = accept_change(applied(result), TESTED, tool, arguments)
     return log_entry(
         tool=tool,
         arguments=arguments,
@@ -103,7 +103,7 @@ def effect_from(before: Game, source: str) -> tuple[LogEntry, Game]:
 
 
 def entered_upkeep(situation: Situation) -> tuple[LogEntry, Game]:
-    result = applied(advance(situation.game, situation.deck))
+    result = applied(advance(situation.game, situation.deck, TESTED))
     entry = logged("advance", {}, situation.game, result)
     return entry, result.game
 
@@ -116,7 +116,7 @@ VALKI = LIBRARY["Valki, God of Lies // Tibalt, Cosmic Impostor"][0]
 
 
 def with_upkeep_trigger(card: Card) -> CardReading:
-    return CardReading((FaceReading(step_triggers=(Step.UPKEEP,)), FaceReading()))
+    return CardReading((FaceReading(step_triggers=(StepTrigger(Step.UPKEEP),)), FaceReading()))
 
 
 # ---------------------------------------------------------------------------------------
@@ -128,13 +128,13 @@ def with_upkeep_trigger(card: Card) -> CardReading:
 def test_a_log_entry_is_numbered_with_the_change_number_after_the_call() -> None:
     situation = a_game().in_step(Step.MAIN1).build()
     situation.game.change = 4
-    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck))
+    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck, TESTED))
     assert entry.seq == 5
 
 
 # @spec REC-001
 def test_the_new_game_entry_is_the_first_change() -> None:
-    game = Game(game_id="g1", deck_id="d1", seed=3, change=1)
+    game = Game(game_id="g1", seed=3, seats=[], change=1)
     entry = log_entry(
         tool="new_game",
         arguments={"deck_id": "d1"},
@@ -149,7 +149,7 @@ def test_the_new_game_entry_is_the_first_change() -> None:
 # @spec REC-003
 def test_a_log_entry_records_the_turn_and_step_the_call_was_made_in() -> None:
     situation = a_game().in_step(Step.CLEANUP, turn=3).with_library("Forest").build()
-    result = advance(situation.game, situation.deck, to="upkeep")
+    result = advance(situation.game, situation.deck, TESTED, to="upkeep")
     entry = logged("advance", {"to": "upkeep"}, situation.game, result)
     assert (entry.turn, entry.step) == (3, Step.CLEANUP)
 
@@ -157,7 +157,7 @@ def test_a_log_entry_records_the_turn_and_step_the_call_was_made_in() -> None:
 # @spec REC-003
 def test_a_log_entry_during_mulligans_has_turn_zero_and_no_step() -> None:
     situation = a_game().in_mulligan().with_hand("Forest").with_library(*("Island",) * 8).build()
-    result = mulligan(situation.game, situation.deck, keep=False)
+    result = mulligan(situation.game, situation.deck, TESTED, keep=False)
     entry = logged("mulligan", {"keep": False}, situation.game, result)
     assert (entry.turn, entry.step) == (0, None)
 
@@ -166,7 +166,7 @@ def test_a_log_entry_during_mulligans_has_turn_zero_and_no_step() -> None:
 def test_a_log_entry_records_the_tool_and_the_arguments_as_received() -> None:
     situation = a_game().in_step(Step.MAIN1).build()
     arguments: dict[str, object] = {"to": "MAIN2", "after": 0}
-    result = advance(situation.game, situation.deck, to="MAIN2")
+    result = advance(situation.game, situation.deck, TESTED, to="MAIN2")
     entry = logged("advance", arguments, situation.game, result)
     assert (entry.tool, entry.arguments) == ("advance", {"to": "MAIN2", "after": 0})
 
@@ -196,7 +196,7 @@ def test_a_play_entry_records_the_delta_with_what_the_service_added() -> None:
     delta: dict[str, object] = {"fetch": {"battlefield_tapped": ["Forest"], "hand": ["Island"]}}
     after = situation.game.copy()
     after.change += 1
-    after.shuffles += 1
+    after.tested.shuffles += 1
     entry = log_entry(
         tool="play",
         arguments={"card": "Cultivate", "delta": delta},
@@ -222,7 +222,7 @@ def test_a_play_entry_records_the_delta_with_what_the_service_added() -> None:
 # @spec REC-004
 def test_a_call_without_a_delta_or_bookkeeping_records_no_delta() -> None:
     situation = a_game().build()
-    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck))
+    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck, TESTED))
     assert entry.delta is None
 
 
@@ -281,7 +281,7 @@ def test_a_card_played_unpaid_under_an_override_records_no_payment() -> None:
 def test_a_log_entry_records_the_reason_verbatim() -> None:
     situation = a_game().build()
     reason = "  Holding up mana for Counterspell;  no threats yet.  "
-    result = advance(situation.game, situation.deck)
+    result = advance(situation.game, situation.deck, TESTED)
     entry = logged("advance", {"reason": reason}, situation.game, result)
     assert entry.reason == reason
 
@@ -339,14 +339,14 @@ def test_a_log_entry_records_the_assumptions_the_service_made() -> None:
 # @spec REC-006
 def test_a_log_entry_records_the_cards_drawn() -> None:
     situation = a_game().in_step(Step.UPKEEP).with_library("Island", "Forest").build()
-    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck))
+    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck, TESTED))
     assert entry.drawn == ("Island",)
 
 
 # @spec REC-006, REC-008
 def test_a_log_entry_records_the_steps_entered_from_the_summary_event() -> None:
     situation = a_game().in_step(Step.MAIN2, turn=3).with_library("Forest").build()
-    result = advance(situation.game, situation.deck, to="upkeep")
+    result = advance(situation.game, situation.deck, TESTED, to="upkeep")
     entry = logged("advance", {"to": "upkeep"}, situation.game, result)
     assert entry.steps == (Step.END, Step.CLEANUP, Step.UNTAP, Step.UPKEEP)
 
@@ -354,7 +354,7 @@ def test_a_log_entry_records_the_steps_entered_from_the_summary_event() -> None:
 # @spec REC-006, REC-008
 def test_a_log_entry_records_steps_entered_reported_among_the_events() -> None:
     situation = a_game().in_mulligan().with_hand("Forest").with_library("Island").build()
-    result = mulligan(situation.game, situation.deck, keep=True)
+    result = mulligan(situation.game, situation.deck, TESTED, keep=True)
     entry = logged("mulligan", {"keep": True}, situation.game, result)
     assert entry.steps == (Step.UNTAP, Step.UPKEEP, Step.DRAW, Step.MAIN1)
 
@@ -378,7 +378,7 @@ def test_a_reminder_issued_in_a_new_turn_is_recorded_for_that_turn() -> None:
         .with_library("Forest")
         .build()
     )
-    result = advance(situation.game, situation.deck, to="upkeep")
+    result = advance(situation.game, situation.deck, TESTED, to="upkeep")
     entry = logged("advance", {"to": "upkeep"}, situation.game, result)
     assert [r.turn for r in entry.reminders] == [4]
 
@@ -398,7 +398,7 @@ def test_a_log_entry_records_the_notices_first_raised() -> None:
 
 # @spec REC-007
 def test_the_new_game_entry_outcome_is_the_opening_hand() -> None:
-    game = Game(game_id="g1", deck_id="d1", seed=3, change=1)
+    game = Game(game_id="g1", seed=3, seats=[], change=1)
     entry = log_entry(
         tool="new_game",
         arguments={"deck_id": "d1"},
@@ -424,8 +424,8 @@ def test_a_kept_hand_entry_outcome_is_the_hand_and_the_cards_bottomed() -> None:
     situation = (
         a_game().in_mulligan().with_hand("Forest", "Ponder").with_library("Island", "Swamp").build()
     )
-    situation.game.mulligans = 2
-    result = mulligan(situation.game, situation.deck, keep=True, bottom=["Ponder"])
+    situation.game.tested.mulligans = 2
+    result = mulligan(situation.game, situation.deck, TESTED, keep=True, bottom=["Ponder"])
     entry = logged("mulligan", {"keep": True, "bottom": ["Ponder"]}, situation.game, result)
     assert entry.outcome == {"hand": ["Forest"], "bottomed": ["Ponder"]}
 
@@ -461,7 +461,7 @@ def test_an_attack_entry_outcome_is_the_attackers_blocked_and_targets() -> None:
         "blocked": ["Grizzly Bears"],
         "commander_target": 2,
     }
-    result = attack(situation.game, situation.deck, **arguments)  # type: ignore[arg-type]
+    result = attack(situation.game, situation.deck, TESTED, **arguments)  # type: ignore[arg-type]
     entry = logged("attack", arguments, situation.game, result)
     assert entry.outcome == {
         "attackers": ["Atraxa, Praetors' Voice", "Grizzly Bears"],
@@ -474,9 +474,9 @@ def test_an_attack_entry_outcome_is_the_attackers_blocked_and_targets() -> None:
 def test_the_entry_that_enters_combat_damage_records_damage_per_attacker() -> None:
     situation = a_game().in_step(Step.MAIN1).with_battlefield("Grizzly Bears").build()
     declared = applied(
-        attack(situation.game, situation.deck, attackers=["Grizzly Bears"], damage=None)
+        attack(situation.game, situation.deck, TESTED, attackers=["Grizzly Bears"], damage=None)
     )
-    result = advance(declared.game, situation.deck, to="combat_damage")
+    result = advance(declared.game, situation.deck, TESTED, to="combat_damage")
     entry = logged("advance", {"to": "combat_damage"}, declared.game, result)
     assert entry.outcome == {
         "damage": [{"attacker": "Grizzly Bears", "damage": 2, "commander_target": None}]
@@ -486,7 +486,7 @@ def test_the_entry_that_enters_combat_damage_records_damage_per_attacker() -> No
 # @spec REC-007
 def test_an_advance_entry_outcome_is_the_cards_discarded() -> None:
     situation = a_game().in_step(Step.END).with_hand(*("Ponder",) * 8).build()
-    result = advance(situation.game, situation.deck, discard=["Ponder"])
+    result = advance(situation.game, situation.deck, TESTED, discard=["Ponder"])
     entry = logged("advance", {"discard": ["Ponder"]}, situation.game, result)
     assert entry.outcome == {"discarded": ["Ponder"]}
 
@@ -507,7 +507,7 @@ def test_a_discard_by_effect_is_not_an_outcome() -> None:
 # @spec REC-007
 def test_the_end_game_entry_outcome_is_the_result_and_notes() -> None:
     situation = a_game().build()
-    result = end_game(situation.game, situation.deck, result="win", notes="combo on turn 6")
+    result = end_game(situation.game, situation.deck, TESTED, result="win", notes="combo on turn 6")
     entry = logged("end_game", {"result": "win"}, situation.game, result)
     assert entry.outcome == {"result": "win", "notes": "combo on turn 6"}
 
@@ -521,7 +521,7 @@ def test_a_log_entry_holds_only_json_compatible_data() -> None:
         .with_library("Forest", "Island")
         .build()
     )
-    result = advance(situation.game, situation.deck, to="upkeep")
+    result = advance(situation.game, situation.deck, TESTED, to="upkeep")
     entry = logged("advance", {"to": "upkeep", "reason": "go"}, situation.game, result)
     data = log_entry_to_data(entry)
     assert json.loads(json.dumps(data)) == data
@@ -558,7 +558,7 @@ def test_a_reminder_is_not_answered_by_an_effect_in_a_later_turn() -> None:
         .build()
     )
     reminding, game = entered_upkeep(situation)
-    result = applied(advance(game, situation.deck, to="upkeep"))
+    result = applied(advance(game, situation.deck, TESTED, to="upkeep"))
     next_turn = logged("advance", {"to": "upkeep"}, game, result)
     answering, _ = effect_from(result.game, "Phyrexian Arena")
     assert judged([reminding, next_turn, answering]) == [False, True]
@@ -651,7 +651,9 @@ TIBALT = "Tibalt, Cosmic Impostor"
 def test_the_game_and_the_log_agree_on_answering_a_reminder_issued_on_a_back_face(
     source: str, answered: bool
 ) -> None:
-    back_face_trigger = CardReading((FaceReading(), FaceReading(step_triggers=(Step.UPKEEP,))))
+    back_face_trigger = CardReading(
+        (FaceReading(), FaceReading(step_triggers=(StepTrigger(Step.UPKEEP),)))
+    )
     situation = (
         a_game()
         .in_step(Step.UNTAP)
@@ -662,7 +664,7 @@ def test_the_game_and_the_log_agree_on_answering_a_reminder_issued_on_a_back_fac
     situation.named(VALKI.name).face = 1
     reminding, game = entered_upkeep(situation)
     arguments = {"source": source, "delta": {}}
-    result = applied(effect(game, situation.deck, source=source, delta={}))
+    result = applied(effect(game, situation.deck, TESTED, source=source, delta={}))
     answering = logged("effect", arguments, game, result)
     snapshot = take_snapshot(result.game, situation.deck)
     assert snapshot is not None
@@ -731,7 +733,7 @@ def a_played_game() -> tuple[Game, list[LogEntry], list[TurnSnapshot]]:
     entries: list[LogEntry] = []
     snapshots: list[TurnSnapshot] = []
     for _ in range(3):
-        result = applied(advance(game, situation.deck))
+        result = applied(advance(game, situation.deck, TESTED))
         entries.append(logged("advance", {}, game, result))
         snapshots.extend(result.snapshots)
         game = result.game
@@ -758,7 +760,9 @@ def test_the_export_describes_the_game() -> None:
 # @spec REC-019
 def test_the_export_gives_the_result_of_an_ended_game() -> None:
     situation = a_game().build()
-    ended = applied(end_game(situation.game, situation.deck, result="stalled", notes="no gas"))
+    ended = applied(
+        end_game(situation.game, situation.deck, TESTED, result="stalled", notes="no gas")
+    )
     document = export(ended.game, [], [], [], since=None)
     game = document["game"]
     assert isinstance(game, dict)

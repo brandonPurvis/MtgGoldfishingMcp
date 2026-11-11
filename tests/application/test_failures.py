@@ -4,16 +4,23 @@ from __future__ import annotations
 
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.application.outcome import Status
-from mtg_goldfishing.application.ports import GameRecords, StoredGame
+from mtg_goldfishing.application.ports import (
+    GameRecords,
+    GameRepository,
+    RecordStore,
+    SeatOfGame,
+    StoredGame,
+)
 from mtg_goldfishing.domain.events import ErrorKind, Refused
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from mtg_goldfishing.domain.steps import Step
-from tests.support.builders import a_game
+from tests.support.builders import TESTED, a_game
 from tests.support.service import GAME_ID, ServiceHarness, a_service
 
 
-class ChangedByAnotherWriter:
+class ChangedByAnotherWriter(GameRepository):
     """A game repository where another writer saves each game just after it is loaded."""
 
     def __init__(self, inner: InMemoryGameRepository) -> None:
@@ -25,6 +32,9 @@ class ChangedByAnotherWriter:
             self._inner.save(stored.game, version=stored.version)
         return stored
 
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
+
     def add(self, game: Game) -> None:
         self._inner.add(game)
 
@@ -32,7 +42,7 @@ class ChangedByAnotherWriter:
         return self._inner.save(game, version=version)
 
 
-class SnapshotsCannotBeWritten:
+class SnapshotsCannotBeWritten(RecordStore):
     """A record store whose disk fills up whenever a turn snapshot is added."""
 
     def __init__(self, inner: InMemoryRecordStore) -> None:
@@ -50,8 +60,11 @@ class SnapshotsCannotBeWritten:
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
 
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
 
-class CallRecordsCannotBeAdded:
+
+class CallRecordsCannotBeAdded(RecordStore):
     """A record store whose disk fills up whenever a call record is added."""
 
     def __init__(self, inner: InMemoryRecordStore) -> None:
@@ -68,6 +81,9 @@ class CallRecordsCannotBeAdded:
 
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
+
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
 
 
 def errors_of(summary: object) -> list[ErrorKind]:
@@ -102,7 +118,7 @@ def test_a_game_changed_since_it_was_loaded_is_an_error_asking_to_send_the_call_
 def test_a_game_changed_since_it_was_loaded_saves_nothing_of_the_call() -> None:
     harness = harness_whose_game_changes_underneath()
     harness.service.play({"game_id": GAME_ID, "card": "Forest"})
-    assert harness.game().hand[0].name == "Forest"
+    assert harness.game().hand_of(TESTED)[0].name == "Forest"
     assert harness.records().entries == ()
 
 

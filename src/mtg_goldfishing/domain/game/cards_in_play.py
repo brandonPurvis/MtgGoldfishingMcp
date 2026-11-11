@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from mtg_goldfishing.domain.cards import Card, Face, type_words
 from mtg_goldfishing.domain.deck.model import LoadedDeck
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import CardInstance, Game, TokenSpec
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
@@ -102,15 +103,27 @@ def _keyword(reading: FaceReading, keyword: str) -> KeywordReading:
     return reading.haste if keyword == "haste" else reading.vigilance
 
 
-def has_keyword(game: Game, deck: LoadedDeck, card: CardInstance, keyword: str) -> bool:
-    """Haste or vigilance: the instance's own, or granted by a permanent on the battlefield."""
-    if _keyword(reading_of(deck, card), keyword).own:
+# @spec PAY-049, GAME-171
+def has_keyword(
+    game: Game,
+    deck: LoadedDeck,
+    card: CardInstance,
+    keyword: str,
+    decks: Decks | None = None,
+) -> bool:
+    """Haste or vigilance: the instance's own, or granted by a permanent its controller controls.
+
+    The instance and every permanent that could grant the keyword are each read from their
+    owner's deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    own_deck = every.of(card.owner)
+    if _keyword(reading_of(own_deck, card), keyword).own:
         return True
-    if not is_creature(deck, card):
+    if not is_creature(own_deck, card):
         return False
-    words = type_words(type_line(deck, card))
-    for other in game.battlefield:
-        grant = _keyword(reading_of(deck, other), keyword).grant
+    words = type_words(type_line(own_deck, card))
+    for other in game.battlefield_of(card.controller):
+        grant = _keyword(reading_of(every.of(other.owner), other), keyword).grant
         if grant is None:
             continue
         if other.id == card.id and not grant.includes_self:
@@ -120,18 +133,23 @@ def has_keyword(game: Game, deck: LoadedDeck, card: CardInstance, keyword: str) 
     return False
 
 
-def has_haste(game: Game, deck: LoadedDeck, card: CardInstance) -> bool:
-    return has_keyword(game, deck, card, "haste")
+def has_haste(game: Game, deck: LoadedDeck, card: CardInstance, decks: Decks | None = None) -> bool:
+    return has_keyword(game, deck, card, "haste", decks)
 
 
-def has_vigilance(game: Game, deck: LoadedDeck, card: CardInstance) -> bool:
-    return has_keyword(game, deck, card, "vigilance")
+def has_vigilance(
+    game: Game, deck: LoadedDeck, card: CardInstance, decks: Decks | None = None
+) -> bool:
+    return has_keyword(game, deck, card, "vigilance", decks)
 
 
-def is_summoning_sick(game: Game, deck: LoadedDeck, card: CardInstance) -> bool:
-    """A creature that entered the battlefield this turn and has no haste."""
+def is_summoning_sick(
+    game: Game, deck: LoadedDeck, card: CardInstance, decks: Decks | None = None
+) -> bool:
+    """A creature that entered the battlefield this turn and has no haste. `deck` is the
+    creature's owner's; `decks` gives every seat's, for the permanents that may grant haste."""
     return (
         is_creature(deck, card)
         and card.entered_turn == game.turn
-        and not has_haste(game, deck, card)
+        and not has_haste(game, deck, card, decks)
     )

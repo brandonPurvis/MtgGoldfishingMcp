@@ -20,11 +20,13 @@ class Kind(Enum):
 
     TEXT = "text"
     WHOLE_NUMBER = "whole number"
+    NUMBER = "number"
     FLAG = "flag"
     OBJECT = "object"
     LIST = "list"
     TEXT_OR_LIST = "text or list"
     WHOLE_NUMBER_OR_OBJECT = "whole number or object"
+    WHOLE_NUMBER_OR_LIST = "whole number or list"
 
     @property
     def json_types(self) -> tuple[str, ...]:
@@ -35,11 +37,13 @@ class Kind(Enum):
 _JSON_TYPES: dict[Kind, tuple[str, ...]] = {
     Kind.TEXT: ("string",),
     Kind.WHOLE_NUMBER: ("integer",),
+    Kind.NUMBER: ("number",),
     Kind.FLAG: ("boolean",),
     Kind.OBJECT: ("object", "string"),
     Kind.LIST: ("array", "string"),
     Kind.TEXT_OR_LIST: ("string", "array"),
     Kind.WHOLE_NUMBER_OR_OBJECT: ("integer", "object", "string"),
+    Kind.WHOLE_NUMBER_OR_LIST: ("integer", "array", "string"),
 }
 
 
@@ -121,6 +125,9 @@ def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
         return _Fitted(value) if isinstance(value, str) else None
     if kind is Kind.WHOLE_NUMBER:
         return _Fitted(value) if _is_whole_number(value) else None
+    if kind is Kind.NUMBER:
+        number = isinstance(value, int | float) and not isinstance(value, bool)
+        return _Fitted(value) if number else None
     if kind is Kind.FLAG:
         return _Fitted(value) if isinstance(value, bool) else None
     if kind is Kind.OBJECT:
@@ -135,6 +142,8 @@ def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
             return _Fitted(decoded) if isinstance(decoded, list) else None
         return _Fitted(value) if isinstance(value, str | list) else None
     decoded = _decoded(value)
+    if kind is Kind.WHOLE_NUMBER_OR_LIST:
+        return _Fitted(decoded) if _is_whole_number(decoded) or isinstance(decoded, list) else None
     return _Fitted(decoded) if _is_whole_number(decoded) or isinstance(decoded, dict) else None
 
 

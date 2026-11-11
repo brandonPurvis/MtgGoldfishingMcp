@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from mtg_goldfishing.application.outcome import Outcome, Status
-from mtg_goldfishing.application.ports import Rendered
+from mtg_goldfishing.application.ports import Rendered, Renderer
 
 
 def plain_text(outcome: Outcome) -> str:
@@ -24,7 +24,7 @@ def size_note(payload: object) -> str:
     return f"log export of {len(json.dumps(payload, default=str))} characters"
 
 
-class PlainRenderer:
+class PlainRenderer(Renderer):
     """Renders every outcome as `plain_text`; a successful `get_log` keeps a size note."""
 
     def render(self, tool: str, outcome: Outcome) -> Rendered:

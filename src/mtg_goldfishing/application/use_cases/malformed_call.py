@@ -5,21 +5,30 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from mtg_goldfishing.application.outcome import Answer
+from mtg_goldfishing.application.ports import SeatOfGame
 from mtg_goldfishing.application.use_cases.arguments import malformed
-from mtg_goldfishing.application.use_cases.handling import Call, Ports, refused
+from mtg_goldfishing.application.use_cases.handling import (
+    Call,
+    Ports,
+    decks_of,
+    find_seat,
+    refused,
+)
 from mtg_goldfishing.domain.events import Error, ErrorKind
 from mtg_goldfishing.domain.game.results import Refusal
 from mtg_goldfishing.domain.game.summary import summarize
 
 
-# @spec APP-027
+# @spec APP-027, REC-052, APP-058
 def malformed_call(
     ports: Ports, tool: str, arguments: Mapping[str, object], problems: Sequence[str]
 ) -> Answer:
     """An `ERROR` with one malformed-argument error per problem, as the adapter named them.
 
-    When the call's `game_id` names an existing game the outcome carries its summary; the
-    game's lock is held while it is read. Nothing but the call record is saved.
+    When the call's `game_id` names a seat of an existing game the outcome carries the
+    game's summary as that seat sees it, and the call is recorded under that game and, in a
+    contested game, that seat; the game's lock is held while it is read. Nothing but the
+    call record is saved.
     """
     errors = tuple(malformed(problem) for problem in problems) or (
         Error(ErrorKind.MALFORMED_ARGUMENT),
@@ -32,11 +41,21 @@ def malformed_call(
     call = Call(ports, tool, arguments, game_id)
 
     def answer() -> Answer:
-        stored = ports.games.get(game_id)
-        deck = None if stored is None else ports.decks.get(stored.game.deck_id)
-        if stored is not None and deck is not None:
-            call.game = summarize(stored.game, deck)
+        found = find_seat(ports.games, game_id)
+        if found is None:
+            return call.finish(refused(refusal, None))
+        call.game_id = found.game_id
+        with ports.locks.hold(found.game_id):
+            return call.guarded(lambda: summarized(found))
+
+    def summarized(found: SeatOfGame) -> Answer:
+        stored = ports.games.get(found.game_id)
+        if stored is not None:
+            if stored.game.contested:
+                call.seat = found.seat
+            call.about(stored.game)
+            decks = decks_of(ports.decks, stored.game)
+            call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
         return call.finish(refused(refusal, call.game))
 
-    with ports.locks.hold(game_id):
-        return call.guarded(answer)
+    return call.guarded(answer)

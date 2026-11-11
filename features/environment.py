@@ -27,10 +27,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tests.support.responses import headline  # noqa: E402
 from tests.support.service import a_service  # noqa: E402  (needs the repository root on the path)
 
 GAME_SCOPED = (
     "mulligan",
+    "wait",
     "get_state",
     "play",
     "effect",
@@ -110,7 +112,8 @@ class Agent:
         return self.harness.game(self.game_id)
 
     def names_in(self, zone: Zone) -> list[str]:
-        return [card.name for card in self.game().in_zone(zone)]
+        game = self.game()
+        return [card.name for card in game.in_zone(zone, game.tested.number)]
 
     def start_game(self, seed: int) -> ToolResponse:
         """Start a game on the loaded deck; it becomes the current game."""
@@ -143,7 +146,7 @@ class Agent:
             delta["fetch"] = {zone.value: fetch}
         if delta:
             response = self.call("effect", source="arranging the scenario", delta=delta)
-            assert response.text.startswith("OK"), response.text
+            assert headline(response.text).startswith("OK"), response.text
 
     def discard_down_to(self, size: int) -> None:
         """Discard the last cards in hand until it holds `size`, with one `effect` call."""
@@ -153,7 +156,7 @@ class Agent:
             response = self.call(
                 "effect", source="arranging the scenario", delta={"discard": discard}
             )
-            assert response.text.startswith("OK"), response.text
+            assert headline(response.text).startswith("OK"), response.text
 
 
 def before_all(context: Any) -> None:
