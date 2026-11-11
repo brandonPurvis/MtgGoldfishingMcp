@@ -152,3 +152,21 @@ Feature: Starting and taking turns in a contested game
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S2 asks for the state
     Then the status line shows "Cmdr 0 · Cmdr taken 0 · Tax 0"
+
+  # @spec REC-089, REC-055
+  @wip
+  Scenario: Any seat may narrow the log to the calls one seat made
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    When seat S1 asks for the game's log of seat S2
+    Then the response is JSON about the current game
+    And every log entry was made by seat S2
+    And the log has an entry for "mulligan"
+
+  # @spec REC-097, REC-098
+  @wip
+  Scenario: Ending a contested game records every seat's board in the log
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    When seat S1 ends the game as a "stalled"
+    And seat S2 asks for the game's log
+    Then the log's end_game entry holds the final state of seats 1 and 2
+    And the final state of seat S2 holds its hand

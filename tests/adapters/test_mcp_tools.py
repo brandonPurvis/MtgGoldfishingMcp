@@ -364,3 +364,25 @@ def test_a_malformed_call_changes_nothing() -> None:
     surface.call("play", {"game_id": game_id, "card": ["Forest"]})
 
     assert harness.game(game_id).change == change
+
+
+# @spec TOOL-010, REC-090
+@pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
+def test_get_log_s_tools_sent_as_a_json_string_is_decoded() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    surface.call("play", {"game_id": game_id, "card": "Forest"})
+
+    response = surface.call("get_log", {"game_id": game_id, "tools": json.dumps(["advance"])})
+
+    assert json.loads(response.text)["entries"] == []
+
+
+# @spec TOOL-010, TOOL-028
+def test_get_log_s_tools_sent_as_bare_text_is_answered_as_an_error() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("get_log", {"game_id": game_id, "tools": "play"})
+
+    assert response.text.startswith("ERROR Argument tools is malformed.")

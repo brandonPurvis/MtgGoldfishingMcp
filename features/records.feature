@@ -20,3 +20,21 @@ Feature: Records
     When I ask for the game's log
     Then the response is JSON about the current game
     And the log's game has the result "win"
+
+  # @spec REC-090, TOOL-010
+  @wip
+  Scenario: The log can be narrowed to the calls of some tools
+    Given "Forest" is in my hand
+    And I have played "Forest"
+    When I advance to "main2"
+    And I ask for the game's log of only the "play" calls
+    Then the response is JSON about the current game
+    And every log entry is for "play"
+    And the log has an entry for "play"
+
+  # @spec REC-095
+  @wip
+  Scenario: A log filter naming something that is not a tool is refused
+    When I ask for the game's log of only the "plya" calls
+    Then the response says "plya, which are not tools"
+    And the response carries the error flag

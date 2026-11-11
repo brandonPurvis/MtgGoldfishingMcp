@@ -78,6 +78,17 @@ def step_impl(context: Any) -> None:
     assert agent.log["game"]["game_id"] == agent.game_id
 
 
+@when('I ask for the game\'s log of only the "{tool:Quoted}" calls')
+def step_impl(context: Any, tool: str) -> None:
+    """The tools filter is sent as a JSON string, as some clients send a list."""
+    context.agent.call("get_log", tools=json.dumps([tool]))
+
+
+@then('every log entry is for "{tool}"')
+def step_impl(context: Any, tool: str) -> None:
+    assert {entry["tool"] for entry in context.agent.log["entries"]} == {tool}
+
+
 @then('the log has an entry for "{tool}"')
 def step_impl(context: Any, tool: str) -> None:
     assert any(entry["tool"] == tool for entry in context.agent.log["entries"])

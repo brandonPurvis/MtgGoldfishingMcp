@@ -80,6 +80,23 @@ class TurnSnapshot:
 
 
 @dataclass(frozen=True)
+class SeatFinal:
+    """One seat of a contested game as the game stood when the tested seat ended it.
+
+    `commander_damage_taken` maps every other seat to the combat damage each commander of
+    that seat's deck has dealt this seat, by the commander's card name.
+    """
+
+    seat: SeatNumber
+    life: int
+    eliminated: bool
+    hand: tuple[str, ...]
+    battlefield: tuple[PermanentRecord, ...]
+    graveyard: tuple[str, ...]
+    commander_damage_taken: tuple[tuple[SeatNumber, tuple[tuple[str, int], ...]], ...]
+
+
+@dataclass(frozen=True)
 class Payment:
     cost: str
     sources: tuple[str, ...]
