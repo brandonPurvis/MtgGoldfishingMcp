@@ -5,18 +5,20 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 
 from mtg_goldfishing.application.ports import CardCache, CardCatalog
-from mtg_goldfishing.domain.cards import Card, CardLookup, LookupStatus, same_name
+from mtg_goldfishing.domain.cards import (
+    Card,
+    CardLookup,
+    LookupStatus,
+    resolve_name,
+    same_name,
+)
 
 
 def _key(name: str) -> str:
     return name.strip().casefold()
 
 
-def _sort_key(card: Card) -> tuple[str, str]:
-    return (card.name.casefold(), card.name)
-
-
-# @spec CARD-006, CARD-007, CARD-017
+# @spec CARD-006, CARD-007, CARD-017, CARD-021, CARD-022, CARD-024
 class InMemoryCardCache(CardCache):
     """A card cache in a dictionary: one entry per card, keyed by its full name."""
 
@@ -24,17 +26,14 @@ class InMemoryCardCache(CardCache):
         self._cards: dict[str, Card] = {}
 
     def get(self, name: str) -> Card | None:
-        """The card with this full name; else, of the cards with this face name, the first."""
-        if (card := self._cards.get(_key(name))) is not None:
-            return card
-        sharing_the_face = [card for card in self._cards.values() if card.matches(name)]
-        return min(sharing_the_face, key=_sort_key, default=None)
+        """The cached card the name resolves to by the name-matching rule, if any."""
+        return resolve_name(name, self._cards.values())
 
     def put(self, card: Card) -> None:
         self._cards[_key(card.name)] = card
 
 
-# @spec CARD-006, CARD-007, APP-013
+# @spec CARD-006, CARD-007, CARD-021, CARD-022, APP-013
 class InMemoryCardCatalog(CardCatalog):
     """A card catalog over a fixed set of cards, where some names can be made unavailable."""
 

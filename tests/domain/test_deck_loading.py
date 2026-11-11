@@ -877,12 +877,10 @@ def test_the_names_to_look_up_are_the_commanders_and_every_entry() -> None:
 
 # Cards written with slash separators
 
-M4 = pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
 GALLIFREY = "Gallifrey Falls // No More"
 
 
 # @spec DECK-004
-@M4
 def test_a_split_card_written_with_one_slash_is_an_entry_under_its_full_name() -> None:
     builder = a_deck_list().with_override("off-color").of_size(99)
     load = builder.loaded(builder.text() + "\nGallifrey Falls/No More")
@@ -890,7 +888,6 @@ def test_a_split_card_written_with_one_slash_is_an_entry_under_its_full_name() -
 
 
 # @spec DECK-004
-@M4
 def test_a_card_named_by_full_name_and_written_with_a_slash_is_one_entry() -> None:
     builder = a_deck_list().with_override("off-color").of_size(98)
     load = builder.loaded(builder.text() + "\nFire // Ice\nfire / ICE")
@@ -898,7 +895,6 @@ def test_a_card_named_by_full_name_and_written_with_a_slash_is_one_entry() -> No
 
 
 # @spec DECK-004
-@M4
 def test_a_card_written_with_a_slash_and_named_by_a_face_is_one_entry() -> None:
     builder = a_deck_list().with_override("off-color").of_size(98)
     load = builder.loaded(builder.text() + "\n Fire//Ice \nIce")
@@ -906,7 +902,6 @@ def test_a_card_written_with_a_slash_and_named_by_a_face_is_one_entry() -> None:
 
 
 # @spec DECK-043
-@M4
 def test_a_definition_named_with_a_slash_applies_to_the_card_s_first_face() -> None:
     load = (
         a_deck_list()
@@ -921,7 +916,6 @@ def test_a_definition_named_with_a_slash_applies_to_the_card_s_first_face() -> N
 
 
 # @spec DECK-043, DECK-011
-@M4
 def test_a_definition_named_with_a_slash_applies_to_the_face_it_names() -> None:
     load = (
         a_deck_list()

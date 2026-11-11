@@ -72,7 +72,6 @@ def test_a_cache_has_nothing_for_a_name_no_stored_card_matches(
 
 
 # @spec CARD-021, CARD-024
-@pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
 @pytest.mark.parametrize(
     "name", ["Gallifrey Falls/No More", "gallifrey falls / no more", " Gallifrey Falls//No More "]
 )

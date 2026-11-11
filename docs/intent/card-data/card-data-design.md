@@ -46,11 +46,11 @@ A single-faced card is a card with one face whose name equals the card name. Eve
 
 A requested name matches a card when, ignoring letter case and surrounding whitespace, it equals the card's full name or the name of any one of its faces. `Valki, God of Lies` and `Tibalt, Cosmic Impostor` both match the same card.
 
-Deck sites and players often write a multi-face card's full name with a single slash: `Fire/Ice`, `Fire / Ice` or `Fire//Ice` for `Fire // Ice`. So a requested name that contains `/` is also read as a list of face names, split at each slash separator: a `//`, or a `/` that is not part of a `//`, together with any spaces around it. Read that way, it matches a card whose faces, in order, have exactly those names, ignoring letter case and surrounding whitespace, with one part per face. A part that is empty matches no face, so `Fire///Ice` and `Fire / / Ice` match nothing.
+Deck sites and players often write a multi-face card's full name with a single slash: `Fire/Ice`, `Fire / Ice` or `Fire//Ice` for `Fire // Ice`. So a requested name that contains `/` is also split at each slash separator — a `//`, or a `/` that is not part of a `//`, together with any spaces around it — into a list of face names. Split that way, it matches a card whose faces, in order, have exactly those names, ignoring letter case and surrounding whitespace, with one part per face. A part that is empty matches no face, so `Fire///Ice` and `Fire / / Ice` match nothing.
 
-The name as written comes first. `Summon: Choco/Mog` is a single-faced card with a slash in its own name; it is matched by that name, and a different card matching only the slash reading of a name is never chosen over the card the name itself matches.
+The name as written comes first. `Summon: Choco/Mog` is a single-faced card with a slash in its own name; it is matched by that name, and a different card matching only the name split at its slash separators is never chosen over the card the name itself matches.
 
-The slash reading cannot turn a misspelled name into a different card: every part must equal a face name of the same card, in order, so a misspelling in any part leaves the name unmatched (`Fire/Ise` matches nothing). No other matching is done: no fuzzy matching, no prefix matching, no other punctuation folding.
+Splitting at slash separators cannot turn a misspelled name into a different card: every part must equal a face name of the same card, in order, so a misspelling in any part leaves the name unmatched (`Fire/Ise` matches nothing). No other matching is done: no fuzzy matching, no prefix matching, no other punctuation folding.
 
 The rule belongs to the card model in the domain, so both catalogs, and deck loading when it matches a card definition's name to a card, apply it alike. Card names given in a game are resolved by `game`'s own rule, among the names the game shows.
 
@@ -92,7 +92,7 @@ One row per card, keyed by the lower-cased full name, with a lookup row for each
 
 A face name maps to one card. If two cards share a face name, the name resolves to the card whose full name sorts first.
 
-Rows are keyed only by the names Scryfall gives — full names and face names — never by a spelling a caller used. A name with a slash finds its card in the cache as it is matched: by its own text first, then by its slash reading, so `Fire/Ice` is supplied from the `Fire // Ice` row without contacting Scryfall. A cached card found by the slash reading is used without asking Scryfall whether some uncached card bears the name as written; no card's name is another card's full name with ` // ` written as `/`, so this never chooses differently in practice.
+Rows are keyed only by the names Scryfall gives — full names and face names — never by a spelling a caller used. A name with a slash finds its card in the cache as it is matched: by its own text first, then split at its slash separators, so `Fire/Ice` is supplied from the `Fire // Ice` row without contacting Scryfall. A cached card found this way is used without asking Scryfall whether some uncached card bears the name as written; no card's name is another card's full name with ` // ` written as `/`, so this never chooses differently in practice.
 
 ## Decisions & Alternatives
 

@@ -5,7 +5,6 @@ import pytest
 from mtg_goldfishing.domain.cards import Card, Face, resolve_name
 from tests.support.card_data import recorded_card
 
-M4 = pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
 FIRE_ICE = Card("Fire // Ice", (Face("Fire"), Face("Ice")), layout="split")
 
 
@@ -82,7 +81,6 @@ def test_a_card_matches_no_partial_or_folded_name(requested: str) -> None:
 
 
 # @spec CARD-021
-@M4
 @pytest.mark.parametrize(
     "requested",
     ["Fire/Ice", "Fire / Ice", "Fire//Ice", "fire  //  ICE", "  Fire/Ice  ", "Fire /Ice"],
@@ -94,7 +92,6 @@ def test_a_multi_faced_card_matches_its_full_name_written_with_slash_separators(
 
 
 # @spec CARD-021
-@M4
 def test_a_split_card_with_long_face_names_matches_them_written_with_one_slash() -> None:
     assert recorded_card("Gallifrey Falls // No More").matches("Gallifrey Falls/No More")
 
@@ -138,7 +135,6 @@ def test_a_card_with_a_slash_in_its_own_name_matches_that_name() -> None:
 
 
 # @spec CARD-021
-@M4
 def test_a_name_with_slash_separators_resolves_to_the_card_whose_faces_it_names() -> None:
     cards = [recorded_card("Sol Ring"), FIRE_ICE]
 
@@ -146,7 +142,6 @@ def test_a_name_with_slash_separators_resolves_to_the_card_whose_faces_it_names(
 
 
 # @spec CARD-022
-@M4
 @pytest.mark.parametrize("first", [True, False], ids=["listed first", "listed last"])
 def test_a_name_resolves_to_the_card_it_names_as_written_before_one_whose_faces_it_names(
     first: bool,
@@ -159,7 +154,6 @@ def test_a_name_resolves_to_the_card_it_names_as_written_before_one_whose_faces_
 
 
 # @spec CARD-006, CARD-007
-@M4
 def test_a_name_resolves_to_the_card_with_that_full_name_before_one_with_that_face_name() -> None:
     ice = Card("Ice", (Face("Ice"),))
 
@@ -167,7 +161,6 @@ def test_a_name_resolves_to_the_card_with_that_full_name_before_one_with_that_fa
 
 
 # @spec CARD-007
-@M4
 def test_a_face_name_shared_by_two_cards_resolves_to_the_card_whose_full_name_sorts_first() -> None:
     later = Card("Zebra // Ice", (Face("Zebra"), Face("Ice")))
 
@@ -175,6 +168,5 @@ def test_a_face_name_shared_by_two_cards_resolves_to_the_card_whose_full_name_so
 
 
 # @spec CARD-006, CARD-021
-@M4
 def test_a_name_no_card_matches_resolves_to_none() -> None:
     assert resolve_name("Fire/Ise", [FIRE_ICE]) is None
