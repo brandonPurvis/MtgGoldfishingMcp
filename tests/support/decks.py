@@ -16,6 +16,7 @@ from mtg_goldfishing.domain.game.results import Refusal
 from tests.support.card_data import recorded_cards
 
 ATRAXA = "Atraxa, Praetors' Voice"
+OMNATH = "Omnath, Locus of Mana"
 
 # Singletons legal in Commander and within Atraxa's color identity.
 STAPLES = (
@@ -188,3 +189,21 @@ class DeckListBuilder:
 
 def a_deck_list() -> DeckListBuilder:
     return DeckListBuilder()
+
+
+OUTSIDE_OMNATH = (
+    "Azorius Signet",
+    "Counterspell",
+    "Brainstorm",
+    "Ponder",
+    "Demonic Tutor",
+    "Dismember",
+    "Phyrexian Arena",
+    "Rhystic Study",
+)
+"""The staples outside Omnath's color identity."""
+
+
+def an_opposing_deck_list() -> DeckListBuilder:
+    """A second legal deck, for an opposing seat: Omnath with the green and colorless staples."""
+    return a_deck_list().with_commander(OMNATH).without(*OUTSIDE_OMNATH)

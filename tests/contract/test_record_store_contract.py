@@ -3,10 +3,12 @@
 from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from mtg_goldfishing.application.ports import GameRecords, RecordStore
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from tests.support.stored import a_call, a_log_entry, a_snapshot
 from tests.support.stores import STORE_ADAPTER_IDS, STORE_ADAPTERS, OpenStores
 
@@ -109,3 +111,13 @@ def test_changing_the_arguments_of_an_added_call_does_not_change_the_stored_call
     call.arguments["to"] = "end"
 
     assert records.read(GAME).calls[0].arguments == a_call(GAME, 1).arguments
+
+
+# @spec REC-052
+@pytest.mark.xfail(strict=True, reason="M3a: call records naming seats are not built")
+def test_a_call_record_s_seat_number_is_read_back(records: RecordStore) -> None:
+    seated: Any = replace(a_call(GAME, 3), seat=SeatNumber(2))
+    records.add_call(seated)
+    (read,) = records.read(GAME).calls
+    seat: Any = read
+    assert seat.seat == SeatNumber(2)

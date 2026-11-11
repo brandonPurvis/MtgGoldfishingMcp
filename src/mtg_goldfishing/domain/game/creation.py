@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Error, ErrorKind, GameStarted
 from mtg_goldfishing.domain.game.model import (
@@ -20,6 +23,16 @@ from mtg_goldfishing.domain.game.shuffling import shuffle_library
 
 TESTED_SEAT = SeatNumber(1)
 """The tested seat of a goldfish game, its only seat."""
+
+
+@dataclass(frozen=True)
+class OpposingDeck:
+    """An opposing seat as `new_game` asks for it: the deck id given, the loaded deck it
+    names (None when it names none), and the seat id the seat is to have."""
+
+    deck_id: str
+    deck: LoadedDeck | None
+    seat_id: str
 
 
 def _is_positive_int(value: object) -> bool:
@@ -71,9 +84,14 @@ def new_game(
     seed: int,
     turn_limit: object = None,
     draw_first_turn: object = None,
+    opposing: Sequence[OpposingDeck] = (),
+    starting_life: object = None,
+    position: object = None,
 ) -> Result:
     """Create a goldfish game: one seat, the tested seat, numbered 1 and named by the game
     id, against three imaginary opponents."""
+    if opposing or starting_life is not None or position is not None:
+        raise NotImplementedError("M3a: opposing seats, starting life and position are not built")
     if deck is None:
         return Refusal.error(Error(ErrorKind.UNKNOWN_DECK, subject=deck_id))
     if turn_limit is not None and not _is_positive_int(turn_limit):

@@ -68,6 +68,11 @@ class _SeatPlan:
     life: int = 40
     pool: ManaPool = field(default_factory=ManaPool)
     land_drops: int = 0
+    turns: int | None = None
+    eliminated: bool = False
+    kept: bool | None = None
+    commander_damage: dict[str, dict[str, int]] = field(default_factory=dict)
+    controlled: dict[str, int] = field(default_factory=dict)
 
 
 class GameBuilder:
@@ -80,6 +85,8 @@ class GameBuilder:
         self._seed = 7
         self._draw_first_turn = True
         self._turn_limit: int | None = None
+        self._active: int | None = None
+        self._round: int | None = None
 
     @property
     def _seat(self) -> _SeatPlan:
@@ -180,6 +187,41 @@ class GameBuilder:
         self._turn_limit = limit
         return self
 
+    def in_turn_of(self, seat: int) -> GameBuilder:
+        """Make the seat with this number the active seat (the tested seat's turn otherwise)."""
+        self._active = seat
+        return self
+
+    def in_round(self, round_number: int) -> GameBuilder:
+        """The game's round; the turn number otherwise."""
+        self._round = round_number
+        return self
+
+    def with_turns_taken(self, turns: int) -> GameBuilder:
+        """How many turns the seat being described has begun."""
+        self._seat.turns = turns
+        return self
+
+    def eliminated(self) -> GameBuilder:
+        """The seat being described has been eliminated."""
+        self._seat.eliminated = True
+        return self
+
+    def having_kept(self, kept: bool = True) -> GameBuilder:
+        """Whether the seat being described has kept its opening hand."""
+        self._seat.kept = kept
+        return self
+
+    def with_commander_damage(self, commander: str, to_seat: int, damage: int) -> GameBuilder:
+        """Combat damage the described seat's commander (by card name) has dealt another seat."""
+        self._seat.commander_damage.setdefault(commander, {})[str(to_seat)] = damage
+        return self
+
+    def controlled_by(self, card: str, seat: int) -> GameBuilder:
+        """A permanent the described seat owns is controlled by the seat with this number."""
+        self._seat.controlled[card] = seat
+        return self
+
     def _known(self, name: str) -> tuple[Card, CardReading]:
         return self._extra.get(name) or LIBRARY[name]
 
@@ -192,9 +234,9 @@ class GameBuilder:
             turn_limit=self._turn_limit,
             draw_first_turn=self._draw_first_turn,
             status=self._status,
-            active=TESTED if started else None,
+            active=SeatNumber(self._active or 1) if started else None,
             turn=self._turn,
-            round=self._turn,
+            round=self._turn if self._round is None else self._round,
             step=self._step,
         )
         for number, plan in enumerate(self._seats, start=1):
@@ -228,8 +270,9 @@ class GameBuilder:
             tested=tested,
             shuffle_key="" if tested else f"o{number - 1}",
             life=plan.life,
-            kept=started,
-            turns=self._turn if tested else 0,
+            eliminated=plan.eliminated,
+            kept=started if plan.kept is None else plan.kept,
+            turns=(self._turn if tested else 0) if plan.turns is None else plan.turns,
             land_drops_used=plan.land_drops,
             mana_pool=plan.pool,
         )
@@ -253,6 +296,15 @@ class GameBuilder:
                 seat.library.append(card.id)
             if placed.is_commander:
                 seat.commander_casts[card.id] = 0
+            if placed.zone is Zone.BATTLEFIELD and card.name in plan.controlled:
+                card.controller = SeatNumber(plan.controlled[card.name])
+        if plan.commander_damage:
+            commanders = {
+                c.name: c.id for c in game.cards if c.is_commander and c.owner == seat.number
+            }
+            seat.commander_damage = {
+                commanders[name]: dict(damage) for name, damage in plan.commander_damage.items()
+            }
         return seat
 
 

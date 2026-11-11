@@ -8,6 +8,7 @@ then answered to the calls that followed.
 import json
 import sqlite3
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from mtg_goldfishing.application.service import Service
 from mtg_goldfishing.domain.game import seats
 from tests.support.builders import a_game
 from tests.support.card_data import recorded_cards
+from tests.support.stored import a_call
 
 # The seat model is reached untyped here, so the tests read the same before and after it exists.
 SeatNumber: Any = seats.SeatNumber
@@ -345,3 +347,24 @@ def test_a_goldfish_game_stored_before_seats_keeps_its_change_number_and_status_
 
     assert _schema_version(path) == SEATS_SCHEMA
     assert answer.response.splitlines()[-1] == first["response"].splitlines()[-1]
+
+
+# ------------------------------------------------------------------ the seat number of calls
+
+
+# @spec STOR-021
+@pytest.mark.xfail(strict=True, reason="M3a: call records naming seats are not built")
+def test_a_call_record_s_seat_number_is_stored_in_the_seat_column(
+    stores: SqliteStores, path: Path
+) -> None:
+    seated: Any = replace(a_call(GAME, 4), seat=SeatNumber(2))
+    stores.records.add_call(seated)
+    assert _query(path, "SELECT seat FROM calls") == [(2,)]
+
+
+# @spec STOR-021
+def test_a_call_record_that_names_no_seat_stores_a_null_seat(
+    stores: SqliteStores, path: Path
+) -> None:
+    stores.records.add_call(a_call(GAME, 4))
+    assert _query(path, "SELECT seat FROM calls") == [(None,)]
