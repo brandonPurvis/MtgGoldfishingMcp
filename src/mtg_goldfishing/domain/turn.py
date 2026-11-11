@@ -153,7 +153,7 @@ def enter_step(
     elif step is Step.DRAW and not (game.turn == 1 and not game.draw_first_turn):
         walk.events.extend(draw(game, active.number, 1))
     elif step is Step.MAIN1:
-        active.turn_stats.mana_available = mana_available(game, deck, active.number)
+        active.turn_stats.mana_available = mana_available(game, deck, active.number, decks)
     elif step is Step.DECLARE_BLOCKERS and game.contested:
         asked = request_blocks(game, decks)
         walk.events.extend(asked)
@@ -165,7 +165,7 @@ def enter_step(
             for card in discard:
                 walk.events.extend(move(game, deck, card, Destination.GRAVEYARD))
             walk.events.append(CardsDiscarded(tuple(card.name for card in discard)))
-        snapshot = take_snapshot(game, deck)
+        snapshot = take_snapshot(game, deck, decks)
         if snapshot is not None:
             walk.snapshots.append(snapshot)
     reminders = _remind(game, decks, step)
@@ -205,7 +205,7 @@ def _cleanup_discard(
 # @spec TURN-001, TURN-006, TURN-007, TURN-008, TURN-009, TURN-010, TURN-012, TURN-013
 # @spec TURN-015, TURN-016, TURN-017, TURN-018, TURN-019, TURN-020, TURN-021, TURN-022
 # @spec TURN-023, TURN-024, TURN-025, APP-031, TURN-039, TURN-060, CMBT-038, TURN-056
-# @spec TURN-068, TURN-069, TURN-059, STACK-037, STACK-085, TURN-051
+# @spec TURN-068, TURN-069, TURN-059, STACK-037, STACK-085, TURN-051, TURN-029, TURN-030
 def advance(
     game: Game,
     deck: LoadedDeck,
@@ -296,7 +296,7 @@ def pass_the_turn(game: Game, decks: Decks, walk: Walk) -> None:
     written now, describing that seat as its elimination left it."""
     previous = game.active_seat
     if not previous.in_game:
-        snapshot = take_snapshot(game, decks.of(previous.number))
+        snapshot = take_snapshot(game, decks.of(previous.number), decks)
         if snapshot is not None:
             walk.snapshots.append(snapshot)
     following = next((seat for seat in game.others_from(previous.number) if seat.in_game), None)

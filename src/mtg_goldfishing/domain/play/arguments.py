@@ -357,8 +357,8 @@ def _read_by_seat(value: object, key: str) -> BySeat | Error:
     if not isinstance(value, Mapping):
         return _malformed(key)
     amounts: list[tuple[SeatNumber, int]] = []
-    for seat_key, amount in value.items():
-        seat = _seat_number(seat_key)
+    for seat_text, amount in value.items():
+        seat = _seat_number(seat_text)
         change = _whole(amount)
         if seat is None or change is None:
             return _malformed(key)
@@ -371,8 +371,8 @@ def _read_control(value: object) -> tuple[tuple[SeatNumber, Names], ...] | Error
     if not isinstance(value, Mapping):
         return _malformed("control")
     entries: list[tuple[SeatNumber, Names]] = []
-    for seat_key, names in value.items():
-        seat = _seat_number(seat_key)
+    for seat_text, names in value.items():
+        seat = _seat_number(seat_text)
         read = read_names(names, "control")
         if seat is None or isinstance(read, Error):
             return _malformed("control")

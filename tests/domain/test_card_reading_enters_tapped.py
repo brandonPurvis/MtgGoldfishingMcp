@@ -41,7 +41,7 @@ def test_a_creature_that_says_it_enters_tapped_enters_tapped() -> None:
     assert enters_tapped_of(card) == EntersTappedReading(tapped=True)
 
 
-# @spec READ-041
+# @spec READ-041, READ-051
 def test_entering_tapped_and_not_untapping_during_the_untap_step_enters_tapped() -> None:
     card = a_card(
         "Sleepy Land",

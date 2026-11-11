@@ -147,6 +147,7 @@ def _with_trigger_turns(data: Any) -> Any:
     return rewritten
 
 
+# @spec STOR-030, STOR-031, STOR-032, STOR-033
 def add_step_trigger_turns(connection: sqlite3.Connection) -> None:
     """Rewrite the step trigger readings of every stored loaded deck and game, which named a
     step alone, as triggers on their controller's turn. A game's version counter is left as

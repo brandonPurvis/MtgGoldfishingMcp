@@ -32,7 +32,7 @@ The MCP server is named `goldfishing`. The repository carries a `.mcp.json` that
 | Tool | Owned by | Purpose in the description's first sentence |
 |---|---|---|
 | `load_deck` | `deck` | Load a Commander deck list once and get a deck id to start games with. |
-| `new_game` | `game` | Start a game on a loaded deck: a goldfish game, or a contested game against one to three opposing decks. |
+| `new_game` | `game` | Start a goldfish game on a loaded deck: shuffles and deals seven. |
 | `mulligan` | `game` | Keep the opening hand or take a mulligan. |
 | `get_state` | `game` | List the hand, battlefield and other zones when the status line is not enough. |
 | `play` | `play` | Play a land or cast a spell, stating what it does. |
@@ -40,10 +40,12 @@ The MCP server is named `goldfishing`. The repository carries a `.mcp.json` that
 | `choose` | `play` | Finish a look or search by saying where the revealed cards go. |
 | `attack` | `combat` | Declare attackers and which are blocked. |
 | `advance` | `turn` | Move to the next step, or forward to a named step. |
-| `pass` | `stack` | Decline to respond, or decline to record a reminded trigger (contested games). |
+| `pass` | `stack` | Decline to respond when your seat is asked (contested games). |
 | `wait` | `application` | Wait until your seat has something to do, then say what it is (contested games). |
 | `end_game` | `game` | End the game with a result and verdict. |
 | `get_log` | `records` | Return the game's records as JSON for analysis. |
+
+The purpose sentence of a tool that serves both kinds of game describes it for a goldfish game, so an agent playing one reads it unchanged; what the tool does in a contested game follows in the parts marked "Contested games:" (see Descriptions) — `new_game` starts a contested game when given `opponents`. `pass` and `wait` serve contested games and say so in their purpose sentence.
 
 Every game-scoped tool takes `game_id` as its first parameter: the id `new_game` gave the calling seat, which for the tested seat, and so in every goldfish game, is the game id. Every tool that changes a game — `mulligan`, `play`, `effect`, `choose`, `attack`, `advance`, `pass`, `end_game` — also takes an optional `after`, the change number the calling seat last saw (see `game`).
 
@@ -177,7 +179,15 @@ T6 main1 · Hand 4 · Lands 6 (5 untapped) · Pool {} · Life 40 · Dmg 22/120 �
 
 An error about a card in another seat's hand or library says no more than `game` allows. An instance id is answered with `ERROR c212 is in a hidden zone of S2.`, naming neither the card nor the zone; a name that matches nothing the calling seat may see gets the same not-found text whether or not another seat holds such a card.
 
-Responses to routine plays do not list the battlefield or the hand; `get_state` does that. In a contested game its listing puts a permanent on the battlefield of the seat that controls it, and marks one its controller does not own with its owner: `Llanowar Elves (owner S2)`.
+Responses to routine plays do not list the battlefield or the hand; `get_state` does that. In a contested game its listing puts a permanent on the battlefield of the seat that controls it, and marks one its controller does not own with its owner: `Llanowar Elves (owner S2)`. It ends, before the payments of `detail: "full"`, with the pending choices addressed to the calling seat, when there are any, one line each in the order they will be answered:
+
+```
+Your pending choices (2):
+  x7 (search): revealed Forest (c41), Command Tower (c12)
+  x8 (ask) from S2: Sacrifice a creature.
+```
+
+A `blocks` choice reads `x9 (blocks): attacked by Grizzly Bears (c61), Llanowar Elves (c62)`, and a `resolve` choice `x10 (resolve): s2 Rancor holds delta {"move": ...} and goes to battlefield`, followed by the error that kept it from resolving as held, if any. A goldfish game's listing has no such lines.
 
 ### In MCP terms
 
@@ -238,6 +248,8 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | A pending choice on the contested status line | Shown by `Act` and the choice's kind | The goldfish ` · CHOICE pending` suffix | The suffix cannot say which seat the choice waits on; `Act` can, and two signs for one fact invite disagreement. |
 | The word for what a seat is asked | The pending choice's own kind, or `respond`, `trigger`, `turn` | `choose` for every pending choice; free text | The kind is the word the `CHOICE` response and `choose` already use, and tells a seat which answer is wanted without a `get_state`. |
 | `Ended` and `Out` together | `Ended (<result>) · Out · ...` | `Out` first; `Ended` alone | That the game is over matters more than how the seat left it, and an ended game's line begins the same way for every seat. |
+| An opposing seat's aim in the player brief | Play to win, as a real player would | Archenemy: stop the tested deck at all costs | Realism is the goal; a caller who wants a harsher test still briefs an opposing agent as an archenemy. |
+| Where a seat finds the pending choices it owes | In its `get_state` listing, with what each asks | Only in the response or digest line that created it; in every `wait` response | A seat that missed that line, or whose agent was restarted, must not be stuck; repeating every choice on every `wait` would lengthen the most frequent response. |
 | What a seat-given subagent returns | Seat number, the id it was given, verdict | Game id, seed and verdict as in a goldfish game | It is shown neither the seed nor, as an opposing seat, the game id; its caller holds both. |
 
 ## Open Questions & Future Decisions

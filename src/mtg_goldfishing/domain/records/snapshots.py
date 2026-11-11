@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.cards_in_play import face_name, is_land
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import OPPONENTS, Game, Seat, Zone
 from mtg_goldfishing.domain.payment.potential import payable_in_principle
 from mtg_goldfishing.domain.records.model import (
@@ -15,16 +16,18 @@ from mtg_goldfishing.domain.records.model import (
 )
 
 
-# @spec REC-011, REC-013, REC-016, REC-070, REC-045, REC-048, REC-049
-def take_snapshot(game: Game, deck: LoadedDeck) -> TurnSnapshot | None:
-    """The snapshot of the current turn, describing the active seat with its own deck, or
-    None if the table turn already has one or no turn has begun.
+# @spec REC-011, REC-013, REC-016, REC-070, REC-045, REC-048, REC-049, REC-081
+def take_snapshot(game: Game, deck: LoadedDeck, decks: Decks | None = None) -> TurnSnapshot | None:
+    """The snapshot of the current turn, describing the active seat, whose deck is `deck`, or
+    None if the table turn already has one or no turn has begun. Each permanent is read from
+    its owner's deck (`decks`; omitted, every seat plays `deck`).
 
     In a contested game the snapshot's turn is the active seat's own turn count, and it is
     kept by table turn beside every seat's life and the unanswered reminders of every seat.
     """
     if game.turn < 1 or game.active is None or game.turn in game.snapshot_turns:
         return None
+    every = decks or Decks.everyone_playing(game, deck)
     game.snapshot_turns.append(game.turn)
     described = game.active_seat
     seat = described.number
@@ -33,15 +36,17 @@ def take_snapshot(game: Game, deck: LoadedDeck) -> TurnSnapshot | None:
     return TurnSnapshot(
         turn=described.turns if game.contested else game.turn,
         hand=tuple(
-            HandCard(card.name, payable_in_principle(game, deck, seat, card))
+            HandCard(card.name, payable_in_principle(game, deck, seat, card, every))
             for card in game.hand_of(seat)
         ),
         battlefield=tuple(
-            PermanentRecord(face_name(deck, c), c.tapped, tuple(sorted(c.counters.items())))
+            PermanentRecord(
+                face_name(every.of(c.owner), c), c.tapped, tuple(sorted(c.counters.items()))
+            )
             for c in battlefield
         ),
         graveyard=tuple(card.name for card in game.in_zone(Zone.GRAVEYARD, seat)),
-        lands=sum(1 for card in battlefield if is_land(deck, card)),
+        lands=sum(1 for card in battlefield if is_land(every.of(card.owner), card)),
         mana_available=described.turn_stats.mana_available,
         mana_spent=described.turn_stats.mana_spent,
         land_drop_made=described.land_drops_used > 0,

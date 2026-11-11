@@ -1,5 +1,5 @@
-"""`pass`: the seat a response window is asking declines to respond, or a reminded seat declines
-to record its triggers now."""
+"""`pass`: the seat a response window is asking does not respond, or a reminded seat does not
+record its triggers now."""
 
 from __future__ import annotations
 

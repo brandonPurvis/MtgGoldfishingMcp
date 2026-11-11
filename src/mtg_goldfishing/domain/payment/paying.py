@@ -24,6 +24,7 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     is_land,
     is_summoning_sick,
 )
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import (
     CardInstance,
     Destination,
@@ -223,24 +224,35 @@ def _ability_making(abilities: Sequence[Source], mana: ManaString) -> Source | N
 
 # @spec PAY-047
 def _resolve_named(
-    game: Game, deck: LoadedDeck, seat: SeatNumber, entries: Sequence[PayWith]
+    game: Game, decks: Decks, seat: SeatNumber, entries: Sequence[PayWith]
 ) -> tuple[list[_Named], list[Error | FailedCheck], list[InstanceChosen]]:
-    """The sources `pay.with` names, among the permanents the paying seat controls."""
+    """The sources `pay.with` names, among the permanents the paying seat controls, each read
+    from its owner's deck."""
     named: list[_Named] = []
     problems: list[Error | FailedCheck] = []
     names = [entry.source for entry in entries]
-    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP, own_only=True)
+    found = resolve(
+        game,
+        decks.of(seat),
+        seat,
+        names,
+        [Zone.BATTLEFIELD],
+        purpose=Purpose.TAP,
+        decks=decks,
+        own_only=True,
+    )
     if isinstance(found, Error):
         return [], [found], []
     cards, chosen_events = found
     for entry, card in zip(entries, cards, strict=True):
-        name = face_name(deck, card)
+        owner_deck = decks.of(card.owner)
+        name = face_name(owner_deck, card)
         if card.tapped:
             problems.append(Error(ErrorKind.SOURCE_TAPPED, subject=name))
             continue
-        if is_summoning_sick(game, deck, card):
+        if is_summoning_sick(game, owner_deck, card, decks):
             problems.append(FailedCheck(CheckKind.SUMMONING_SICK_SOURCE, subject=name))
-        abilities = [s for s in sources_of(game, deck, card) if s.options]
+        abilities = [s for s in sources_of(game, owner_deck, card, decks) if s.options]
         if entry.mana is not None:
             source = _ability_making(abilities, entry.mana)
             named.append(_Named(card, [_NamedUse(source, tuple(_units_of(entry.mana)))]))
@@ -376,6 +388,7 @@ def _plan_with_uses(
 
 
 # @spec PAY-020, PAY-030, PAY-031, PAY-032, PAY-033, PAY-034, PAY-035, PAY-036, PAY-038
+# @spec PAY-048, PAY-052, PAY-053, PAY-054
 # @spec PAY-044
 
 
@@ -389,14 +402,17 @@ def plan_payment(
     playing: CardInstance | None,
     instructions: PayInstructions,
     subject: str,
+    decks: Decks | None = None,
 ) -> tuple[PaymentPlan | None, list[Error | FailedCheck]]:
     """Work out how the paying seat will pay a cost, and the errors and failed checks found
-    doing so: from its own pool, with the sources it controls, and with its own life.
+    doing so: from its own pool, with the sources it controls, and with its own life. Each
+    permanent is read from its owner's deck (`decks`; omitted, every seat plays `deck`).
 
     The plan is None when the cost is not payable or an error stops the payment.
     """
+    every = decks or Decks.everyone_playing(game, deck)
     paying = game.seat(seat)
-    named, problems, chosen_events = _resolve_named(game, deck, seat, instructions.with_sources)
+    named, problems, chosen_events = _resolve_named(game, every, seat, instructions.with_sources)
     if any(isinstance(p, Error) for p in problems):
         return None, problems
     if instructions.cost is not None:
@@ -409,7 +425,7 @@ def plan_payment(
     named_ids = {entry.card.id for entry in named}
     available = [
         s
-        for s in available_sources(game, deck, seat, paying_for=paying_for)
+        for s in available_sources(game, deck, seat, paying_for=paying_for, decks=every)
         if s.instance_id not in named_ids
     ]
     others = other_cards(game, deck, seat, playing)
@@ -472,18 +488,27 @@ def _mana_of(unit: Unit, restriction: Restriction | None) -> Mana:
 
 
 # @spec PAY-007, PAY-017, PAY-039, PAY-042
-def apply_payment(game: Game, deck: LoadedDeck, seat: SeatNumber, plan: PaymentPlan) -> list[Event]:
+def apply_payment(
+    game: Game,
+    deck: LoadedDeck,
+    seat: SeatNumber,
+    plan: PaymentPlan,
+    decks: Decks | None = None,
+) -> list[Event]:
     """Carry out the paying seat's planned payment: tap, sacrifice, pay its life, update its
-    pool."""
+    pool. Each named permanent is read from its owner's deck (`decks`; omitted, every seat
+    plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
     paying = game.seat(seat)
     tapped: list[str] = []
     sacrificed: list[str] = []
     moves: list[Event] = []
     for card, source in plan.named:
-        name = face_name(deck, card)
+        owner_deck = every.of(card.owner)
+        name = face_name(owner_deck, card)
         if source is not None and source.sacrifices:
             sacrificed.append(name)
-            moves.extend(move(game, deck, card, Destination.GRAVEYARD))
+            moves.extend(move(game, owner_deck, card, Destination.GRAVEYARD))
         else:
             card.tapped = True
             tapped.append(name)

@@ -20,6 +20,7 @@ from mtg_goldfishing.domain.events import (
 from mtg_goldfishing.domain.game.model import Attack, Zone
 from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.mana import ManaPool
+from mtg_goldfishing.domain.play.playing import effect
 from mtg_goldfishing.domain.steps import STEPS, Step
 from mtg_goldfishing.domain.turn import Walk, advance, return_to_declare_attackers
 from tests.support.builders import TESTED, Situation, a_game
@@ -323,3 +324,36 @@ def test_an_additional_combat_returns_to_declare_attackers_in_the_same_turn() ->
     return_to_declare_attackers(situation.game, situation.deck, Walk())
     assert (situation.game.turn, situation.game.step) == (4, Step.DECLARE_ATTACKERS)
     assert situation.game.tested.mana_pool == ManaPool()
+
+
+# ------------------------------------------------------------------ stopping in any step
+
+
+# @spec TURN-029
+@pytest.mark.parametrize("step", ["untap", "draw", "combat_damage", "end", "cleanup"])
+def test_the_active_seat_may_stop_in_a_step_that_has_an_automatic_action(step: str) -> None:
+    situation = a_game().in_step(Step.MAIN2, turn=4).with_library("Island", "Forest").build()
+    result = advanced(situation, to=step)
+    assert result.game.step is Step(step)
+
+
+# @spec TURN-029
+def test_stopped_in_the_draw_step_the_draw_has_already_been_made_and_play_goes_on() -> None:
+    situation = a_game().in_step(Step.UPKEEP, turn=4).with_library("Island").build()
+    situation.game = advanced(situation, to="draw").game
+    assert situation.game.hand_of(TESTED)[0].name == "Island"
+    result = effect(situation.game, situation.deck, TESTED, source="Ponder", delta={"life": 1})
+    assert isinstance(result, Applied), result
+
+
+# @spec TURN-030
+def test_changes_made_while_stopped_in_cleanup_are_not_added_to_its_snapshot() -> None:
+    situation = a_game().in_step(Step.END, turn=4).with_library("Island", "Forest").build()
+    entered = advanced(situation, to="cleanup")
+    situation.game = entered.game
+    drawn = effect(situation.game, situation.deck, TESTED, source="Brainstorm", delta={"draw": 2})
+    assert isinstance(drawn, Applied), drawn
+    situation.game = drawn.game
+    onward = advanced(situation, to="main1")
+    assert [s.hand for s in entered.snapshots] == [()]
+    assert (drawn.snapshots, [s.turn for s in onward.snapshots]) == ((), [])

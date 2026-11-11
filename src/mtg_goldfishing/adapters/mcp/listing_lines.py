@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from typing import assert_never
 
-from mtg_goldfishing.domain.events import DeckReport
+from mtg_goldfishing.adapters.mcp.refusal_lines import error_text
+from mtg_goldfishing.domain.events import DeckReport, RevealedCard
 from mtg_goldfishing.domain.game.listing import (
+    ChoiceListing,
     CommanderListing,
     PermanentListing,
     SeatListing,
@@ -168,6 +171,40 @@ def _seat_lines(each: SeatListing, calling: SeatNumber, everyone: list[SeatNumbe
     return lines
 
 
+def _cards(cards: tuple[RevealedCard, ...]) -> str:
+    return ", ".join(f"{card.name} ({card.instance_id})" for card in cards)
+
+
+def _choice(choice: ChoiceListing) -> str:
+    """One pending choice the calling seat owes, and what it asks."""
+    head = f"  {choice.choice_id} ({choice.kind})"
+    match choice.kind:
+        case "ask":
+            return f"{head} from {choice.asked_by}: {choice.text}"
+        case "blocks":
+            return f"{head}: attacked by {_cards(choice.attackers)}"
+        case "resolve":
+            held = json.dumps(dict(choice.delta), separators=(", ", ": "))
+            to = choice.to or "its default destination"
+            line = f"{head}: {choice.item} {choice.source} holds delta {held} and goes to {to}"
+            if choice.error is not None:
+                line += f". It cannot resolve as held: {error_text(choice.error)}"
+            return line
+        case _:
+            return f"{head}: revealed {_cards(choice.revealed)}"
+
+
+# @spec TOOL-074
+def _choice_lines(listing: StateListing) -> list[str]:
+    """The pending choices the calling seat owes, in the order they will be answered."""
+    if not listing.choices:
+        return []
+    return [
+        f"Your pending choices ({len(listing.choices)}):",
+        *(_choice(choice) for choice in listing.choices),
+    ]
+
+
 # @spec TOOL-051, TOOL-066, GAME-122
 def contested_state_lines(listing: StateListing, seats: tuple[SeatListing, ...]) -> list[str]:
     """A contested game's listing: the calling seat's hand, then every seat in turn order."""
@@ -183,7 +220,7 @@ def contested_state_lines(listing: StateListing, seats: tuple[SeatListing, ...])
     if listing.window is not None:
         asking = f"asking {listing.window.asking}" if listing.window.asking else "waiting"
         lines.append(f"Response window ({listing.window.kind}): {asking}")
-    return [*lines, *_payments(listing)]
+    return [*lines, *_choice_lines(listing), *_payments(listing)]
 
 
 def state_lines(listing: StateListing) -> list[str]:

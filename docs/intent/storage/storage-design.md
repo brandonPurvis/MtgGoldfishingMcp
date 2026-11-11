@@ -53,7 +53,14 @@ The database is a single file whose path comes from configuration (see `tools`).
 
 ## Schema Changes
 
-The `schema_version` row records the layout. The migration that adds seats creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, keeping every goldfish game's behavior as it was. On start, the module applies any forward migrations needed to reach the current layout. Faced with a database newer than itself, the service exits at start with a message naming both versions rather than risk damage.
+The `schema_version` row records the layout. On start, the adapter applies, in order, any forward migrations needed to reach the current layout. Each migration runs in one transaction together with the update of `schema_version` to the version it reaches, so a migration that fails leaves the database at its previous version. No backup copy of the database is written before a migration, and no migration can be reversed: once migrated, a database can be opened only by a service that knows its version. Faced with a database newer than itself, the service exits at start with a message naming both versions rather than risk damage.
+
+The migrations, by the version they reach:
+
+- **2, seats.** Creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, keeping every goldfish game's behavior as it was.
+- **3, whose turns a step trigger happens on.** Rewrites every step trigger reading held in a stored loaded deck or game document that names a step alone as a trigger in that step on its controller's turn, the only turns such a reading was ever reminded on; a reading that already says whose turns it happens on is left as it is. Because a loaded deck never changes once written, a deck stored before this migration keeps these readings when its list is loaded again with the same card data, and so do the games played on it: a trigger in it on each turn, or on opponents' turns, is reminded on its controller's turns only. A deck loaded afresh, under a new id, is read as usual.
+
+Neither migration changes a game's version counter: a migrated game is the same game.
 
 ## Decisions & Alternatives
 
@@ -67,12 +74,18 @@ The `schema_version` row records the layout. The migration that adds seats creat
 | Finding a game from a seat id | A `seats` table written with the game | Scanning game documents; encoding the game id in the seat id | A scan grows with the number of games; an encoded game id would let one seat's id reveal another's. |
 | Key of a snapshot | Game id and table turn | Game id and the active seat's own turn number | In a contested game several seats each have a turn 3; the table turn is unique in a game and equals the turn in a goldfish game. |
 | Shape of a contested game's state | The same one JSON document, grown to hold seats and the stack | A row per seat | The reasons for one document hold unchanged: every call loads and saves the whole game. |
+| How a migration is applied | In one transaction with the version it reaches; no backup copy; not reversible | **Open, for the owner to choose:** write a backup copy of the database file before migrating | A failed migration already leaves the database as it was. A backup copy would also let an older service be run again after a migration that succeeded, at the cost of a second file per migration to keep or delete. |
+| Stored step trigger readings without whose turns | Rewritten as triggers on their controller's turn | Read the decks' card text again during the migration | A migration works on stored JSON alone so that it does not change as the reader does, and controller's turns are where every such reading was reminded. |
 | A second snapshot for a table turn | Raise | Replace the first; keep the first and ignore the second | It can only come from a defect, and either quiet behavior would hide it and leave a record nobody chose. |
 
 ## Open Questions & Future Decisions
 
 ### Deferred
 1. A retention or export policy, when the database is shared by many users.
+2. Re-reading the step triggers of loaded decks stored before version 3, which keep controller's-turn readings because a loaded deck never changes once written.
+
+### Open
+1. Whether a migration writes a backup copy of the database first (see Decisions & Alternatives).
 
 ## References
 

@@ -62,6 +62,10 @@ _Avoid_: Multiplayer game, versus game, match
 One player's place in a game, with its own zones, life, mana pool, land drop and commander tax, played by an agent.
 _Avoid_: Player, side, opponent slot
 
+**Table**:
+What all the seats of a game share: its seed, turn order, active seat, step, stack, change number, notices and result.
+_Avoid_: Board, lobby
+
 **Tested seat**:
 The seat whose deck the game is judging; every game has exactly one.
 _Avoid_: Hero, home seat, main seat
@@ -101,6 +105,10 @@ _Avoid_: Holder, user
 **Zone**:
 Where a card instance is: library, hand, battlefield, graveyard, exile, the command zone, or, in a contested game, the stack.
 _Avoid_: Area, pile, location
+
+**Hidden zone**:
+A seat's hand or library, whose cards no other seat may see; no seat sees the order of any library.
+_Avoid_: Private zone, secret zone
 
 **Active seat**:
 The seat whose turn it is.
@@ -178,6 +186,10 @@ _Avoid_: Assertion, check
 The plays and effects of a contested game that have been made but not yet resolved, newest on top, each holding the delta its controller stated.
 _Avoid_: Queue, chain, pending plays
 
+**Stack item**:
+One play or effect on the stack, with its controller and the delta that controller stated.
+_Avoid_: Stack entry, spell object
+
 **Resolve**:
 To apply the delta of the newest item on the stack, once every other seat has passed on it.
 _Avoid_: Execute, commit
@@ -195,8 +207,16 @@ A pass the service makes for a seat that has no untapped permanents.
 _Avoid_: Auto-skip, implicit pass
 
 **Digest**:
-The short account, at the start of a seat's response, of the other seats' public events, and of what their calls did to the reading seat's own hidden zones, since that seat's last call.
+The short account, at the start of a seat's response, of the other seats' public events, and of what their calls did to the reading seat's own hidden zones, since that seat's digest baseline.
 _Avoid_: Feed, recap, catch-up
+
+**Digest baseline**:
+The change number up to which a seat has been shown the other seats' changes: that of its last response that carried a digest.
+_Avoid_: Read marker, cursor
+
+**Public form**:
+What every seat may see of an event: cards that stay hidden are shown as a count, and cards in public view, or that were in public view, by name.
+_Avoid_: Redacted event, censored event
 
 ### Mana and payment
 

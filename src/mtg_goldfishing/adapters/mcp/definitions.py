@@ -307,6 +307,7 @@ MULLIGAN = ToolDefinition(
     ),
 )
 
+# @spec TOOL-075
 GET_STATE = ToolDefinition(
     name="get_state",
     purpose="List the hand, battlefield and other zones when the status line is not enough.",
@@ -318,7 +319,8 @@ GET_STATE = ToolDefinition(
         " turn's payments. The library's order is never shown. Accepted in every game"
         " status. Contested games: shows every seat's battlefield, graveyard and command zone"
         " with its life and its hand and library sizes, the stack and who is asked; of the"
-        " hands, only yours."
+        " hands, only yours. It ends with the pending choices your seat owes, with the cards"
+        " each reveals to you or what it asks of you."
     ),
     parameters=(
         _game_id(),

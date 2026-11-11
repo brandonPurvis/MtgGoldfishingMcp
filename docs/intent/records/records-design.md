@@ -104,6 +104,8 @@ Each reminder issued (see `turn`) is recorded on the log entry of the call that 
 
 Written when the game enters `cleanup`, after any discard. When a game is ended during a turn that has no snapshot yet, one is written for that turn at that moment, so the turn in which a game is won is always recorded. A turn has at most one snapshot. A game ended during mulligans has none: no turn has begun, and there is no active seat to describe. In a contested game every seat's turn has its snapshot, describing the active seat, and snapshots are numbered by table turn; one written because the tested seat ended the game describes whichever seat is active at that moment. A turn that ends because its active seat was eliminated (see `turn`) never enters `cleanup`; its snapshot is written when the turn ends, once the stack is empty, and describes that seat as it then is: its hand, battlefield and graveyard are empty and it has no lands, because the cards it owned have left the game, and its life is what it was when it was eliminated.
 
+A snapshot reads each permanent of the described seat from its owner's deck, whichever seat controls it (see `game`): the name it gives a permanent taken from another seat, whether that permanent counts among its lands, and what it adds to the mana that judges `payable` and `mana_available` are what that permanent is for its owner.
+
 ```
 TurnSnapshot {
   turn: int

@@ -1,5 +1,7 @@
 """The card reader's reading of step triggers."""
 
+from dataclasses import fields
+
 import pytest
 
 from mtg_goldfishing.domain.cards import Card
@@ -179,7 +181,7 @@ def test_a_phrase_naming_every_turn_is_a_trigger_on_each_turn(text: str, step: s
     assert whose_of(a_card("Each Turn Card", text)) == [(step, "each")]
 
 
-# @spec READ-053
+# @spec READ-053, READ-050
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -193,7 +195,7 @@ def test_a_delayed_phrase_naming_the_next_step_is_a_trigger_on_each_turn(
     assert whose_of(a_card("Delayed Card", text)) == [(step, "each")]
 
 
-# @spec READ-054
+# @spec READ-054, READ-050
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -218,3 +220,13 @@ def test_triggers_in_several_steps_are_listed_in_step_order() -> None:
         "{T}: Add {C}{C}{C}.",
     )
     assert step_triggers_of(mana_vault) == (Step.UPKEEP, Step.DRAW)
+
+
+# @spec READ-049
+def test_a_step_trigger_reading_carries_no_assumptions() -> None:
+    card = a_card(
+        "Hedged Upkeep Card",
+        "At the beginning of your upkeep, if you control a Forest, draw a card.",
+    )
+    [trigger] = read_card(card).faces[0].step_triggers
+    assert "assumptions" not in {field.name for field in fields(trigger)}
