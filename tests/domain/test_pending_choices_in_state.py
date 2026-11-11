@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game.listing import list_state
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -16,7 +14,6 @@ from tests.support.acting import S1, S2, acted, passed
 from tests.support.builders import Situation, a_game
 from tests.support.tables import two_seats
 
-NOT_BUILT = "coherence: get_state does not list a seat's pending choices"
 DISCARD = "discard a card"
 SACRIFICE = "sacrifice a creature"
 
@@ -51,7 +48,6 @@ def choices_of(situation: Situation, seat: SeatNumber) -> Any:
 
 
 # @spec GAME-172
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_seat_s_state_lists_the_pending_choices_it_owes_in_the_order_they_are_answered() -> None:
     situation = a_duel()
     immediately(
@@ -65,7 +61,6 @@ def test_a_seat_s_state_lists_the_pending_choices_it_owes_in_the_order_they_are_
 
 
 # @spec GAME-173
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_look_is_listed_with_the_cards_it_revealed_by_name_and_instance_id() -> None:
     situation = a_duel()
     immediately(situation, {"look": {"n": 1, "rest": "library_top"}})
@@ -78,7 +73,6 @@ def test_a_look_is_listed_with_the_cards_it_revealed_by_name_and_instance_id() -
 
 
 # @spec GAME-174
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_an_ask_is_listed_with_its_text_and_the_seat_whose_effect_asked() -> None:
     situation = a_duel()
     immediately(situation, {"ask": [{"seats": [2], "text": DISCARD}]})
@@ -89,7 +83,6 @@ def test_an_ask_is_listed_with_its_text_and_the_seat_whose_effect_asked() -> Non
 
 
 # @spec GAME-175
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_blocks_choice_is_listed_with_the_attackers_it_may_block() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears")
     situation: Situation = builder.and_an_opposing_seat().with_battlefield("Llanowar Elves").build()
@@ -106,7 +99,6 @@ def test_a_blocks_choice_is_listed_with_the_attackers_it_may_block() -> None:
 
 
 # @spec GAME-176
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_resolve_choice_is_listed_with_its_item_source_held_delta_and_destination() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears", disturbed=True, delta={"life": 1}),
@@ -126,7 +118,6 @@ def test_a_resolve_choice_is_listed_with_its_item_source_held_delta_and_destinat
 
 
 # @spec GAME-177
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_seat_s_state_lists_no_pending_choice_addressed_to_another_seat() -> None:
     situation = a_duel()
     immediately(situation, {"ask": [{"seats": [2], "text": DISCARD}]})

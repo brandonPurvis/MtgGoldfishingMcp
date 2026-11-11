@@ -722,7 +722,7 @@ class ItemStacked:
 @dataclass(frozen=True)
 class Passed:
     """A seat's `pass`: on the stack item `item`, or in an `attack` or `end` window with an
-    empty stack; or, with `reminder`, declining the reminders of `step`."""
+    empty stack; or, with `reminder`, passing on the reminders of `step`."""
 
     seat: SeatNumber
     item: str | None = None

@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.definitions import TOOL_DEFINITIONS
 from mtg_goldfishing.adapters.mcp.listing_lines import state_lines
 from mtg_goldfishing.domain.combat.attack import attack
@@ -18,7 +16,6 @@ from tests.support.acting import S1, S2, acted, passed
 from tests.support.builders import TESTED, Situation, a_game
 from tests.support.tables import two_seats
 
-NOT_BUILT = "coherence: get_state does not list a seat's pending choices"
 HEADER = "Your pending choices"
 DISCARD = "discard a card"
 
@@ -57,7 +54,6 @@ def choice_lines(lines: list[str]) -> list[str]:
 
 
 # @spec TOOL-074
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_an_ask_owed_is_listed_with_the_asking_seat_and_its_text() -> None:
     situation = a_duel()
     immediately(situation, {"ask": [{"seats": [2], "text": DISCARD}]})
@@ -69,7 +65,6 @@ def test_an_ask_owed_is_listed_with_the_asking_seat_and_its_text() -> None:
 
 
 # @spec TOOL-074
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_look_owed_is_listed_with_the_cards_it_revealed() -> None:
     situation = a_duel()
     immediately(situation, {"look": {"n": 1, "rest": "library_top"}})
@@ -84,7 +79,6 @@ def test_a_look_owed_is_listed_with_the_cards_it_revealed() -> None:
 
 
 # @spec TOOL-074
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_blocks_choice_owed_is_listed_with_the_attackers() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears")
     situation: Situation = builder.and_an_opposing_seat().with_battlefield("Llanowar Elves").build()
@@ -100,7 +94,6 @@ def test_a_blocks_choice_owed_is_listed_with_the_attackers() -> None:
 
 
 # @spec TOOL-074
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_resolve_choice_owed_is_listed_with_its_item_held_delta_and_destination() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears", disturbed=True, delta={"life": 1}),
@@ -118,7 +111,6 @@ def test_a_resolve_choice_owed_is_listed_with_its_item_held_delta_and_destinatio
 
 
 # @spec TOOL-074
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_the_pending_choices_come_after_every_seat_and_before_the_payments() -> None:
     situation = a_duel()
     immediately(situation, {"ask": [{"seats": [2], "text": DISCARD}]})
@@ -164,7 +156,6 @@ def test_a_goldfish_game_s_listing_shows_no_pending_choice() -> None:
 
 
 # @spec TOOL-075
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_get_state_says_a_contested_listing_includes_the_seat_s_pending_choices() -> None:
     get_state = next(d for d in TOOL_DEFINITIONS if d.name == "get_state")
     description = get_state.description

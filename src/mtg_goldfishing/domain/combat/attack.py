@@ -212,6 +212,7 @@ def _not_declared(
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
 # @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018, APP-031
 # @spec CMBT-053, CMBT-060, CMBT-068, CMBT-070, CMBT-071, STACK-036
+# @spec CMBT-079
 def attack(
     game: Game,
     deck: LoadedDeck,
@@ -320,7 +321,7 @@ def attack(
         if (
             card.entered_turn == changed.turn
             and card.id not in hasty
-            and not has_haste(changed, deck_of(card), card)
+            and not has_haste(changed, deck_of(card), card, every)
         ):
             problems.add(FailedCheck(CheckKind.SUMMONING_SICK_ATTACKER, subject=name))
         if (
@@ -336,7 +337,7 @@ def attack(
     watchful = {c.id for c in sub["vigilance"]}
     newly_tapped = []
     for card in chosen:
-        if card.id in watchful or has_vigilance(changed, deck_of(card), card) or card.tapped:
+        if card.id in watchful or has_vigilance(changed, deck_of(card), card, every) or card.tapped:
             continue
         card.tapped = True
         newly_tapped.append(card)

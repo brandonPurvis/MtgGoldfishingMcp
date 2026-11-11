@@ -44,7 +44,7 @@ class SchemaTooNew(Exception):
         self.supported = supported
 
 
-# @spec STOR-002, STOR-003, STOR-013, STOR-014
+# @spec STOR-002, STOR-003, STOR-013, STOR-014, STOR-034, STOR-035
 class SqliteDatabase:
     """One SQLite database file, created if missing and migrated to the current layout."""
 

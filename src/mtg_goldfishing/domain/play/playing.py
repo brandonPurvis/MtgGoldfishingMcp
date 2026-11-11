@@ -94,8 +94,10 @@ def _pay(
     paying_for: str | None,
     playing: CardInstance | None,
     subject: str,
+    decks: Decks,
 ) -> list[Event]:
-    """Pay a cost already worked out; an unpayable cost, once overridden, is paid with nothing."""
+    """Pay a cost already worked out; an unpayable cost, once overridden, is paid with nothing.
+    Each permanent paying is read from its owner's deck."""
     plan, found = plan_payment(
         game,
         deck,
@@ -105,10 +107,11 @@ def _pay(
         playing=playing,
         instructions=replace(instructions, cost=None),
         subject=subject,
+        decks=decks,
     )
     problems.extend(found)
     if plan is not None:
-        return apply_payment(game, deck, seat, plan)
+        return apply_payment(game, deck, seat, plan, decks)
     unpayable = any(
         isinstance(p, FailedCheck) and p.kind is CheckKind.COST_NOT_PAYABLE for p in found
     )
@@ -364,6 +367,7 @@ def play(
                 paying_for=face.type_line,
                 playing=instance,
                 subject=face.name,
+                decks=every,
             )
         )
         events.extend(assumed)
@@ -488,6 +492,7 @@ def effect(
                 paying_for=None,
                 playing=None,
                 subject=source,
+                decks=every,
             )
         )
         events.extend(assumed)

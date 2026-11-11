@@ -90,7 +90,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
 - [x] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
 - [x] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
-- [ ] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flash, step triggers, entering tapped) — from the loaded deck of its owner, whichever seat controls it.
+- [x] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flash, step triggers, entering tapped) — from the loaded deck of its owner, whichever seat controls it.
 
 ## Mulligan
 
@@ -138,13 +138,13 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-123**: When `get_state` lists a battlefield in a contested game, the outcome shall show for each permanent its instance id, tapped state, counters, the mana the service has read it as making, haste or vigilance it has or is granted, and the steps it has a trigger in, with a trigger read as happening only on opponents' turns marked `(opp)` and a trigger read as happening on its controller's turn or on each turn left unmarked.
 - [x] **GAME-124**: When `get_state` lists a permanent in a contested game whose controller is not its owner, the outcome shall name its owner by seat number beside it, on the battlefield of the seat that controls it.
 - [x] **GAME-125**: When a seat calls `get_state` in a contested game with `detail` `full`, the outcome shall additionally list every seat's exile, per-commander cast counts and per-commander damage to each seat, and the calling seat's payments this turn.
-- [ ] **GAME-172**: When a seat calls `get_state` in a contested game, the outcome shall list each pending choice addressed to that seat, in the order the pending choices will be answered, with its choice id and kind.
-- [ ] **GAME-173**: When `get_state` in a contested game lists a pending choice of kind `look`, `search` or `hand`, the outcome shall show each card that choice revealed by name and instance id.
-- [ ] **GAME-174**: When `get_state` in a contested game lists a pending choice of kind `ask`, the outcome shall show the text it asks and the seat whose effect asked it.
-- [ ] **GAME-175**: When `get_state` in a contested game lists a pending choice of kind `blocks`, the outcome shall show each attacker it may block by name and instance id.
-- [ ] **GAME-176**: When `get_state` in a contested game lists a pending choice of kind `resolve`, the outcome shall show the stack item's id and source, its held delta and destination, and the error that kept it from resolving as held, if any.
-- [ ] **GAME-177**: When a seat calls `get_state` in a contested game, the outcome shall list no pending choice addressed to another seat.
-- [ ] **GAME-178**: When `get_state` is called in a goldfish game, the outcome shall list no pending choice.
+- [x] **GAME-172**: When a seat calls `get_state` in a contested game, the outcome shall list each pending choice addressed to that seat, in the order the pending choices will be answered, with its choice id and kind.
+- [x] **GAME-173**: When `get_state` in a contested game lists a pending choice of kind `look`, `search` or `hand`, the outcome shall show each card that choice revealed by name and instance id.
+- [x] **GAME-174**: When `get_state` in a contested game lists a pending choice of kind `ask`, the outcome shall show the text it asks and the seat whose effect asked it.
+- [x] **GAME-175**: When `get_state` in a contested game lists a pending choice of kind `blocks`, the outcome shall show each attacker it may block by name and instance id.
+- [x] **GAME-176**: When `get_state` in a contested game lists a pending choice of kind `resolve`, the outcome shall show the stack item's id and source, its held delta and destination, and the error that kept it from resolving as held, if any.
+- [x] **GAME-177**: When a seat calls `get_state` in a contested game, the outcome shall list no pending choice addressed to another seat.
+- [x] **GAME-178**: When `get_state` is called in a goldfish game, the outcome shall list no pending choice.
 
 ## The change number
 

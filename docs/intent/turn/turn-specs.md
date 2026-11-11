@@ -11,8 +11,8 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-005**: When the game leaves any step, in a goldfish game or a contested game, the game shall empty every seat's mana pool.
 - [x] **TURN-027**: When a contested game enters `untap`, the game shall leave unchanged the tapped state of permanents controlled by seats other than the active seat, and the land drops used and turn statistics of those seats.
 - [x] **TURN-028**: When a seat enters the `draw` step of its own first turn on a table turn later than the first, in a contested game whose `draw_first_turn` is false, that seat shall draw one card.
-- [ ] **TURN-029**: In every game, goldfish or contested, the game shall let the active seat stop in any step, including a step that has an automatic action, whose action has already been performed on entering it.
-- [ ] **TURN-030**: When the active seat makes changes while the game is stopped in `cleanup`, in a goldfish game or a contested game, the game shall not add those changes to the turn snapshot already written on entering `cleanup`.
+- [x] **TURN-029**: In every game, goldfish or contested, the game shall let the active seat stop in any step, including a step that has an automatic action, whose action has already been performed on entering it.
+- [x] **TURN-030**: When the active seat makes changes while the game is stopped in `cleanup`, in a goldfish game or a contested game, the game shall not add those changes to the turn snapshot already written on entering `cleanup`.
 
 ## Turns and rounds
 

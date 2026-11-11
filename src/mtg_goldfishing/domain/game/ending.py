@@ -86,7 +86,7 @@ def end_game(
     active_deck = deck
     if ended.active is not None:
         active_deck = every.of(ended.active)
-    snapshot = take_snapshot(ended, active_deck)
+    snapshot = take_snapshot(ended, active_deck, every)
     ended.status = GameStatus.ENDED
     ended.result = Result(outcome, notes or "")
     return Applied(

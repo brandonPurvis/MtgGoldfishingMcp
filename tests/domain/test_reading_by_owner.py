@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.listing import list_state
@@ -20,7 +18,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, acted
 from tests.support.builders import Situation, a_deck, a_game
 
-NOT_BUILT = "coherence: a permanent another seat owns is read from its controller's deck"
 CROSSROADS = "Concordant Crossroads"
 
 
@@ -38,7 +35,6 @@ def taken_by_seat_1(situation_builder: Any, *names: str) -> Situation:
 
 
 # @spec PAY-054, GAME-171
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_permanent_taken_from_another_seat_makes_the_mana_its_owners_deck_reads() -> None:
     builder: Any = a_game().with_hand("Grizzly Bears").with_battlefield("Forest")
     builder = builder.and_an_opposing_seat().with_battlefield("Llanowar Elves")
@@ -51,7 +47,6 @@ def test_a_permanent_taken_from_another_seat_makes_the_mana_its_owners_deck_read
 
 
 # @spec PAY-054
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_counted_amount_reads_each_counted_permanent_from_its_owners_deck() -> None:
     builder: Any = a_game().with_hand("Grizzly Bears").with_battlefield("Gaea's Cradle")
     builder = builder.with_battlefield("Grizzly Bears")
@@ -65,7 +60,6 @@ def test_a_counted_amount_reads_each_counted_permanent_from_its_owners_deck() ->
 
 
 # @spec PAY-054
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_haste_granted_by_a_taken_permanent_lets_a_new_creature_pay() -> None:
     builder: Any = a_game().with_hand("Grizzly Bears").with_battlefield("Forest")
     builder = builder.with_battlefield("Llanowar Elves", entered_turn=3)
@@ -80,7 +74,6 @@ def test_haste_granted_by_a_taken_permanent_lets_a_new_creature_pay() -> None:
 
 
 # @spec CMBT-079
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_haste_granted_by_a_taken_permanent_lets_a_new_creature_attack() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears", entered_turn=3)
     builder = builder.and_an_opposing_seat().with_battlefield(CROSSROADS)
@@ -120,7 +113,6 @@ def test_a_taken_permanent_is_listed_with_the_mana_its_owners_deck_reads() -> No
 
 
 # @spec GAME-171
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_haste_granted_by_a_taken_permanent_is_listed() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears", entered_turn=3)
     builder = builder.and_an_opposing_seat().with_battlefield(CROSSROADS)
@@ -134,7 +126,6 @@ def test_haste_granted_by_a_taken_permanent_is_listed() -> None:
 
 
 # @spec REC-081
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_snapshot_counts_a_land_taken_from_another_seat_among_the_lands() -> None:
     builder: Any = a_game().in_step(Step.END).with_hand("Grizzly Bears")
     builder = builder.and_an_opposing_seat().with_battlefield("Command Tower")
@@ -147,7 +138,6 @@ def test_a_snapshot_counts_a_land_taken_from_another_seat_among_the_lands() -> N
 
 
 # @spec REC-081
-@pytest.mark.xfail(strict=True, reason=NOT_BUILT)
 def test_a_snapshot_judges_payable_with_the_mana_of_a_permanent_taken_from_another_seat() -> None:
     builder: Any = a_game().in_step(Step.END).with_hand("Llanowar Elves")
     builder = builder.and_an_opposing_seat().with_battlefield("Forest")

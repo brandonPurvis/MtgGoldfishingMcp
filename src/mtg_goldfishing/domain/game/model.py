@@ -286,7 +286,7 @@ class Reminder:
     `name` is the name of the permanent's face in play when reminded; `card_name` its card
     name, kept so the reminder can be answered after the permanent has left the battlefield;
     `turn` the table turn it was issued in, within which it may be answered. A seat other
-    than the active seat that passes on its reminders has `declined` them: the game no
+    than the active seat that passes on its reminders has `passed` them: the game no
     longer waits on them, though a later `effect` still answers them.
     """
 
@@ -296,7 +296,7 @@ class Reminder:
     answered: bool = False
     card_name: str = ""
     turn: int = 0
-    declined: bool = False
+    passed: bool = False
 
 
 @dataclass
