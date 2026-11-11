@@ -23,6 +23,8 @@ from mtg_goldfishing.domain.reading.model import (
     KeywordReading,
     ManaAbility,
     PermanentsCount,
+    StepTrigger,
+    Whose,
 )
 from mtg_goldfishing.domain.steps import Step
 
@@ -190,6 +192,30 @@ _add(
 _add(
     _card("Rhystic Study", "{2}{U}", "Enchantment", identity="U"),
     _reading(step_triggers=(Step.UPKEEP,)),
+)
+_add(
+    _card("Black Vise", "{1}", "Artifact"),
+    _reading(step_triggers=(StepTrigger(Step.UPKEEP, Whose.OPPONENTS),)),
+)
+_add(
+    _card("Howling Mine", "{2}", "Artifact"),
+    _reading(step_triggers=(StepTrigger(Step.DRAW, Whose.EACH),)),
+)
+_add(
+    _card("Sulfuric Vortex", "{1}{R}{R}", "Enchantment", identity="R"),
+    _reading(step_triggers=(StepTrigger(Step.UPKEEP, Whose.EACH),)),
+)
+_add(
+    _card("Bloodchief Ascension", "{B}", "Enchantment", identity="B"),
+    _reading(step_triggers=(StepTrigger(Step.END, Whose.EACH),)),
+)
+_add(
+    _card("Banner of Each Combat", "{2}", "Artifact"),
+    _reading(step_triggers=(StepTrigger(Step.BEGIN_COMBAT, Whose.EACH),)),
+)
+_add(
+    _card("Mystic Remora", "{U}", "Enchantment", identity="U"),
+    _reading(step_triggers=(StepTrigger(Step.UPKEEP, Whose.CONTROLLER),)),
 )
 _add(_card("Cultivate", "{2}{G}", "Sorcery", identity="G"))
 _add(_card("Rampant Growth", "{1}{G}", "Sorcery", identity="G"))

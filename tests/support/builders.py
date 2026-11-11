@@ -7,6 +7,10 @@ situation = (
 What a builder is told about cards, life, pool and land drops is the tested seat's, until
 `and_an_opposing_seat()` adds a seat: from then on it is that seat's. A game with an
 opposing seat has no imaginary opponents. Every seat plays the one deck the situation holds.
+
+Items put on the stack with `with_spell_on_stack` and `with_ability_on_stack` are the
+described seat's, numbered `s1`, `s2`, ... in the order they are described, the last
+described on top.
 """
 
 from __future__ import annotations
@@ -18,10 +22,16 @@ from mtg_goldfishing.domain.deck.model import DeckCard, DeckEntry, LoadedDeck
 from mtg_goldfishing.domain.game.model import (
     OPPONENTS,
     CardInstance,
+    Destination,
     Game,
     GameStatus,
     ImaginaryOpponents,
+    Reminder,
     Seat,
+    StackItem,
+    StackItemKind,
+    Window,
+    WindowKind,
     Zone,
 )
 from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
@@ -61,6 +71,18 @@ class _Placed:
 
 
 @dataclass
+class _Held:
+    """A stack item to build: a spell (whose card is `placed`) or an ability."""
+
+    seat: int
+    source: str
+    placed: _Placed | None
+    delta: dict[str, object]
+    to: str | None
+    disturbed: bool
+
+
+@dataclass
 class _SeatPlan:
     """What one seat is built with."""
 
@@ -74,6 +96,7 @@ class _SeatPlan:
     commander_damage: dict[str, dict[str, int]] = field(default_factory=dict)
     controlled: dict[str, int] = field(default_factory=dict)
     casts: dict[str, int] = field(default_factory=dict)
+    reminded: list[tuple[str, Step | None]] = field(default_factory=list)
 
 
 class GameBuilder:
@@ -88,6 +111,8 @@ class GameBuilder:
         self._turn_limit: int | None = None
         self._active: int | None = None
         self._round: int | None = None
+        self._stack: list[_Held] = []
+        self._window: tuple[str, int | None, tuple[int, ...]] | None = None
 
     @property
     def _seat(self) -> _SeatPlan:
@@ -229,6 +254,53 @@ class GameBuilder:
         self._seat.controlled[card] = seat
         return self
 
+    def with_spell_on_stack(
+        self,
+        name: str,
+        *,
+        delta: dict[str, object] | None = None,
+        to: str | None = None,
+        disturbed: bool = False,
+        commander: bool = False,
+        controller: int | None = None,
+    ) -> GameBuilder:
+        """A spell on top of the stack whose card the described seat owns, in the zone
+        `stack`, holding `delta` and `to` as stated; controlled by the described seat unless
+        `controller` names another seat's number."""
+        placed = _Placed(name, Zone.STACK, is_commander=commander)
+        self._seat.placed.append(placed)
+        number = controller or len(self._seats)
+        self._stack.append(_Held(number, name, placed, dict(delta or {}), to, disturbed))
+        return self
+
+    def with_ability_on_stack(
+        self,
+        source: str,
+        *,
+        delta: dict[str, object] | None = None,
+        disturbed: bool = False,
+        controller: int | None = None,
+    ) -> GameBuilder:
+        """An ability on top of the stack, holding `delta` as stated; controlled by the
+        described seat unless `controller` names another seat's number."""
+        number = controller or len(self._seats)
+        self._stack.append(_Held(number, source, None, dict(delta or {}), None, disturbed))
+        return self
+
+    def with_window(
+        self, kind: str, *, asking: int | None = None, passed: tuple[int, ...] = ()
+    ) -> GameBuilder:
+        """An open response window of kind `stack`, `attack` or `end`, asking the seat with
+        number `asking`, with the seats numbered in `passed` having passed in succession."""
+        self._window = (kind, asking, passed)
+        return self
+
+    def with_reminder(self, name: str, step: Step | None = None) -> GameBuilder:
+        """A reminder issued to the described seat, in the game's step (or `step`) of the
+        current table turn, for its permanent of this card name."""
+        self._seat.reminded.append((name, step))
+        return self
+
     def _known(self, name: str) -> tuple[Card, CardReading]:
         return self._extra.get(name) or LIBRARY[name]
 
@@ -246,8 +318,10 @@ class GameBuilder:
             round=self._turn if self._round is None else self._round,
             step=self._step,
         )
+        placed_ids: dict[int, str] = {}
         for number, plan in enumerate(self._seats, start=1):
-            game.seats.append(self._seat_of(game, number, plan, started))
+            game.seats.append(self._seat_of(game, number, plan, started, placed_ids))
+        self._build_stack(game, placed_ids)
         if len(game.seats) == 1:
             game.imaginary = ImaginaryOpponents(
                 commander_damage={c.id: [0] * OPPONENTS for c in game.commanders_of(TESTED)}
@@ -267,7 +341,56 @@ class GameBuilder:
         )
         return Situation(game, deck)
 
-    def _seat_of(self, game: Game, number: int, plan: _SeatPlan, started: bool) -> Seat:
+    def _build_stack(self, game: Game, placed_ids: dict[int, str]) -> None:
+        """The stack, the window and the reminders, once every seat's cards are numbered."""
+        for held in self._stack:
+            card = placed_ids[id(held.placed)] if held.placed is not None else None
+            game.stack.append(
+                StackItem(
+                    id=f"s{game.next_item}",
+                    controller=SeatNumber(held.seat),
+                    kind=StackItemKind.SPELL if card is not None else StackItemKind.ABILITY,
+                    source=self._known(held.source)[0].name if card else held.source,
+                    tool="play" if card is not None else "effect",
+                    delta=held.delta,
+                    card=card,
+                    to=Destination(held.to) if held.to is not None else None,
+                    disturbed=held.disturbed,
+                )
+            )
+            game.next_item += 1
+        if self._window is not None:
+            kind, asking, passed = self._window
+            game.window = Window(
+                WindowKind(kind),
+                SeatNumber(asking) if asking is not None else None,
+                tuple(SeatNumber(n) for n in passed),
+            )
+        for seat, plan in zip(game.seats, self._seats, strict=True):
+            for name, step in plan.reminded:
+                card = next(
+                    c
+                    for c in game.battlefield_of(seat.number)
+                    if c.name == self._known(name)[0].name
+                )
+                seat.reminders.append(
+                    Reminder(
+                        card.id,
+                        card.name,
+                        step or game.step or Step.UPKEEP,
+                        card_name=card.name,
+                        turn=game.turn,
+                    )
+                )
+
+    def _seat_of(
+        self,
+        game: Game,
+        number: int,
+        plan: _SeatPlan,
+        started: bool,
+        placed_ids: dict[int, str] | None = None,
+    ) -> Seat:
         """A seat and its cards, numbered seat by seat: commanders first, then the rest."""
         tested = number == 1
         seat = Seat(
@@ -299,6 +422,8 @@ class GameBuilder:
                 entered_turn=placed.entered_turn if placed.zone is Zone.BATTLEFIELD else None,
             )
             game.cards.append(card)
+            if placed_ids is not None:
+                placed_ids[id(placed)] = card.id
             if placed.zone is Zone.LIBRARY:
                 seat.library.append(card.id)
             if placed.is_commander:

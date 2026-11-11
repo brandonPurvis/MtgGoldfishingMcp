@@ -158,6 +158,22 @@ class EntersTappedReading:
 ENTERS_UNTAPPED = EntersTappedReading()
 
 
+class Whose(Enum):
+    """Whose turns a step trigger happens on."""
+
+    CONTROLLER = "controller"
+    EACH = "each"
+    OPPONENTS = "opponents"
+
+
+@dataclass(frozen=True)
+class StepTrigger:
+    """A beginning-of-step trigger: the step it belongs to and whose turns it happens on."""
+
+    step: Step
+    whose: Whose = Whose.CONTROLLER
+
+
 @dataclass(frozen=True)
 class FaceReading:
     """Everything the card reader worked out from one face."""

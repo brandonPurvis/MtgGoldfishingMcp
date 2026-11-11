@@ -14,6 +14,7 @@ from behave import given, then, when
 from tests.support.responses import headline
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
+from mtg_goldfishing.domain.game.acting import seats_to_act
 from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.seats import SeatNumber
 
@@ -55,7 +56,14 @@ def _arrange(context: Any, number: int, names: list[str], zone: Zone) -> None:
     if fetch:
         delta["fetch"] = {zone.value: fetch}
     if delta:
-        response = _as_seat(context, number, "effect", source="arranging the scenario", delta=delta)
+        response = _as_seat(
+            context,
+            number,
+            "effect",
+            source="arranging the scenario",
+            delta=delta,
+            immediate=True,
+        )
         assert headline(response.text).startswith("OK"), response.text
 
 
@@ -83,14 +91,26 @@ def step_impl(context: Any, number: int, card: str) -> None:
 
 @given(f"seat {SEAT} has ended its turn")
 def step_impl(context: Any, number: int) -> None:
-    """Discard down to seven, then advance until the turn passes, past any reminder."""
+    """Discard down to seven, then advance until the turn passes, past any reminder; a seat
+    asked in a window or reminded on the way passes."""
     hand = _names_in(context, number, Zone.HAND)
     if len(hand) > 7:
         delta = {"discard": hand[7:]}
-        response = _as_seat(context, number, "effect", source="arranging the scenario", delta=delta)
+        response = _as_seat(
+            context,
+            number,
+            "effect",
+            source="arranging the scenario",
+            delta=delta,
+            immediate=True,
+        )
         assert headline(response.text).startswith("OK"), response.text
-    for _ in range(4):
-        response = _as_seat(context, number, "advance", to="main1")
+    for _ in range(8):
+        asked = seats_to_act(_game(context))
+        if asked is not None and asked.seats and asked.seats[0] != SeatNumber(number):
+            response = _as_seat(context, asked.seats[0].value, "pass")
+        else:
+            response = _as_seat(context, number, "advance", to="main1")
         assert headline(response.text).startswith("OK"), response.text
         if _game(context).active != SeatNumber(number):
             return
@@ -203,7 +223,12 @@ def step_impl(context: Any, number: int) -> None:
 
 @then(f'"{{card}}" is in seat {SEAT}\'s {{zone}}')
 def step_impl(context: Any, card: str, number: int, zone: str) -> None:
-    named = {"graveyard": Zone.GRAVEYARD, "exile": Zone.EXILE, "hand": Zone.HAND}[zone]
+    named = {
+        "graveyard": Zone.GRAVEYARD,
+        "exile": Zone.EXILE,
+        "hand": Zone.HAND,
+        "battlefield": Zone.BATTLEFIELD,
+    }[zone]
     assert card in _names_in(context, number, named), _names_in(context, number, named)
 
 

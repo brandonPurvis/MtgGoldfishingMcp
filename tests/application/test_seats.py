@@ -154,3 +154,16 @@ def test_no_port_saves_or_loads_a_seat_on_its_own() -> None:
 
     assert re.search(r"\bGame\b", annotations)
     assert not re.search(r"\bSeat\b", annotations)
+
+
+# @spec APP-029
+def test_no_port_saves_or_loads_the_stack_or_a_response_window_on_its_own() -> None:
+    annotations = " ".join(
+        str(annotation)
+        for _, port in inspect.getmembers(ports, inspect.isclass)
+        if inspect.isabstract(port)
+        for name in port.__abstractmethods__
+        for annotation in inspect.get_annotations(getattr(port, name)).values()
+    )
+
+    assert not re.search(r"\b(StackItem|Window|PendingChoice|Attack)\b", annotations)

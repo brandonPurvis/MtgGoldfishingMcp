@@ -9,6 +9,7 @@ from mtg_goldfishing.adapters.mcp.tools import ToolSurface
 from tests.support.builders import a_game
 from tests.support.service import ServiceHarness, a_service
 
+NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 TOOLS = (
     "load_deck",
     "new_game",
@@ -19,13 +20,19 @@ TOOLS = (
     "choose",
     "attack",
     "advance",
+    "pass",
     "wait",
     "end_game",
     "get_log",
 )
 GAME_SCOPED = tuple(name for name in TOOLS if name not in ("load_deck", "new_game"))
-CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "end_game")
+CHANGING = ("mulligan", "play", "effect", "choose", "attack", "advance", "pass", "end_game")
 NOT_CHANGING = tuple(name for name in TOOLS if name not in CHANGING)
+
+
+def _built(names: tuple[str, ...]) -> list[object]:
+    """The tools to parametrize over, `pass` marked as not built yet."""
+    return [pytest.param(name, marks=NOT_BUILT) if name == "pass" else name for name in names]
 
 
 def _surface() -> tuple[ToolSurface, ServiceHarness]:
@@ -45,14 +52,15 @@ def _parameters(surface: ToolSurface, tool: str) -> list[str]:
 
 
 # @spec TOOL-007
-def test_the_surface_offers_exactly_the_twelve_tools() -> None:
+@NOT_BUILT
+def test_the_surface_offers_exactly_the_thirteen_tools() -> None:
     surface, _ = _surface()
 
     assert sorted(surface.names) == sorted(TOOLS)
 
 
 # @spec TOOL-008
-@pytest.mark.parametrize("tool", GAME_SCOPED)
+@pytest.mark.parametrize("tool", _built(GAME_SCOPED))
 def test_a_game_scoped_tool_takes_game_id_first(tool: str) -> None:
     surface, _ = _surface()
 
@@ -60,15 +68,15 @@ def test_a_game_scoped_tool_takes_game_id_first(tool: str) -> None:
 
 
 # @spec TOOL-008
-@pytest.mark.parametrize("tool", GAME_SCOPED)
+@pytest.mark.parametrize("tool", _built(GAME_SCOPED))
 def test_a_game_scoped_tool_declares_game_id_first_in_its_input_schema(tool: str) -> None:
     surface, _ = _surface()
 
     assert next(iter(surface.definition(tool).input_schema["properties"])) == "game_id"
 
 
-# @spec TOOL-009
-@pytest.mark.parametrize("tool", CHANGING)
+# @spec TOOL-009, TOOL-032
+@pytest.mark.parametrize("tool", _built(CHANGING))
 def test_a_changing_tool_accepts_an_optional_after(tool: str) -> None:
     surface, _ = _surface()
     after = next(p for p in surface.definition(tool).parameters if p.name == "after")
