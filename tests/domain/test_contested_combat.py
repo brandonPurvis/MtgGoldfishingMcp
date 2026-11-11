@@ -475,16 +475,26 @@ def test_an_attacking_commander_s_damage_counts_against_the_seat_it_attacks() ->
 
 
 # @spec CMBT-063
-def test_a_blocked_attacker_with_a_damage_entry_deals_it_all_to_the_seat_it_attacks() -> None:
+def test_a_blocked_attacker_deals_exactly_its_trample_damage_whatever_its_damage_entry() -> None:
+    situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 6})
+    advanced(situation, "declare_blockers")
+    acted(situation, blocking(situation, S2, {"Llanowar Elves": "Shivan Dragon"}))
+    acted(situation, attacking(situation, trample={"Shivan Dragon": 2}))
+    advanced(situation, "combat_damage")
+    assert situation.game.seat(S2).life == 38
+
+
+# @spec CMBT-064
+def test_a_blocked_attacker_with_a_damage_entry_and_no_trample_damage_deals_nothing() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 3})
     advanced(situation, "declare_blockers")
     acted(situation, blocking(situation, S2, {"Llanowar Elves": "Shivan Dragon"}))
     advanced(situation, "combat_damage")
-    assert situation.game.seat(S2).life == 37
+    assert situation.game.seat(S2).life == 40
 
 
 # @spec CMBT-064, CMBT-050
-def test_a_blocked_attacker_without_a_damage_entry_deals_nothing_and_nothing_dies() -> None:
+def test_a_blocked_attacker_without_trample_damage_deals_nothing_and_nothing_dies() -> None:
     situation = attacked(a_table(), attackers=["Shivan Dragon"])
     advanced(situation, "declare_blockers")
     acted(situation, blocking(situation, S2, {"Llanowar Elves": "Shivan Dragon"}))
@@ -495,10 +505,13 @@ def test_a_blocked_attacker_without_a_damage_entry_deals_nothing_and_nothing_die
 
 
 # @spec CMBT-077
-def test_a_blocked_attacker_no_longer_on_the_battlefield_deals_nothing() -> None:
+def test_a_blocked_attacker_with_trample_damage_no_longer_on_the_battlefield_deals_nothing() -> (
+    None
+):
     situation = attacked(a_table(), attackers=["Shivan Dragon"], damage={"Shivan Dragon": 3})
     advanced(situation, "declare_blockers")
     acted(situation, blocking(situation, S2, {"Llanowar Elves": "Shivan Dragon"}))
+    acted(situation, attacking(situation, trample={"Shivan Dragon": 3}))
     recorded(situation, {"move": {"graveyard": ["Shivan Dragon"]}}, immediate=True)
     advanced(situation, "combat_damage")
     assert situation.game.seat(S2).life == 40

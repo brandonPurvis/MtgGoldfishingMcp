@@ -13,7 +13,9 @@ from mtg_goldfishing.domain.events import (
     CheckKind,
     Error,
     ErrorKind,
+    Evasion,
     FailedCheck,
+    HeldEvasion,
     Refused,
 )
 from mtg_goldfishing.domain.game.model import MAXIMUM_HAND, Destination
@@ -174,6 +176,26 @@ def _error_text(error: Error) -> str:
             return (
                 "Attackers are declared before declare_blockers; this combat's blockers are"
                 " being declared."
+            )
+        case ErrorKind.ATTACKERS_NEEDED:
+            return (
+                "attack needs attackers (an empty list declares none), or, in a contested game"
+                " once blocks are known, trample alone."
+            )
+        case ErrorKind.TRAMPLE_ALONE:
+            return (
+                f"trample is given alone, once blocks are known; not with {subject}."
+                " Send the trample damage in a call of its own."
+            )
+        case ErrorKind.TRAMPLE_NOT_NOW:
+            return (
+                "Trample damage is stated in declare_blockers, with an attack declared and every"
+                " blocks choice answered, before combat damage."
+            )
+        case ErrorKind.NOT_BLOCKED:
+            return (
+                f"{subject} is not blocked; an unblocked attacker deals its full damage, so it"
+                " has no trample damage to state."
             )
         case ErrorKind.TARGET_IS_YOU:
             return "An attacker cannot attack its own seat."
@@ -387,6 +409,8 @@ def check_text(check: FailedCheck) -> str:
             return f"{subject} is tapped, so it cannot block."
         case CheckKind.BLOCKER_NOT_A_CREATURE:
             return f"{subject} is not a creature, so it cannot block."
+        case CheckKind.EVASION_FORBIDS_BLOCK:
+            return _evasion_text(subject, check.attacker or "", check.evasion)
         case CheckKind.DECK_SIZE:
             return f"The deck has {check.number} cards, not {check.expected}."
         case CheckKind.SINGLETON:
@@ -399,6 +423,31 @@ def check_text(check: FailedCheck) -> str:
             return f"Cannot be a commander: {names}."
         case _:
             assert_never(check.kind)
+
+
+_WHO_MAY_BLOCK = {
+    Evasion.FLYING: "which has flying ({source}): only a creature with flying or reach may"
+    " block it",
+    Evasion.HORSEMANSHIP: "which has horsemanship ({source}): only a creature with"
+    " horsemanship may block it",
+    Evasion.CANT_BE_BLOCKED: "which can't be blocked ({source})",
+}
+
+
+def _evasion_source(held: HeldEvasion) -> str:
+    """Where the game holds an evasion from: read from the attacker's card, with the
+    reading's assumptions, or stated by the attacking seat in `evasion`, or both."""
+    read = "read from its card" + "".join(f", which {a}" for a in held.assumptions)
+    if held.read and held.listed:
+        return f"{read}, and stated in evasion"
+    return read if held.read else "stated in evasion by the attacking seat"
+
+
+def _evasion_text(blocker: str, attacker: str, held: HeldEvasion | None) -> str:
+    if held is None:
+        return f"{blocker} cannot block {attacker}."
+    reason = _WHO_MAY_BLOCK[held.evasion].format(source=_evasion_source(held))
+    return f"{blocker} cannot block {attacker}, {reason}."
 
 
 _LAND_CHECKS = frozenset({CheckKind.LAND_DROP_USED, CheckKind.LAND_TIMING})

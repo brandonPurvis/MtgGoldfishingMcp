@@ -354,6 +354,21 @@ def test_an_attack_records_the_attackers_and_the_seat_each_attacks_and_no_blocke
     }
 
 
+# @spec REC-082
+def test_a_trample_statement_records_each_attacker_s_trample_damage_and_the_seat_it_attacks() -> (
+    None
+):
+    situation = a_duel_with_a_blocker()
+    blocked_by(situation, {"Llanowar Elves": "Grizzly Bears"})
+    bears = next(c for c in situation.game.cards if c.name == "Grizzly Bears")
+    operate: Any = attack
+    result = operate(situation.game, situation.deck, S1, trample={"Grizzly Bears": 1})
+    entry = logged(situation, S1, "attack", {"trample": {"Grizzly Bears": 1}}, result)
+    assert data(entry)["outcome"] == {
+        "trample": [{"attacker": "Grizzly Bears", "attacker_id": bears.id, "damage": 1, "seat": 2}]
+    }
+
+
 # @spec REC-076
 def test_entering_combat_damage_records_each_attacker_s_damage_and_the_seat_dealt_it() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat()

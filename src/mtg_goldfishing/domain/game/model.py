@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from mtg_goldfishing.domain.cards import Card
-from mtg_goldfishing.domain.events import Error, Event, NoticeKind
+from mtg_goldfishing.domain.events import Error, Evasion, Event, NoticeKind
 from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.mana import ManaPool, ManaString
 from mtg_goldfishing.domain.reading.model import CardReading
@@ -154,8 +154,10 @@ class Attack:
     """The declared attack, by instance id.
 
     In a contested game `targets` maps each attacker to the seat number it attacks, and
-    `blocks` each blocker to the attacker it blocks; a goldfish game's commanders attack the
-    imaginary opponents in `commander_targets`.
+    `blocks` each blocker to the attacker it blocks; `evasion` holds the evasion the attacking
+    seat listed for an attacker on declaring, and `trample` each blocked attacker's trample
+    damage as stated. A goldfish game's commanders attack the imaginary opponents in
+    `commander_targets`.
     """
 
     attackers: list[str]
@@ -164,6 +166,8 @@ class Attack:
     commander_targets: dict[str, int] = field(default_factory=dict)
     targets: dict[str, int] = field(default_factory=dict)
     blocks: dict[str, str] = field(default_factory=dict)
+    evasion: dict[str, list[Evasion]] = field(default_factory=dict)
+    trample: dict[str, int] = field(default_factory=dict)
 
 
 class StackItemKind(Enum):

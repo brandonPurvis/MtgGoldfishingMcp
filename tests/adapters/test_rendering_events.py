@@ -96,6 +96,8 @@ from mtg_goldfishing.domain.events import (
     StopReason,
     Tapped,
     TokensCreated,
+    TrampleDamage,
+    TrampleDamageStated,
     Untapped,
 )
 from mtg_goldfishing.domain.game.calls import accept_change, follow_change
@@ -449,6 +451,7 @@ def sample_of_every_event() -> list[Event]:
         BlocksRequested("x3", SeatNumber(2), ("Grizzly Bears",)),
         NoBlocksDeclared(SeatNumber(3)),
         BlocksDeclared(SeatNumber(2), (BlockDeclared("Llanowar Elves", "Grizzly Bears"),)),
+        TrampleDamageStated((TrampleDamage("Shivan Dragon", "c3", 3, SeatNumber(2)),)),
         CombatDamageToSeats(
             (SeatHit("Grizzly Bears", 2, SeatNumber(2)),), (DamagedSeat(SeatNumber(2), 38, ()),)
         ),

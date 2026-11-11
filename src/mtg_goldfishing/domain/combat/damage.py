@@ -74,15 +74,16 @@ def deal_combat_damage(game: Game, deck: LoadedDeck, decks: Decks | None = None)
 
 def _damage_of(game: Game, decks: Decks, attack: Attack, card: CardInstance) -> int | None:
     """What one attacker deals the seat it attacks, or None when it deals nothing: it has
-    left the battlefield, changed control or lost its target, or is blocked with no `damage`
-    entry. A blocked attacker's entry is dealt in full."""
+    left the battlefield, changed control or lost its target, or is blocked with no trample
+    damage stated. A blocked attacker deals exactly its trample damage, whatever its power
+    and its `damage` entry."""
     target = attack.targets.get(card.id)
     if card.zone is not Zone.BATTLEFIELD or card.controller != game.active or target is None:
         return None
     if not game.seat(SeatNumber(target)).in_game:
         return None
     if card.id in attack.blocked:
-        return attack.damage.get(card.id)
+        return attack.trample.get(card.id)
     return attack.damage.get(card.id, default_damage(decks.of(card.owner), card))
 
 
@@ -97,7 +98,7 @@ def _commander_damage_to(game: Game, seat: SeatNumber) -> tuple[tuple[str, int],
 
 
 # @spec CMBT-050, CMBT-052, CMBT-061, CMBT-062, CMBT-063, CMBT-064, CMBT-065, CMBT-066
-# @spec CMBT-067, CMBT-074, CMBT-075, CMBT-077, GAME-130
+# @spec CMBT-067, CMBT-074, CMBT-075, CMBT-077, CMBT-082, CMBT-097, GAME-130
 def _deal_to_seats(game: Game, decks: Decks, attack: Attack) -> list[Event]:
     """Each attacker's damage comes off the life of the seat it attacks, a commander's also
     counting against that seat; nothing happens to any creature. Eliminations follow, once

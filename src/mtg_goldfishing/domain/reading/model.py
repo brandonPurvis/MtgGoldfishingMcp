@@ -182,7 +182,9 @@ class StepTrigger:
 
 @dataclass(frozen=True)
 class FaceReading:
-    """Everything the card reader worked out from one face."""
+    """Everything the card reader worked out from one face. `flying`, `horsemanship` and
+    `cant_be_blocked` are the evasion the service checks on blocks; `reach` lets a blocker
+    block a creature with flying."""
 
     mana_abilities: tuple[ManaAbility, ...] = ()
     unread_mana_abilities: tuple[str, ...] = ()
@@ -191,6 +193,10 @@ class FaceReading:
     vigilance: KeywordReading = NO_KEYWORD
     flash: KeywordReading = NO_KEYWORD
     enters_tapped: EntersTappedReading = ENTERS_UNTAPPED
+    flying: KeywordReading = NO_KEYWORD
+    horsemanship: KeywordReading = NO_KEYWORD
+    reach: KeywordReading = NO_KEYWORD
+    cant_be_blocked: KeywordReading = NO_KEYWORD
 
     @property
     def is_mana_source(self) -> bool:
@@ -246,3 +252,4 @@ class ReadingReport:
     keywords: tuple[KeywordReport, ...] = ()
     enters_tapped: tuple[EntersTappedReport, ...] = ()
     assumed_untapped: tuple[EntersTappedReport, ...] = ()
+    evasion_and_reach: tuple[KeywordReport, ...] = ()

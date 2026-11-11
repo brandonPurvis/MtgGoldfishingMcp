@@ -107,8 +107,8 @@ class Service:
         return choose.choose(self._ports, arguments)
 
     def attack(self, arguments: Arguments) -> Answer:
-        """`game_id, attackers, blocked?, commander_target?, damage?, vigilance?, haste?,
-        reason?, override?, after?`"""
+        """`game_id, attackers?, blocked?, commander_target?, damage?, vigilance?, haste?,
+        targets?, evasion?, trample?, reason?, override?, after?`"""
         return attack.attack(self._ports, arguments)
 
     def advance(self, arguments: Arguments) -> Answer:

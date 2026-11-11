@@ -31,7 +31,7 @@ _FIELDS = frozenset(
         *_TEXT_FIELDS,
     }
 )
-_OWN_KEYWORDS = ("haste", "vigilance", "flash")
+_OWN_KEYWORDS = ("haste", "vigilance", "flash", "flying", "horsemanship", "reach")
 
 
 def _malformed(field: str) -> Error:
@@ -188,18 +188,18 @@ def _defined_reading(face: FaceReading, definition: CardDefinition) -> FaceReadi
     return replace(face, **changes)  # type: ignore[arg-type]
 
 
-# @spec DECK-014, DECK-015, DECK-016, DECK-017
+# @spec DECK-014, DECK-015, DECK-016, DECK-017, DECK-040
 def definition_reading(card: Card, definition: CardDefinition) -> CardReading:
     """The readings of a defined card: read from its data, then the definition's overrides.
 
     `produces` replaces the defined face's mana reading with a tap for that mana (a list is
-    a choice), `enters_tapped` replaces its enters-tapped reading, and haste, vigilance or
-    flash among the keywords become its own keywords.
+    a choice), `enters_tapped` replaces its enters-tapped reading, and haste, vigilance,
+    flash, flying, horsemanship or reach among the keywords become its own keywords.
     """
     return definitions_reading(card, (definition,))
 
 
-# @spec DECK-014, DECK-015, DECK-016, DECK-017
+# @spec DECK-014, DECK-015, DECK-016, DECK-017, DECK-040
 def definitions_reading(card: Card, definitions: Iterable[CardDefinition]) -> CardReading:
     """The readings of a card with several definitions, each describing one of its faces."""
     faces = list(read_card(card).faces)

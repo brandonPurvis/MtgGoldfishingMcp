@@ -115,6 +115,16 @@ def test_haste_vigilance_and_flash_in_keywords_become_the_cards_own() -> None:
     assert (face.haste.own, face.vigilance.own, face.flash.own) == (True, True, True)
 
 
+# @spec DECK-040
+def test_flying_horsemanship_and_reach_in_keywords_become_the_cards_own() -> None:
+    definition = read_definition(
+        {"name": "Grizzly Bears", "keywords": ["flying", "Horsemanship", "Reach"]}
+    )
+    assert isinstance(definition, CardDefinition)
+    face = definition_reading(card("Grizzly Bears"), definition).face(0)
+    assert (face.flying.own, face.horsemanship.own, face.reach.own) == (True, True, True)
+
+
 # @spec DECK-017
 def test_readings_are_made_from_the_defined_card_data() -> None:
     definition = read_definition({"name": "Grizzly Bears", "oracle_text": "{T}: Add {G}."})

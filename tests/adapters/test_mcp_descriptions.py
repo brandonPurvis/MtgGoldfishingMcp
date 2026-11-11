@@ -183,7 +183,8 @@ GOLDFISH_DESCRIPTIONS: dict[str, str] = json.loads(
 )
 """Each tool's description as an agent playing a goldfish game reads it: the descriptions the
 service gave before contested games existed, with `new_game`'s `starting_life` and `choose`'s
-optional `selections`, which goldfish games also take."""
+optional `selections`, which goldfish games also take, and with `attack`'s `attackers` not marked
+required, since a contested game's `attack` stating trample damage gives none."""
 GOLDFISH_GUIDE = (FIXTURES / "goldfish_server_instructions.txt").read_text(encoding="utf-8")
 CONTESTED = "Contested games:"
 CONTESTED_TOOLS = ("pass", "wait")
@@ -307,3 +308,15 @@ def test_the_server_instructions_continue_with_a_section_on_contested_games(
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 
     assert all(word in contested for word in words), point
+
+
+# @spec TOOL-078
+def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_trample() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in (
+        "A blocked attacker deals a seat nothing",
+        "`attack` and `trample`",
+        "before combat damage",
+    ):
+        assert words in contested, words

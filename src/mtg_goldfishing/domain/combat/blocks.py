@@ -3,6 +3,7 @@ pending choice, which of its creatures block."""
 
 from __future__ import annotations
 
+from mtg_goldfishing.domain.combat.evasion import held_evasion
 from mtg_goldfishing.domain.events import BlocksRequested, Event, NoBlocksDeclared
 from mtg_goldfishing.domain.game.cards_in_play import face_name, is_creature
 from mtg_goldfishing.domain.game.decks import Decks
@@ -34,12 +35,13 @@ def _can_block(game: Game, decks: Decks, seat: SeatNumber) -> bool:
     )
 
 
-# @spec CMBT-034, CMBT-035, CMBT-036, CMBT-037, CMBT-047, CMBT-049
+# @spec CMBT-034, CMBT-035, CMBT-036, CMBT-037, CMBT-047, CMBT-049, CMBT-081
 def request_blocks(game: Game, decks: Decks) -> list[Event]:
     """Drop from the declared attack every attacker that has left the battlefield, changed
     control or lost its target seat; then ask each attacked seat still in the game, in turn
-    order from the seat after the active seat, to block the attackers attacking it. A seat
-    with no untapped creature is not asked: no blocks are declared for it."""
+    order from the seat after the active seat, to block the attackers attacking it, shown
+    with the evasion the game holds for each. A seat with no untapped creature is not asked:
+    no blocks are declared for it."""
     attack = game.declared_attack
     if attack is None or game.active is None:
         return []
@@ -58,10 +60,19 @@ def request_blocks(game: Game, decks: Decks) -> list[Event]:
                 choice_id, other.number, SOURCE, "blocks", [], None, attackers=attacking_it
             )
         )
-        names = tuple(
-            face_name(decks.of(game.instance(a).owner), game.instance(a)) for a in attacking_it
+        cards = [game.instance(a) for a in attacking_it]
+        events.append(
+            BlocksRequested(
+                choice_id,
+                other.number,
+                tuple(face_name(decks.of(card.owner), card) for card in cards),
+                tuple(card.id for card in cards),
+                tuple(
+                    tuple(held.evasion for held in held_evasion(game, decks, card))
+                    for card in cards
+                ),
+            )
         )
-        events.append(BlocksRequested(choice_id, other.number, names))
     if game.pending:
         game.status = GameStatus.PENDING_CHOICE
     return events

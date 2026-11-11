@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import re
+from typing import Any
 
 import pytest
 
@@ -247,6 +248,12 @@ def test_enters_tapped_replaces_the_enters_tapped_reading_in_the_loaded_deck() -
 def test_haste_among_a_definitions_keywords_is_the_cards_own_in_the_loaded_deck() -> None:
     load = a_deck_list().with_definition(name="Grizzly Bears", keywords=["Haste"]).loaded()
     assert deck_card_reading(load, "Grizzly Bears").haste.own
+
+
+# @spec DECK-040
+def test_flying_among_a_definitions_keywords_is_the_cards_own_in_the_loaded_deck() -> None:
+    load = a_deck_list().with_definition(name="Grizzly Bears", keywords=["Flying"]).loaded()
+    assert deck_card_reading(load, "Grizzly Bears").flying.own
 
 
 # @spec DECK-017
@@ -770,6 +777,31 @@ def test_the_report_lists_cards_that_grant_haste_or_vigilance() -> None:
     assert [grant.card for grant in load.summary.report.granting_haste_or_vigilance] == [
         "Concordant Crossroads"
     ]
+
+
+# @spec DECK-041
+def test_the_report_lists_cards_that_grant_evasion_or_reach_with_the_keyword_granted() -> None:
+    load = (
+        a_deck_list()
+        .with_cards("Homemade Banner")
+        .with_definition(
+            name="Homemade Banner",
+            type_line="Artifact",
+            oracle_text="Creatures you control have flying.",
+        )
+        .loaded()
+    )
+    report: Any = load.summary.report
+    assert [(grant.card, grant.keyword) for grant in report.granting_evasion_or_reach] == [
+        ("Homemade Banner", "flying")
+    ]
+
+
+# @spec DECK-041
+def test_the_report_does_not_list_a_card_that_only_has_evasion_itself() -> None:
+    load = a_deck_list().with_cards("Serra Angel").loaded()
+    report: Any = load.summary.report
+    assert report.granting_evasion_or_reach == ()
 
 
 # @spec DECK-037

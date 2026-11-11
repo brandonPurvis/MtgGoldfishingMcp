@@ -99,11 +99,52 @@ def mana_cost(deck: LoadedDeck, card: CardInstance) -> ManaString:
     return face.mana_cost if face else ManaString()
 
 
+KEYWORDS = ("haste", "vigilance", "flying", "horsemanship", "reach", "cant_be_blocked")
+"""The keywords a permanent may have of its own or be granted, by their reading's name."""
+
+
 def _keyword(reading: FaceReading, keyword: str) -> KeywordReading:
-    return reading.haste if keyword == "haste" else reading.vigilance
+    if keyword not in KEYWORDS:
+        raise ValueError(f"not a keyword a permanent is granted: {keyword}")
+    found: KeywordReading = getattr(reading, keyword)
+    return found
 
 
 # @spec PAY-049, GAME-171
+def keyword_held(
+    game: Game,
+    deck: LoadedDeck,
+    card: CardInstance,
+    keyword: str,
+    decks: Decks | None = None,
+) -> KeywordReading | None:
+    """The reading by which an instance has a keyword: its own, or else the first grant that
+    reaches it from a permanent its controller controls (including its own grant when that
+    grant includes itself; a grant limited to a subtype reaches only that subtype). None when
+    it has the keyword neither way. The reading carries its assumptions.
+
+    The instance and every permanent that could grant the keyword are each read from their
+    owner's deck (`decks`; omitted, every seat plays `deck`)."""
+    every = decks or Decks.everyone_playing(game, deck)
+    own_deck = every.of(card.owner)
+    own = _keyword(reading_of(own_deck, card), keyword)
+    if own.own:
+        return own
+    if not is_creature(own_deck, card):
+        return None
+    words = type_words(type_line(own_deck, card))
+    for other in game.battlefield_of(card.controller):
+        granting = _keyword(reading_of(every.of(other.owner), other), keyword)
+        grant = granting.grant
+        if grant is None:
+            continue
+        if other.id == card.id and not grant.includes_self:
+            continue
+        if grant.subtype is None or grant.subtype.lower() in words:
+            return granting
+    return None
+
+
 def has_keyword(
     game: Game,
     deck: LoadedDeck,
@@ -111,26 +152,8 @@ def has_keyword(
     keyword: str,
     decks: Decks | None = None,
 ) -> bool:
-    """Haste or vigilance: the instance's own, or granted by a permanent its controller controls.
-
-    The instance and every permanent that could grant the keyword are each read from their
-    owner's deck (`decks`; omitted, every seat plays `deck`)."""
-    every = decks or Decks.everyone_playing(game, deck)
-    own_deck = every.of(card.owner)
-    if _keyword(reading_of(own_deck, card), keyword).own:
-        return True
-    if not is_creature(own_deck, card):
-        return False
-    words = type_words(type_line(own_deck, card))
-    for other in game.battlefield_of(card.controller):
-        grant = _keyword(reading_of(every.of(other.owner), other), keyword).grant
-        if grant is None:
-            continue
-        if other.id == card.id and not grant.includes_self:
-            continue
-        if grant.subtype is None or grant.subtype.lower() in words:
-            return True
-    return False
+    """Whether the instance has the keyword, its own or granted (see `keyword_held`)."""
+    return keyword_held(game, deck, card, keyword, decks) is not None
 
 
 def has_haste(game: Game, deck: LoadedDeck, card: CardInstance, decks: Decks | None = None) -> bool:

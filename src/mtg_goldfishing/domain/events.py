@@ -89,6 +89,10 @@ class ErrorKind(Enum):
     NOT_YOUR_ATTACKER = "not_your_attacker"
     ATTACK_DECLARED = "attack_declared"
     ATTACK_AFTER_BLOCKERS = "attack_after_blockers"
+    ATTACKERS_NEEDED = "attackers_needed"
+    TRAMPLE_ALONE = "trample_alone"
+    TRAMPLE_NOT_NOW = "trample_not_now"
+    NOT_BLOCKED = "not_blocked"
     TARGET_IS_YOU = "target_is_you"
     NO_TARGET = "no_target"
     NO_OPPONENT_LEFT = "no_opponent_left"
@@ -131,6 +135,7 @@ class CheckKind(Enum):
     POWER_NOT_A_NUMBER = "power_not_a_number"
     BLOCKER_TAPPED = "blocker_tapped"
     BLOCKER_NOT_A_CREATURE = "blocker_not_a_creature"
+    EVASION_FORBIDS_BLOCK = "evasion_forbids_block"
     DECK_SIZE = "deck_size"
     SINGLETON = "singleton"
     COLOR_IDENTITY = "color_identity"
@@ -192,9 +197,30 @@ class Error:
     through_ask: bool = False
 
 
+class Evasion(Enum):
+    """An attacker's ability that limits which creatures may block it, as the service checks
+    it; the value is how `attack`'s `evasion` names it."""
+
+    FLYING = "flying"
+    HORSEMANSHIP = "horsemanship"
+    CANT_BE_BLOCKED = "unblockable"
+
+
+@dataclass(frozen=True)
+class HeldEvasion:
+    """An evasion the game holds for an attacker, and where from: read from card data (with
+    the assumptions of the reading), listed by the attacking seat in `evasion`, or both."""
+
+    evasion: Evasion
+    read: bool = False
+    listed: bool = False
+    assumptions: tuple[str, ...] = ()
+
+
 @dataclass(frozen=True)
 class FailedCheck:
-    """One failed rule check, with the facts its kind needs."""
+    """One failed rule check, with the facts its kind needs. A block an attacker's evasion
+    forbids names the blocker as `subject`, the `attacker`, and the `evasion` held for it."""
 
     kind: CheckKind
     subject: str | None = None
@@ -203,6 +229,8 @@ class FailedCheck:
     number: int | None = None
     expected: int | None = None
     step: Step | None = None
+    attacker: str | None = None
+    evasion: HeldEvasion | None = None
 
 
 class NoticeKind(Enum):
@@ -244,8 +272,9 @@ class DeckReport:
     `definitions_applied` names the cards a card definition changed. The rest list mana
     abilities read with assumptions, mana abilities not read, mana abilities the auto
     payment system will not use on its own (they sacrifice or carry another cost), cards
-    granting haste or vigilance, cards read as entering tapped, cards assumed to enter
-    untapped, and haste, vigilance or flash readings made with assumptions. `not_refreshed`
+    granting haste or vigilance, cards granting flying, horsemanship, reach or "can't be
+    blocked", cards read as entering tapped, cards assumed to enter untapped, and keyword
+    readings made with assumptions. `not_refreshed`
     names the cards a refresh could not fetch again, whose cached data the deck was built from.
     """
 
@@ -254,6 +283,7 @@ class DeckReport:
     unread: tuple[UnreadAbility, ...] = ()
     not_used_on_their_own: tuple[ReadAbility, ...] = ()
     granting_haste_or_vigilance: tuple[KeywordReport, ...] = ()
+    granting_evasion_or_reach: tuple[KeywordReport, ...] = ()
     enters_tapped: tuple[EntersTappedReport, ...] = ()
     assumed_untapped: tuple[EntersTappedReport, ...] = ()
     keywords_with_assumptions: tuple[KeywordReport, ...] = ()
@@ -569,22 +599,27 @@ class AttackerDamage:
 
 @dataclass(frozen=True)
 class AttackDeclared:
-    """An attack declared. In a contested game `targets` gives the seat each attacker attacks."""
+    """An attack declared. In a contested game `targets` gives the seat each attacker attacks,
+    and `evasion` the evasion the attacking seat stated for an attacker in `evasion`."""
 
     attackers: tuple[str, ...]
     blocked: tuple[str, ...]
     commander_targets: tuple[tuple[str, int], ...]
     tapped: tuple[str, ...]
     targets: tuple[tuple[str, SeatNumber], ...] = ()
+    evasion: tuple[tuple[str, tuple[Evasion, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
 class BlocksRequested:
-    """A `blocks` pending choice for an attacked seat, with the attackers attacking it."""
+    """A `blocks` pending choice for an attacked seat, with the attackers attacking it: by
+    name, by instance id, and with the evasion the game holds for each."""
 
     choice_id: str
     seat: SeatNumber
     attackers: tuple[str, ...]
+    attacker_ids: tuple[str, ...] = ()
+    evasion: tuple[tuple[Evasion, ...], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -610,6 +645,23 @@ class BlocksDeclared:
 
     seat: SeatNumber
     blocks: tuple[BlockDeclared, ...]
+
+
+@dataclass(frozen=True)
+class TrampleDamage:
+    """One blocked attacker's trample damage to the seat it attacks, as stated."""
+
+    attacker: str
+    attacker_id: str
+    damage: int
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
+class TrampleDamageStated:
+    """An `attack` stating trample damage: each attacker it names."""
+
+    entries: tuple[TrampleDamage, ...]
 
 
 @dataclass(frozen=True)
@@ -915,6 +967,7 @@ Event = (
     | BlocksRequested
     | NoBlocksDeclared
     | BlocksDeclared
+    | TrampleDamageStated
     | CombatDamageDealt
     | CombatDamageToSeats
     | SeatEliminated

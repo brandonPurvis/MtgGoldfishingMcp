@@ -6,7 +6,7 @@ import json
 from typing import assert_never
 
 from mtg_goldfishing.adapters.mcp.refusal_lines import error_text
-from mtg_goldfishing.domain.events import DeckReport, RevealedCard
+from mtg_goldfishing.domain.events import DeckReport, Evasion, RevealedCard
 from mtg_goldfishing.domain.game.listing import (
     ChoiceListing,
     CommanderListing,
@@ -175,6 +175,27 @@ def _cards(cards: tuple[RevealedCard, ...]) -> str:
     return ", ".join(f"{card.name} ({card.instance_id})" for card in cards)
 
 
+EVASION_WORDS = {
+    Evasion.FLYING: "flying",
+    Evasion.HORSEMANSHIP: "horsemanship",
+    Evasion.CANT_BE_BLOCKED: "can't be blocked",
+}
+
+
+# @spec TOOL-079
+def attackers_to_block(
+    cards: tuple[RevealedCard, ...], evasion: tuple[tuple[Evasion, ...], ...]
+) -> str:
+    """The attackers a `blocks` choice may block: each by name and instance id, followed by
+    the evasion the game holds for it, `<name> (<instance id>, flying, horsemanship)`."""
+    shown = []
+    for index, card in enumerate(cards):
+        held = evasion[index] if index < len(evasion) else ()
+        words = "".join(f", {EVASION_WORDS[each]}" for each in held)
+        shown.append(f"{card.name} ({card.instance_id}{words})")
+    return ", ".join(shown)
+
+
 def _choice(choice: ChoiceListing) -> str:
     """One pending choice the calling seat owes, and what it asks."""
     head = f"  {choice.choice_id} ({choice.kind})"
@@ -182,7 +203,7 @@ def _choice(choice: ChoiceListing) -> str:
         case "ask":
             return f"{head} from {choice.asked_by}: {choice.text}"
         case "blocks":
-            return f"{head}: attacked by {_cards(choice.attackers)}"
+            return f"{head}: attacked by {attackers_to_block(choice.attackers, choice.evasion)}"
         case "resolve":
             held = json.dumps(dict(choice.delta), separators=(", ", ": "))
             to = choice.to or "its default destination"
@@ -268,6 +289,10 @@ def report_lines(report: DeckReport) -> list[str]:
         (
             "Grants haste or vigilance",
             [f"{k.card} ({k.keyword})" for k in report.granting_haste_or_vigilance],
+        ),
+        (
+            "Grants evasion or reach",
+            [f"{k.card} ({k.keyword})" for k in report.granting_evasion_or_reach],
         ),
         ("Enters tapped", [e.card for e in report.enters_tapped]),
         (

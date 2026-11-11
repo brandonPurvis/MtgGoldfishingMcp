@@ -135,7 +135,7 @@ def test_an_attack_reads_with_the_seat_each_attacker_attacks() -> None:
     assert "Attacking S3 with Grizzly Bears." in response("attack", situation, S1, result)
 
 
-# @spec CMBT-037
+# @spec CMBT-037, TOOL-079
 def test_blocks_asked_of_a_seat_read_with_the_attackers_attacking_it() -> None:
     situation = three_seats()
     acted(
@@ -145,7 +145,8 @@ def test_blocks_asked_of_a_seat_read_with_the_attackers_attacking_it() -> None:
     result = acted(situation, advance(situation.game, situation.deck, S1, to="declare_blockers"))
     choice = situation.game.pending[0].choice_id
     lines = response("advance", situation, S1, result).splitlines()
-    assert f"Choice {choice} (blocks) for S2: attacked by Grizzly Bears." in lines
+    bears = next(c.id for c in situation.game.cards if c.name == "Grizzly Bears")
+    assert f"Choice {choice} (blocks) for S2: attacked by Grizzly Bears ({bears})." in lines
     assert lines[-1].endswith(f"Act S2 blocks · #{situation.game.change}")
 
 

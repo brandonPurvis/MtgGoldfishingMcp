@@ -93,7 +93,7 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
     assert all(words in given for words in ("seat id", "which seat you play")), given
 
 
-# @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055
+# @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055, TOOL-080
 @pytest.mark.parametrize(
     ("instruction", "words"),
     [
@@ -104,7 +104,31 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
         ("TOOL-053: answer choices addressed to it", ("`choose`", "blocks", "other seats")),
         ("TOOL-053: state combat after blocks", ("`effect`", "`immediate: true`", "after blocks")),
         ("TOOL-072: leave out the damage to seats", ("leave out", "damage to seats")),
-        ("TOOL-072: damage past blockers only", ("`damage`", "gets past")),
+        (
+            "TOOL-072: state trample damage once blocks are known",
+            ("`attack` and `trample`", "once blocks are known", "before advancing to combat"),
+        ),
+        (
+            "TOOL-072: a blocked attacker otherwise deals nothing",
+            ("blocked attacker otherwise deals the seat nothing",),
+        ),
+        (
+            "TOOL-080: give evasion an attacker has only this turn",
+            ("`evasion`", 'flying, horsemanship or "can\'t be blocked"', "only this turn"),
+        ),
+        (
+            "TOOL-080: block only as evasion allows",
+            ("block only as the attackers' evasion allows",),
+        ),
+        (
+            "TOOL-080: override a refused block only when it is wrong for this turn",
+            (
+                "override a refused block only when",
+                "gained flying or reach",
+                "lost its evasion",
+                "assumed condition",
+            ),
+        ),
         ("TOOL-073: attack not declared", ("not declared", "`wait`", "same `attack`")),
         ("TOOL-054: the tested seat's verdict", ("tested seat", "what the opposition did")),
         ("TOOL-054: an opposing seat concedes", ("concede", "until the game ends")),
