@@ -60,6 +60,18 @@ async def test_a_listed_object_parameter_also_admits_a_json_string() -> None:
     assert play.input_schema["properties"]["delta"]["type"] == ["object", "string"]
 
 
+# @spec TOOL-010
+@pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+async def test_cast_triggers_is_listed_as_a_list_that_also_admits_a_json_string() -> None:
+    client, _ = _client()
+
+    async with client:
+        listed = await client.list_tools()
+
+    play = next(tool for tool in listed.tools if tool.name == "play")
+    assert play.input_schema["properties"]["cast_triggers"]["type"] == ["array", "string"]
+
+
 # @spec TOOL-027
 async def test_a_response_is_one_text_content_item() -> None:
     client, harness = _client()

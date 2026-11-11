@@ -455,7 +455,7 @@ def test_a_resolving_delta_that_takes_a_seat_to_zero_life_eliminates_it() -> Non
 
 
 # @spec STACK-023
-def test_an_item_resolving_marks_every_item_below_it_disturbed() -> None:
+def test_an_item_that_is_not_a_cast_trigger_resolving_marks_every_item_below_it_disturbed() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
         lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}),

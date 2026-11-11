@@ -126,3 +126,75 @@ def test_attack_says_it_may_stop_undeclared_where_another_seat_has_a_reminder() 
     contested = description[description.index("Contested games:") :]
     for words in ("reminder", "nothing is declared or tapped", "send attack again"):
         assert words in contested, words
+
+
+# ------------------------------------------------------------------ cast triggers and answer text
+
+NOT_BUILT = pytest.mark.xfail(strict=True, reason="M2: not implemented yet")
+
+
+def contested_part(tool: str) -> str:
+    description = DEFINITIONS[tool].description
+    return description[description.index("Contested games:") :]
+
+
+# @spec TOOL-081
+@NOT_BUILT
+def test_play_describes_cast_triggers_for_every_game() -> None:
+    cast_triggers = parameter("play", "cast_triggers")
+    assert cast_triggers is not None
+    assert not cast_triggers.meaning.startswith("Contested games: ")
+    for words in ("source", "delta", "choices", "before the spell", "first listed first", "land"):
+        assert words in cast_triggers.meaning, words
+
+
+# @spec TOOL-081
+@NOT_BUILT
+def test_play_gives_one_example_of_the_whole_cast_triggers_parameter() -> None:
+    cast_triggers = parameter("play", "cast_triggers")
+    assert cast_triggers is not None
+    (example,) = cast_triggers.example
+    assert set(example) >= {"source", "delta"}
+
+
+# @spec TOOL-081, TOOL-010
+@NOT_BUILT
+def test_play_takes_cast_triggers_as_a_list_or_a_json_string() -> None:
+    for triggers in ([{"source": "x", "delta": {}}], '[{"source": "x", "delta": {}}]'):
+        arguments = {"game_id": "g1", "card": "Lightning Bolt", "cast_triggers": triggers}
+        assert isinstance(shape(DEFINITIONS["play"].parameters, arguments), Shaped)
+
+
+# @spec TOOL-082
+@NOT_BUILT
+def test_play_says_cast_triggers_go_on_the_stack_above_the_spell_before_any_seat_is_asked() -> None:
+    contested = contested_part("play")
+    for words in (
+        "cast triggers",
+        "above the spell",
+        "before any seat is asked",
+        "resolves within",
+    ):
+        assert words in contested, words
+
+
+# @spec TOOL-083
+@NOT_BUILT
+def test_choose_says_an_ask_answer_may_carry_public_answer_text() -> None:
+    contested = contested_part("choose")
+    for words in (
+        "`text`",
+        "the card named, the guess, the number",
+        "every seat is shown",
+        "never judged",
+        "200 characters",
+        "no other kind of choice",
+    ):
+        assert words in contested, words
+
+
+# @spec TOOL-083, PLAY-107
+@NOT_BUILT
+def test_choose_takes_answer_text() -> None:
+    arguments = {"game_id": "g1", "choice_id": "x1", "text": "Lightning Bolt"}
+    assert isinstance(shape(DEFINITIONS["choose"].parameters, arguments), Shaped)
