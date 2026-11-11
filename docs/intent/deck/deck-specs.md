@@ -26,6 +26,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-014**: When a card definition gives `produces`, the loaded deck shall treat that card as a mana source that taps for the stated mana at no other cost, in place of the card's mana reading, with a list of mana strings meaning a choice between them.
 - [x] **DECK-015**: When a card definition gives `enters_tapped`, the loaded deck shall use that value in place of the card's enters-tapped reading.
 - [x] **DECK-016**: When a card definition's `keywords` includes `Haste`, `Vigilance` or `Flash`, the loaded deck shall treat that keyword as the card's own.
+- [ ] **DECK-040**: When a card definition's `keywords` includes `Flying`, `Horsemanship` or `Reach`, the loaded deck shall treat that keyword as the card's own.
 - [x] **DECK-017**: The loaded deck shall hold readings made from each card's data after card definitions have been applied.
 - [x] **DECK-018**: `load_deck` shall never change the shared card cache on account of a card definition.
 - [x] **DECK-039**: If a card definition names a face the card does not have, or two definitions describe the same face of one card, then `load_deck` shall return an error and create nothing.
@@ -61,3 +62,4 @@ Design: `deck-design.md`. Prefix: `DECK`.
 
 - [x] **DECK-036**: When `load_deck` succeeds, the outcome shall state the deck id, the card count and the commanders.
 - [x] **DECK-037**: When `load_deck` succeeds, the outcome shall report, each only when non-empty: card definitions applied, mana abilities read with assumptions and those assumptions, mana abilities not read, mana sources the auto payment system will not use on its own, cards that grant haste or vigilance, cards read as entering tapped, cards assumed to enter untapped with their conditions, keyword readings made with assumptions, and overridden deck checks.
+- [ ] **DECK-041**: When `load_deck` succeeds and the deck holds cards that grant flying, horsemanship, reach or "can't be blocked", the outcome shall report those cards with the keyword each grants, beside the reports of DECK-037, and shall not report a card that only has one of those keywords itself.

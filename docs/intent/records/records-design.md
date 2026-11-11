@@ -34,7 +34,9 @@ LogEntry {
                              //   choose: where each revealed card went (look, search, hand);
                              //           the blocks as applied (blocks); null (ask, resolve)
                              //   attack: attackers, blocked, targets (contested: attackers and
-                             //           the seat each attacks, no blocked list); on the entry
+                             //           the seat each attacks, no blocked list; an attack that
+                             //           states trample damage: each named attacker's trample
+                             //           damage and the seat it attacks); on the entry
                              //           that enters combat_damage: damage per attacker
                              //           (contested: with the seat it was dealt to)
                              //   advance: cards discarded

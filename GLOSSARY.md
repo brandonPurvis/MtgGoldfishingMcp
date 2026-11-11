@@ -41,7 +41,7 @@ A rule check on a deck's construction: size, singleton, color identity, legality
 _Avoid_: Deck validation, legality check
 
 **Reading**:
-What the service has worked out from a card's rules text: the mana it makes, its step triggers, its haste, vigilance or flash, and whether it enters tapped.
+What the service has worked out from a card's rules text: the mana it makes, its step triggers, its haste, vigilance, evasion, reach or flash, and whether it enters tapped.
 _Avoid_: Parse, interpretation, card logic
 
 **Assumption**:
@@ -255,8 +255,16 @@ The one land a seat may play on each of its turns.
 _Avoid_: Land play, land per turn
 
 **Declared attack**:
-The attackers, what each one attacks, which are blocked, and the damage the attacking seat has declared for the current combat, applied on entering combat damage.
+The attackers, what each one attacks, which are blocked, and the damage, evasion and trample damage the attacking seat has stated for the current combat, applied on entering combat damage.
 _Avoid_: Combat plan, attack declaration
+
+**Evasion**:
+An attacker's ability that limits which creatures may block it. The service checks flying (blockable only by a creature with flying or reach), horsemanship (only by a creature with horsemanship) and "can't be blocked" (by no creature).
+_Avoid_: Unblockability, evasiveness
+
+**Trample damage**:
+In a contested game, the combat damage a blocked attacker deals the seat it attacks, stated by the attacking seat once blocks are known; a blocked attacker with none deals that seat nothing.
+_Avoid_: Excess damage, damage through
 
 ### Records
 

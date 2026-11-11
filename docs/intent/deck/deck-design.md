@@ -55,7 +55,7 @@ A definition replaces fetched card data field by field for that card within this
 
 `produces` given as a list is a choice between the options. A card with `produces` is treated as a mana source that taps for that mana at no other cost.
 
-Readings (see `card-reading`) are made from the card data after definitions have been applied, so a definition's `oracle_text` is what gets read. `produces` replaces only the mana reading and `enters_tapped` only the enters-tapped reading. `Haste`, `Vigilance` or `Flash` in a definition's `keywords` is treated as the card's own keyword.
+Readings (see `card-reading`) are made from the card data after definitions have been applied, so a definition's `oracle_text` is what gets read. `produces` replaces only the mana reading and `enters_tapped` only the enters-tapped reading. `Haste`, `Vigilance`, `Flash`, `Flying`, `Horsemanship` or `Reach` in a definition's `keywords` is treated as the card's own keyword; a card that can't be blocked says so in its definition's `oracle_text`.
 
 ## Resolution and Errors
 
@@ -101,7 +101,7 @@ The `override` reason given when a loaded deck is created is recorded on it. A l
 
 ## Response
 
-On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
+On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards that grant flying, horsemanship, reach or "can't be blocked"; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
 
 ```
 OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.

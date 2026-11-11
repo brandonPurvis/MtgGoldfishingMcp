@@ -60,7 +60,9 @@ The migrations, by the version they reach:
 - **2, seats.** Creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, keeping every goldfish game's behavior as it was.
 - **3, whose turns a step trigger happens on.** Rewrites every step trigger reading held in a stored loaded deck or game document that names a step alone as a trigger in that step on its controller's turn, the only turns such a reading was ever reminded on; a reading that already says whose turns it happens on is left as it is. Because a loaded deck never changes once written, a deck stored before this migration keeps these readings when its list is loaded again with the same card data, and so do the games played on it: a trigger in it on each turn, or on opponents' turns, is reminded on its controller's turns only. A deck loaded afresh, under a new id, is read as usual.
 
-Neither migration changes a game's version counter: a migrated game is the same game.
+- **4, evasion and reach readings.** Adds to every card reading held in a stored loaded deck or game document the flying, horsemanship, reach and "can't be blocked" readings (see `card-reading`), made from the card data stored with that reading, card definition applied, exactly as `load_deck` would make them now. Every other part of each reading is left as it is. Without it, a deck loaded before these readings existed would never have them: a loaded deck never changes once written, and loading its list again returns the stored deck under the same id, so no block against its creatures would ever be checked for evasion. A declared attack stored before this version holds no evasion statements and no trample damage, and is read as having none; it needs no rewriting.
+
+No migration changes a game's version counter: a migrated game is the same game.
 
 ## Decisions & Alternatives
 
