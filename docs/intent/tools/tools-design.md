@@ -49,7 +49,7 @@ The purpose sentence of a tool that serves both kinds of game describes it for a
 
 Every game-scoped tool takes `game_id` as its first parameter: the id `new_game` gave the calling seat, which for the tested seat, and so in every goldfish game, is the game id. Every tool that changes a game — `mulligan`, `play`, `effect`, `choose`, `attack`, `advance`, `pass`, `end_game` — also takes an optional `after`, the change number the calling seat last saw (see `game`).
 
-A parameter that is an object or a list (`delta`, `choices`, `pay`, `expect`, `selections`, `definitions`) is also accepted as a JSON string holding that object or list, since some clients send it that way.
+A parameter that is an object or a list (`delta`, `choices`, `pay`, `cast_triggers`, `expect`, `selections`, `definitions`) is also accepted as a JSON string holding that object or list, since some clients send it that way.
 
 ### Descriptions
 
@@ -62,6 +62,11 @@ Five things about combat in a contested game are easy to get wrong from the para
 - `attack`: the call may stop before attackers are declared, at a step where another seat has a reminder. Nothing is declared or tapped, and the attacking seat sends `attack` again once it is the seat to act.
 - `attack`: `evasion` states flying, horsemanship or "can't be blocked" an attacker has beyond what the service has read, such as from a spell this turn, and blocks that the attacker's evasion forbids are refused.
 - `choose`: a `blocks` answer is refused, overridably, when the attacker's evasion forbids a block; a blocker that has flying or reach only for this turn blocks with an override giving that reason.
+
+Two more things are easy to miss, and the descriptions say them outright too:
+
+- `play`: `cast_triggers` states the casting seat's own triggers on casting the spell ("whenever you cast an instant, copy it"), each `{ "source", "delta", "choices"? }`, resolving before the spell in the order listed, the first listed first; a land takes none. Its `Contested games:` part says that they go on the stack above the spell before any seat is asked, so they belong in the `play` itself: a spell no seat can answer resolves within the call, and a later `effect` would come after it.
+- `choose`: its `Contested games:` part says that an `ask` answer may carry `text`, the answer text — the card named, the guess, the number — which every seat is shown and which is recorded, never judged; it is accepted for no other kind of choice and holds at most 200 characters.
 
 ### Server instructions
 
@@ -83,10 +88,11 @@ It continues with a short section on contested games:
 1. `new_game` with `opponents` starts a contested game and returns one seat id per seat; each seat's agent passes its own seat id as `game_id`.
 2. Seats act one at a time. When it is not your seat's turn to act, call `wait`; it returns when it is, with what you are being asked.
 3. Spells and abilities go on the stack and resolve once every other seat has passed. When you are asked to respond, `play` or `effect` to respond, or `pass`.
-4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect asks of you, or whether a spell still does what you said.
-5. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it. A blocked attacker deals a seat nothing unless the attacking seat states its trample damage with `attack` and `trample` before combat damage.
-6. Each response begins with what the other seats did since your last call.
-7. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
+4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect asks of you, or whether a spell still does what you said. When an `ask` has you name a card, guess or choose a number, give it as `text`; every seat sees it.
+5. State your own "whenever you cast" triggers in the `play` that casts the spell, as `cast_triggers`: a spell no other seat can answer resolves within that call.
+6. After blocks, the attacking seat states what happens to the creatures with `effect` and `immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it. A blocked attacker deals a seat nothing unless the attacking seat states its trample damage with `attack` and `trample` before combat damage.
+7. Each response begins with what the other seats did since your last call.
+8. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
 
 ## Response Format
 
@@ -110,7 +116,7 @@ S1 #55: passed; s3 resolved: Llanowar Elves exiled; S1 life +1
 S2 #56: cleanup → S3 T5 untap → upkeep → draw → main1; S3 drew Forest
 ```
 
-A line belongs to the seat whose call made the change, and a change has one line. Everything the change caused is listed on it, separated by `;`, including what it caused for other seats: an automatic pass, the resolution of another seat's item, the start of the next seat's turn. Seats are always named `S<n>` in a digest, the reader's own seat included; every line has at least one event, because every accepted change has a public form. A mulligan taken reads `S2 took a mulligan (2 taken)` and a kept hand `S2 kept 6, bottomed 1`; a look at a hand names the looking seat and whose hand, never the cards: `S3 looks at S1's hand (CHOICE hand)`. A response with nothing new has no digest lines. A `get_log` response is JSON and carries no digest; what happened before it is shown by the seat's next text response. A goldfish game's responses never have them.
+A line belongs to the seat whose call made the change, and a change has one line. Everything the change caused is listed on it, separated by `;`, including what it caused for other seats: an automatic pass, the resolution of another seat's item, the start of the next seat's turn. Seats are always named `S<n>` in a digest, the reader's own seat included; every line has at least one event, because every accepted change has a public form. A mulligan taken reads `S2 took a mulligan (2 taken)` and a kept hand `S2 kept 6, bottomed 1`; a look at a hand names the looking seat and whose hand, never the cards: `S3 looks at S1's hand (CHOICE hand)`; an answer to an `ask` names the answering seat and the choice, and gives its answer text, when it has some, in double quotes: `S2 answered choice x8 (ask): "Lightning Bolt"`. The answering seat's own response reads the answer the same way. A response with nothing new has no digest lines. A `get_log` response is JSON and carries no digest; what happened before it is shown by the seat's next text response. A goldfish game's responses never have them.
 
 **Status** is one of:
 
@@ -121,7 +127,7 @@ A line belongs to the seat whose call made the change, and a change has one line
 | `ERROR` | Structurally impossible or malformed; nothing was applied; cannot be overridden. |
 | `CHOICE` | Applied, and a choice is now pending; call `choose`. |
 
-**Event lines** appear in a fixed order when present: in a contested game, what the calling seat is now asked to do, when it is a seat to act (`You are asked to respond to s4: Counterspell from S3.`); a statement that the call was already applied (`Already applied as change #41; nothing was applied again.`); overridden rule checks (`Overridden (<reason>): ...`); steps entered (`end → cleanup → T7 untap → upkeep`); payment; moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); in a contested game, items put on the stack, automatic passes, resolutions and counters, and eliminations; notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
+**Event lines** appear in a fixed order when present: in a contested game, what the calling seat is now asked to do, when it is a seat to act (`You are asked to respond to s4: Counterspell from S3.`); a statement that the call was already applied (`Already applied as change #41; nothing was applied again.`); overridden rule checks (`Overridden (<reason>): ...`); steps entered (`end → cleanup → T7 untap → upkeep`); payment; in a goldfish game, the cast triggers applied, one line each in the order listed (`Cast trigger: Thousand-Year Storm.`); moves, tokens created, and cards drawn; cards revealed for a pending choice, with the choice id; combat damage per attacker; what the service assumed (`Assumed: X = 0`); reminders (`Reminder (upkeep): Phyrexian Arena`); why an advance stopped; expectation warnings (`Warning: untapped_lands is 1, expected 2`); in a contested game, items put on the stack, automatic passes, resolutions and counters, and eliminations; notices (`Notice: 120 damage reached`). `get_state` puts its listing in the event lines.
 
 Current notices appear on every response about a game, whatever its status: `OK`, `REJECTED`, `ERROR`, `CHOICE`, and `get_state`.
 
@@ -213,7 +219,8 @@ It is given a deck id (or a deck list to load), and optionally a seed and turn l
 - call `wait` whenever its seat is not the seat to act, and act on what `wait` returns;
 - read the digest at the top of each response to follow what other seats did;
 - respond with `play` or `effect` when asked and it has something worth doing, and `pass` otherwise;
-- answer pending choices addressed to it, including blocks and decisions other seats' effects ask of it;
+- answer pending choices addressed to it, including blocks and decisions other seats' effects ask of it, giving as `text` the card it names, its guess or its number when an `ask` requires one;
+- state its own cast triggers in `cast_triggers` of the `play` that casts the spell, never in a later `effect`, since the spell may resolve within the `play`;
 - when attacking, state what happens to the creatures with `effect` and `immediate: true` after blocks, leaving out the damage to seats, which the service deals; once blocks are known and before advancing to combat damage, state with `attack` and `trample` the damage each blocked attacker with trample deals past its blockers, since a blocked attacker otherwise deals the seat nothing;
 - when attacking, give `evasion` for flying, horsemanship or "can't be blocked" an attacker has only this turn; when blocking, block only as the attackers' evasion allows, and override a refused block only when the refusal is wrong for this turn — a blocker that has gained flying or reach, an attacker that has lost its evasion, or an assumed condition that does not hold — giving that as the reason;
 - when an `attack` response says the attack was not declared, call `wait` and send the same `attack` again;
@@ -253,6 +260,9 @@ The adapter lives in `src/mtg_goldfishing/adapters/mcp/`: tool definitions and d
 | `Ended` and `Out` together | `Ended (<result>) · Out · ...` | `Out` first; `Ended` alone | That the game is over matters more than how the seat left it, and an ended game's line begins the same way for every seat. |
 | An opposing seat's aim in the player brief | Play to win, as a real player would | Archenemy: stop the tested deck at all costs | Realism is the goal; a caller who wants a harsher test still briefs an opposing agent as an archenemy. |
 | Where a seat finds the pending choices it owes | In its `get_state` listing, with what each asks | Only in the response or digest line that created it; in every `wait` response | A seat that missed that line, or whose agent was restarted, must not be stuck; repeating every choice on every `wait` would lengthen the most frequent response. |
+| Name of the answer text parameter | `text` on `choose` | `answer`; `named` | It mirrors the `text` of an `ask` entry, so an ask's text and its answer's text read as a pair; every argument of `choose` is part of an answer, so `answer` would not say which; `named` fits a named card but not a guess or a number. |
+| How an answer text is shown | In double quotes after the choice | Bare; on a line of its own | Free text can hold a full stop or a semicolon, which would otherwise run into the digest line's own punctuation; a line of its own would break one change per line. |
+| A goldfish game's line for a cast trigger | `Cast trigger: <source>.`, after payment | No line, the trigger's changes shown among the spell's | Without it the response would not show that a trigger was applied, only changes the agent must trace back; a contested game already shows each trigger as an item put on the stack. |
 | What a seat-given subagent returns | Seat number, the id it was given, verdict | Game id, seed and verdict as in a goldfish game | It is shown neither the seed nor, as an opposing seat, the game id; its caller holds both. |
 
 ## Open Questions & Future Decisions
