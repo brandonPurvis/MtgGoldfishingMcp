@@ -6,10 +6,23 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Edit",
         "hooks": [
           {
             "type": "command",
+            "if": "Edit(**/*.py)",
+            "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_and_typecheck.py\"",
+            "timeout": 180,
+            "statusMessage": "Format, lint and type check..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Write(**/*.py)",
             "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_and_typecheck.py\"",
             "timeout": 180,
             "statusMessage": "Format, lint and type check..."
