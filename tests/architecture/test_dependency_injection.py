@@ -64,7 +64,7 @@ PORTS: tuple[type, ...] = (
 )
 
 OPERATIONS: dict[type, set[str]] = {
-    ports.GameRepository: {"get", "add", "save"},
+    ports.GameRepository: {"get", "find_seat", "add", "save"},
     ports.DeckRepository: {"get", "add"},
     ports.RecordStore: {"append_entry", "add_snapshot", "add_call", "read"},
     ports.CardCatalog: {"look_up"},
@@ -141,7 +141,7 @@ def _imported_modules(path: Path) -> list[str]:
 
 # @spec APP-042
 def test_every_class_the_ports_module_offers_for_implementing_is_a_known_port() -> None:
-    value_objects = {ports.StoredGame, ports.GameRecords, ports.Rendered}
+    value_objects = {ports.StoredGame, ports.SeatOfGame, ports.GameRecords, ports.Rendered}
     defined = {
         cls
         for _, cls in inspect.getmembers(ports, inspect.isclass)

@@ -11,8 +11,6 @@ from mtg_goldfishing.domain.game import seats
 from tests.support.builders import a_game
 from tests.support.stores import STORE_ADAPTER_IDS, STORE_ADAPTERS, OpenStores
 
-not_built = pytest.mark.xfail(strict=True, reason="M2: seats inside the game are not built")
-
 # The seat model is reached untyped here, so the tests read the same before and after it exists.
 SeatNumber: Any = seats.SeatNumber
 SeatId: Any = seats.SeatId
@@ -33,7 +31,6 @@ def a_game_of_two_seats() -> Any:
 
 
 # @spec APP-045, STOR-017
-@not_built
 def test_a_game_id_names_the_game_and_its_tested_seat(games: Any) -> None:
     game = a_game().build().game
     games.add(game)
@@ -44,7 +41,6 @@ def test_a_game_id_names_the_game_and_its_tested_seat(games: Any) -> None:
 
 
 # @spec APP-045, STOR-016, STOR-018
-@not_built
 def test_an_opposing_seat_s_seat_id_names_its_game_and_its_seat_number(games: Any) -> None:
     game = a_game_of_two_seats()
     games.add(game)
@@ -55,7 +51,6 @@ def test_an_opposing_seat_s_seat_id_names_its_game_and_its_seat_number(games: An
 
 
 # @spec APP-045, STOR-019
-@not_built
 def test_an_id_that_names_no_seat_of_any_stored_game_is_reported_as_naming_none(
     games: Any,
 ) -> None:
@@ -65,7 +60,6 @@ def test_an_id_that_names_no_seat_of_any_stored_game_is_reported_as_naming_none(
 
 
 # @spec STOR-020
-@not_built
 def test_a_seat_id_still_names_its_seat_after_the_game_is_saved_again(games: Any) -> None:
     game = a_game_of_two_seats()
     games.add(game)
@@ -78,7 +72,6 @@ def test_a_seat_id_still_names_its_seat_after_the_game_is_saved_again(games: Any
 
 
 # @spec APP-045
-@not_built
 def test_one_game_s_seat_ids_do_not_name_another_game(games: Any) -> None:
     one = a_game().build().game
     other = a_game().build().game

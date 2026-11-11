@@ -64,7 +64,7 @@ def game_to_data(game: Game) -> dict[str, object]:
     result = game.result
     return {
         "game_id": game.game_id,
-        "deck_id": game.deck_id,
+        "deck_id": game.tested.deck_id,
         "seed": game.seed,
         "turn_limit": game.turn_limit,
         "draw_first_turn": game.draw_first_turn,

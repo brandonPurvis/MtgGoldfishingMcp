@@ -10,15 +10,17 @@ from mtg_goldfishing.domain.combat import attack as attacks
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 TOOL = "attack"
 
 
 def attack(ports: Ports, arguments: Mapping[str, object]) -> Answer:
-    def operate(game: Game, deck: LoadedDeck, override: str | None) -> Result:
+    def operate(game: Game, deck: LoadedDeck, seat: SeatNumber, override: str | None) -> Result:
         return attacks.attack(
             game,
             deck,
+            seat,
             attackers=arguments.get("attackers"),
             blocked=arguments.get("blocked"),
             commander_target=arguments.get("commander_target"),

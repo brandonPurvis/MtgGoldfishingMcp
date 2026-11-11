@@ -48,7 +48,7 @@ def test_saving_at_the_stored_version_keeps_the_game_and_increments_the_version(
 ) -> None:
     game = a_game().build().game
     games.add(game)
-    game.life = 33
+    game.tested.life = 33
     game.change = 1
 
     saved = games.save(game, version=1)
@@ -89,7 +89,7 @@ def test_changing_a_game_after_adding_it_does_not_change_the_stored_game(
     game = a_game().build().game
     games.add(game)
 
-    game.life = 1
+    game.tested.life = 1
     game.cards.clear()
 
     assert games.get(game.game_id) == StoredGame(a_game().build().game, 1)

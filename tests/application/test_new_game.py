@@ -6,6 +6,7 @@ from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.domain.events import ErrorKind, GameStarted, Refused
 from mtg_goldfishing.domain.game.model import GameStatus
 from mtg_goldfishing.domain.game.summary import summarize
+from tests.support.builders import TESTED
 from tests.support.service import a_service
 
 
@@ -51,9 +52,9 @@ def test_a_new_game_s_outcome_carries_the_game_summary() -> None:
     harness = a_service()
     answer = harness.started_game()
     game = harness.game("gabcdefghij")
-    deck = harness.stores.decks.get(game.deck_id)
+    deck = harness.stores.decks.get(game.tested.deck_id)
     assert deck is not None
-    assert answer.outcome.game == summarize(game, deck)
+    assert answer.outcome.game == summarize(game, deck, TESTED)
 
 
 # @spec APP-008

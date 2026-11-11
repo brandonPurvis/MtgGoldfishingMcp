@@ -17,6 +17,7 @@ from mtg_goldfishing.domain.game.model import CardInstance, Destination, Game, G
 from mtg_goldfishing.domain.game.naming import matches
 from mtg_goldfishing.domain.game.notices import examine_end_conditions
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.play.arguments import read_rest_order, read_selections
 from mtg_goldfishing.domain.play.delta import place_all, take_shuffle_place
 
@@ -51,10 +52,11 @@ def _placements(events: Sequence[Event]) -> tuple[Placement, ...]:
 
 
 # @spec PLAY-001, PLAY-051, PLAY-052, PLAY-062, PLAY-063, PLAY-064, PLAY-065, PLAY-066
-# @spec PLAY-067
+# @spec PLAY-067, APP-031
 def choose(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     choice_id: object,
     selections: object,
@@ -65,9 +67,11 @@ def choose(
     For a library list, list order is top to bottom. Without a `rest_order`, a look's rest
     returned to the end it was looked at from keeps its order there. Cards selected to the top
     of the library go above any of a look's rest that also go to the top. After a search the
-    library is shuffled before any selected card is put on its top or bottom.
+    library is shuffled before any selected card is put on its top or bottom. The choice
+    answered is the oldest still waiting; the game waits on the next one, if any.
     """
-    pending = game.pending_choice
+    del seat  # in a goldfish game the only seat, to which every pending choice is addressed
+    pending = game.waiting_choice
     if pending is None or not isinstance(choice_id, str) or choice_id.strip() != pending.choice_id:
         return Refusal.error(Error(ErrorKind.WRONG_CHOICE, subject=str(choice_id)))
     chosen = read_selections(selections)
@@ -90,7 +94,7 @@ def choose(
 
     events: list[Event] = []
     if pending.rest is None:
-        events.extend(take_shuffle_place(changed, deck, selected))
+        events.extend(take_shuffle_place(changed, deck, pending.seat, selected))
     else:
         ordered = _among(deck, unselected, order, [])
         if isinstance(ordered, Error):
@@ -103,8 +107,9 @@ def choose(
         events.extend(place_all(changed, deck, rest, pending.rest))
         for destination, cards in selected:
             events.extend(place_all(changed, deck, cards, destination))
-    changed.pending_choice = None
-    changed.status = GameStatus.ACTIVE
+    changed.pending.pop(0)
+    changed.status = GameStatus.PENDING_CHOICE if changed.pending else GameStatus.ACTIVE
+
     reported = [e for e in events if not isinstance(e, CardMoved) or e.commander_redirected]
     reported.extend(examine_end_conditions(changed))
     return Applied(changed, ChoiceResolved(_placements(events)), tuple(reported))

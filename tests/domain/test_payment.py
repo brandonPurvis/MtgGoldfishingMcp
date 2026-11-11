@@ -29,7 +29,7 @@ from mtg_goldfishing.domain.reading.model import (
     FaceReading,
     PermanentsCount,
 )
-from tests.support.builders import Situation, a_game
+from tests.support.builders import TESTED, Situation, a_game
 
 M = ManaString.parse
 CREATURE = "Creature — Bear"
@@ -48,6 +48,7 @@ def pay(
     plan, problems = plan_payment(
         game,
         deck,
+        TESTED,
         M(cost),
         paying_for=paying_for,
         playing=None,
@@ -56,13 +57,13 @@ def pay(
     )
     if plan is None:
         return None, problems
-    events = apply_payment(game, deck, plan)
+    events = apply_payment(game, deck, TESTED, plan)
     paid = next(e for e in events if isinstance(e, CostPaid))
     return paid, problems
 
 
 def tapped_names(situation: Situation) -> list[str]:
-    return sorted(c.name for c in situation.game.battlefield if c.tapped)
+    return sorted(c.name for c in situation.game.battlefield_of(TESTED) if c.tapped)
 
 
 def units(*kinds: str) -> list[frozenset[str]]:
@@ -111,6 +112,7 @@ def test_snow_is_paid_as_generic_and_the_assumption_is_stated() -> None:
     plan, _ = plan_payment(
         situation.game,
         situation.deck,
+        TESTED,
         M("{S}{G}"),
         paying_for=CREATURE,
         playing=None,
@@ -118,7 +120,7 @@ def test_snow_is_paid_as_generic_and_the_assumption_is_stated() -> None:
         subject="Snow Thing",
     )
     assert plan is not None
-    events = apply_payment(situation.game, situation.deck, plan)
+    events = apply_payment(situation.game, situation.deck, TESTED, plan)
     assert AssumptionMade(AssumptionKind.SNOW_AS_GENERIC) in events
     assert tapped_names(situation) == ["Forest", "Wastes"]
 
@@ -130,7 +132,7 @@ def test_mana_in_the_pool_is_spent_before_any_source_is_tapped() -> None:
     assert paid is not None
     assert paid.from_pool == "{G}"
     assert tapped_names(situation) == []
-    assert str(situation.game.mana_pool) == "{}"
+    assert str(situation.game.tested.mana_pool) == "{}"
 
 
 # @spec PAY-006, PAY-019
@@ -159,7 +161,7 @@ def test_mana_a_source_makes_beyond_the_cost_goes_to_the_pool_and_is_reported() 
     paid, _ = pay(situation, "{1}")
     assert paid is not None
     assert paid.surplus == "{C}"
-    assert str(situation.game.mana_pool) == "{C}"
+    assert str(situation.game.tested.mana_pool) == "{C}"
 
 
 # @spec PAY-008
@@ -185,7 +187,7 @@ def test_surplus_from_a_restricted_source_keeps_its_restriction_in_the_pool() ->
     situation = a_game().with_battlefield("Mishra's Workshop").build()
     paid, _ = pay(situation, "{1}", paying_for="Artifact")
     assert paid is not None
-    assert str(situation.game.mana_pool) == "{C}*{C}*"
+    assert str(situation.game.tested.mana_pool) == "{C}*{C}*"
 
 
 # @spec PAY-011
@@ -283,7 +285,7 @@ def test_using_a_source_that_costs_life_takes_that_life_and_says_so() -> None:
     paid, _ = pay(situation, "{R}")
     assert paid is not None
     assert paid.life == 1
-    assert situation.game.life == 39
+    assert situation.game.tested.life == 39
 
 
 # @spec PAY-018, PAY-019
@@ -312,7 +314,7 @@ def test_phyrexian_symbols_are_paid_with_life_while_life_stays_positive() -> Non
     paid, _ = pay(situation, "{1}{B/P}{B/P}")
     assert paid is not None
     assert paid.life == 4
-    assert situation.game.life == 36
+    assert situation.game.tested.life == 36
     assert tapped_names(situation) == ["Swamp"]
 
 
@@ -332,7 +334,7 @@ def test_phyrexian_symbols_are_paid_with_mana_when_paying_life_leaves_no_valid_p
     assert problems == []
     assert paid is not None
     assert tapped_names(situation) == ["City of Brass", "Forest"]
-    assert situation.game.life == 2
+    assert situation.game.tested.life == 2
 
 
 # @spec PAY-021
@@ -341,7 +343,7 @@ def test_the_phyrexian_symbol_paid_with_life_is_one_that_leaves_a_valid_payment(
     paid, problems = pay(situation, "{G/P}{U/P}")
     assert problems == []
     assert paid is not None
-    assert situation.game.life == 1
+    assert situation.game.tested.life == 1
     assert tapped_names(situation) == ["Forest"]
 
 
@@ -413,7 +415,7 @@ def test_lands_are_tapped_before_creatures() -> None:
 def test_when_everything_else_ties_the_lowest_instance_ids_are_used() -> None:
     situation = a_game().with_battlefield("Forest", "Forest").build()
     pay(situation, "{G}")
-    assert [c.id for c in situation.game.battlefield if c.tapped] == ["c1"]
+    assert [c.id for c in situation.game.battlefield_of(TESTED) if c.tapped] == ["c1"]
 
 
 # @spec PAY-028
@@ -426,7 +428,7 @@ def test_the_same_game_and_cost_give_the_same_payment_every_time() -> None:
             .build()
         )
         pay(situation, "{2}{G}")
-        return [c.id for c in situation.game.battlefield if c.tapped]
+        return [c.id for c in situation.game.battlefield_of(TESTED) if c.tapped]
 
     assert len({tuple(tapped_ids()) for _ in range(5)}) == 1
 
@@ -434,7 +436,7 @@ def test_the_same_game_and_cost_give_the_same_payment_every_time() -> None:
 # @spec PAY-029
 def test_the_search_stops_after_the_limit_and_uses_the_best_payment_examined() -> None:
     situation = a_game().with_battlefield("Forest", "Island", "Island").build()
-    sources = available_sources(situation.game, situation.deck, paying_for=None)
+    sources = available_sources(situation.game, situation.deck, TESTED, paying_for=None)
     requirement = Requirement.of(M("{1}"), phyrexian_life=0)
     found = choose_payment(requirement, [], sources, [], life_budget=39, limit=1)
     assert found is not None
@@ -445,7 +447,7 @@ def test_the_search_stops_after_the_limit_and_uses_the_best_payment_examined() -
 # @spec PAY-043
 def test_a_payment_tapping_a_spare_source_is_used_when_no_other_was_examined() -> None:
     situation = a_game().with_battlefield("Wastes", "Sol Ring").build()
-    sources = available_sources(situation.game, situation.deck, paying_for=None)
+    sources = available_sources(situation.game, situation.deck, TESTED, paying_for=None)
     requirement = Requirement.of(M("{2}"), phyrexian_life=0)
     found = choose_payment(requirement, [], sources, [], life_budget=39, limit=1)
     assert found is not None
@@ -460,7 +462,7 @@ def test_a_permanent_with_several_mana_abilities_pays_through_any_of_them() -> N
     assert problems == []
     assert paid is not None
     assert paid.tapped == ("Caves of Koilos",)
-    assert situation.game.life == 39
+    assert situation.game.tested.life == 39
 
 
 # @spec PAY-041
@@ -478,7 +480,7 @@ def test_a_land_with_a_free_and_a_life_ability_pays_through_the_free_one_when_ei
     paid, _ = pay(situation, "{1}")
     assert paid is not None
     assert paid.life == 0
-    assert situation.game.life == 40
+    assert situation.game.tested.life == 40
 
 
 # @spec PAY-030
@@ -513,7 +515,7 @@ def test_a_named_source_with_stated_mana_makes_exactly_that_mana() -> None:
         instructions=PayInstructions(with_sources=(PayWith("Mana Vault", M("{C}{C}")),)),
     )
     assert paid is not None
-    assert str(situation.game.mana_pool) == "{C}"
+    assert str(situation.game.tested.mana_pool) == "{C}"
 
 
 # @spec PAY-032
@@ -524,7 +526,7 @@ def test_a_named_source_offering_a_choice_makes_the_option_that_serves_the_cost(
     )
     assert problems == []
     assert paid is not None
-    assert str(situation.game.mana_pool) == "{}"
+    assert str(situation.game.tested.mana_pool) == "{}"
 
 
 # @spec PAY-032, PAY-041
@@ -536,7 +538,7 @@ def test_a_named_source_with_several_mana_abilities_uses_the_one_that_serves_the
     assert problems == []
     assert paid is not None
     assert paid.life == 1
-    assert str(situation.game.mana_pool) == "{}"
+    assert str(situation.game.tested.mana_pool) == "{}"
 
 
 # @spec PAY-033
@@ -580,7 +582,7 @@ def test_life_named_in_pay_is_paid_as_part_of_the_cost() -> None:
     situation = a_game().with_battlefield("Forest").build()
     paid, _ = pay(situation, "{G}", instructions=PayInstructions(life=3))
     assert paid is not None
-    assert (situation.game.life, tapped_names(situation)) == (37, ["Forest"])
+    assert (situation.game.tested.life, tapped_names(situation)) == (37, ["Forest"])
 
 
 # @spec PAY-039
@@ -611,4 +613,4 @@ def test_the_auto_payment_system_taps_no_source_the_payment_could_do_without() -
     assert problems == []
     assert paid is not None
     assert len(paid.tapped) == 4
-    assert str(situation.game.mana_pool) == "{}"
+    assert str(situation.game.tested.mana_pool) == "{}"

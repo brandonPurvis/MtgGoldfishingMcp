@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from mtg_goldfishing.domain.cards import Card, CardLookup
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 
 if TYPE_CHECKING:
@@ -33,21 +34,39 @@ class StoredGame:
 
 
 @dataclass(frozen=True)
+class SeatOfGame:
+    """The game a seat id names, and the seat number of the seat it names in that game."""
+
+    game_id: str
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
 class GameRecords:
     entries: tuple[LogEntry, ...]
     snapshots: tuple[TurnSnapshot, ...]
     calls: tuple[CallRecord, ...]
 
 
+# @spec APP-030, APP-045
 class GameRepository(ABC):
-    """Loads and saves games."""
+    """Loads and saves games, and finds the game a seat id names.
+
+    A seat is saved and loaded only as part of its game.
+    """
 
     @abstractmethod
     def get(self, game_id: str) -> StoredGame | None: ...
 
     @abstractmethod
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        """The game and seat number a seat id names, or None when it names no seat of any
+        stored game. A game id names its game and its tested seat."""
+        ...
+
+    @abstractmethod
     def add(self, game: Game) -> None:
-        """Store a new game at version 1."""
+        """Store a new game at version 1, with the seat ids of all its seats."""
         ...
 
     @abstractmethod

@@ -1,8 +1,8 @@
 """Moving through the steps of a turn: `advance`.
 
-Entering a step performs its automatic action. Leaving any step empties the mana pool.
-An advance stops short of its target when a step it enters has a reminder, or before
-cleanup when cards must be discarded.
+Every step is a step of the active seat's turn. Entering a step performs its automatic
+action. Leaving any step empties every seat's mana pool. An advance stops short of its
+target when a step it enters has a reminder, or before cleanup when cards must be discarded.
 """
 
 from __future__ import annotations
@@ -40,6 +40,7 @@ from mtg_goldfishing.domain.game.movement import draw, move
 from mtg_goldfishing.domain.game.naming import resolve
 from mtg_goldfishing.domain.game.notices import examine_turn_limit
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaPool
 from mtg_goldfishing.domain.payment.potential import mana_available
 from mtg_goldfishing.domain.records.model import TurnSnapshot
@@ -62,15 +63,38 @@ class Walk:
 
 
 def _remind(game: Game, deck: LoadedDeck, step: Step) -> ReminderIssued | None:
+    """Remind the active seat of the step triggers of the permanents it controls."""
+    active = game.active_seat
     counts: dict[str, int] = {}
-    for card in game.battlefield:
+    for card in game.battlefield_of(active.number):
         if step in reading_of(deck, card).step_triggers:
             name = face_name(deck, card)
             counts[name] = counts.get(name, 0) + 1
-            game.reminders.append(Reminder(card.id, name, step, card_name=card.name))
+            active.reminders.append(Reminder(card.id, name, step, card_name=card.name))
     if not counts:
         return None
     return ReminderIssued(step, tuple(counts.items()))
+
+
+# @spec TURN-032, TURN-034
+def _begin_turn(game: Game, previous: SeatNumber | None) -> None:
+    """The active seat begins a turn: one more table turn and one more of its own turns.
+
+    A turn begins a round when it is the game's first, or when it passes to a seat that is
+    not later in turn order than `previous`, the seat whose turn just ended; a goldfish
+    game's one seat begins a round with every turn.
+    """
+    active = game.active_seat
+    if previous is None or active.number <= previous:
+        game.round += 1
+    game.turn += 1
+    active.turns += 1
+    for card in game.battlefield_of(active.number):
+        card.tapped = False
+    active.land_drops_used = 0
+    active.turn_stats = TurnStats()
+    active.reminders = []
+    game.tapped_by_attacks = []
 
 
 # @spec TURN-002, TURN-003, TURN-004, TURN-005, TURN-011, TURN-014
@@ -81,24 +105,21 @@ def enter_step(
     walk: Walk,
     discard: Sequence[CardInstance] = (),
 ) -> None:
-    """Leave the current step (emptying the pool) and enter `step`, doing its automatic action."""
-    game.mana_pool = ManaPool()
+    """Leave the current step (emptying every pool) and enter `step` of the active seat's
+    turn, doing its automatic action."""
+    for seat in game.seats:
+        seat.mana_pool = ManaPool()
     game.step = step
+    active = game.active_seat
     if step is Step.UNTAP:
-        game.turn += 1
-        for card in game.battlefield:
-            card.tapped = False
-        game.land_drops_used = 0
-        game.turn_stats = TurnStats()
-        game.reminders = []
-        game.tapped_by_attacks = []
+        _begin_turn(game, game.active if game.turn > 0 else None)
     walk.entered.append(EnteredStep(game.turn, step))
     if step is Step.UNTAP:
         walk.events.extend(examine_turn_limit(game))
     elif step is Step.DRAW and not (game.turn == 1 and not game.draw_first_turn):
-        walk.events.extend(draw(game, 1))
+        walk.events.extend(draw(game, active.number, 1))
     elif step is Step.MAIN1:
-        game.turn_stats.mana_available = mana_available(game, deck)
+        active.turn_stats.mana_available = mana_available(game, deck, active.number)
     elif step is Step.COMBAT_DAMAGE:
         walk.events.extend(deal_combat_damage(game, deck))
     elif step is Step.CLEANUP:
@@ -126,11 +147,11 @@ def _discard_list(value: object) -> list[str] | Error | None:
 
 
 def _cleanup_discard(
-    game: Game, deck: LoadedDeck, names: list[str], override: str | None
+    game: Game, deck: LoadedDeck, seat: SeatNumber, names: list[str], override: str | None
 ) -> tuple[list[CardInstance], FailedCheck | None] | Refusal:
     """The cards to discard, and the discard-count check an `override` overrode, if any."""
-    excess = max(0, len(game.hand) - MAXIMUM_HAND)
-    found = resolve(game, deck, names, [Zone.HAND])
+    excess = max(0, len(game.hand_of(seat)) - MAXIMUM_HAND)
+    found = resolve(game, deck, seat, names, [Zone.HAND])
     if isinstance(found, Error):
         return Refusal.error(Error(ErrorKind.DISCARD_NOT_IN_HAND, subject=found.subject))
     if len(found[0]) == excess:
@@ -143,16 +164,20 @@ def _cleanup_discard(
 
 # @spec TURN-001, TURN-006, TURN-007, TURN-008, TURN-009, TURN-010, TURN-012, TURN-013
 # @spec TURN-015, TURN-016, TURN-017, TURN-018, TURN-019, TURN-020, TURN-021, TURN-022
-# @spec TURN-023, TURN-024, TURN-025
+# @spec TURN-023, TURN-024, TURN-025, APP-031
 def advance(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     to: object = None,
     discard: object = None,
     override: str | None = None,
 ) -> Result:
-    """Move to the next step, or forward through every step to the next occurrence of `to`."""
+    """Move to the next step, or forward through every step to the next occurrence of `to`.
+
+    The calling seat is the active seat, whose hand is checked before cleanup.
+    """
     target: Step | None = None
     if to is not None:
         target = Step.named(to) if isinstance(to, str) else None
@@ -168,7 +193,7 @@ def advance(
         upcoming = Step.UNTAP if moved.step is None else moved.step.next
         to_discard: list[CardInstance] = []
         if upcoming is Step.CLEANUP:
-            excess = len(moved.hand) - MAXIMUM_HAND
+            excess = len(moved.hand_of(seat)) - MAXIMUM_HAND
             if names is None and excess > 0:
                 check = FailedCheck(CheckKind.HAND_TOO_BIG, number=excess)
                 if override:
@@ -182,7 +207,7 @@ def advance(
                     )
                     break
             if names is not None:
-                chosen = _cleanup_discard(moved, deck, names, override)
+                chosen = _cleanup_discard(moved, deck, seat, names, override)
                 if isinstance(chosen, Refusal):
                     return chosen
                 to_discard, overridden = chosen

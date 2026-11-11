@@ -110,7 +110,8 @@ class Agent:
         return self.harness.game(self.game_id)
 
     def names_in(self, zone: Zone) -> list[str]:
-        return [card.name for card in self.game().in_zone(zone)]
+        game = self.game()
+        return [card.name for card in game.in_zone(zone, game.tested.number)]
 
     def start_game(self, seed: int) -> ToolResponse:
         """Start a game on the loaded deck; it becomes the current game."""

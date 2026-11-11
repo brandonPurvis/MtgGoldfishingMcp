@@ -10,14 +10,20 @@ from mtg_goldfishing.domain import turn
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 
 TOOL = "advance"
 
 
 def advance(ports: Ports, arguments: Mapping[str, object]) -> Answer:
-    def operate(game: Game, deck: LoadedDeck, override: str | None) -> Result:
+    def operate(game: Game, deck: LoadedDeck, seat: SeatNumber, override: str | None) -> Result:
         return turn.advance(
-            game, deck, to=arguments.get("to"), discard=arguments.get("discard"), override=override
+            game,
+            deck,
+            seat,
+            to=arguments.get("to"),
+            discard=arguments.get("discard"),
+            override=override,
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

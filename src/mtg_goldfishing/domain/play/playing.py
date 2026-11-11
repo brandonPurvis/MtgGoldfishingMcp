@@ -27,6 +27,7 @@ from mtg_goldfishing.domain.game.movement import move
 from mtg_goldfishing.domain.game.naming import is_instance_id, resolve_one
 from mtg_goldfishing.domain.game.notices import examine_end_conditions
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.payment.paying import (
     PayInstructions,
@@ -81,10 +82,11 @@ def _x_replaced(
 def _pay(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     cost: ManaString,
     instructions: PayInstructions,
-    problems: Problems,
     *,
+    problems: Problems,
     paying_for: str | None,
     playing: CardInstance | None,
     subject: str,
@@ -93,6 +95,7 @@ def _pay(
     plan, found = plan_payment(
         game,
         deck,
+        seat,
         cost,
         paying_for=paying_for,
         playing=playing,
@@ -101,7 +104,7 @@ def _pay(
     )
     problems.extend(found)
     if plan is not None:
-        return apply_payment(game, deck, plan)
+        return apply_payment(game, deck, seat, plan)
     unpayable = any(
         isinstance(p, FailedCheck) and p.kind is CheckKind.COST_NOT_PAYABLE for p in found
     )
@@ -139,6 +142,7 @@ def _read_arguments(
 def _finish(
     changed: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     problems: Problems,
     *,
     override: str | None,
@@ -152,7 +156,7 @@ def _finish(
         return judged
     reported: list[Event] = [judged] if isinstance(judged, ChecksOverridden) else []
     reported.extend(events)
-    reported.extend(compare(changed, deck, expectations))
+    reported.extend(compare(changed, deck, seat, expectations))
     reported.extend(examine_end_conditions(changed))
     return Applied(changed, summary, tuple(reported))
 
@@ -161,9 +165,16 @@ def _finish(
 
 
 def _outside_card(
-    game: Game, name: str, outside: Card | None, definition: CardDefinition | None
+    game: Game,
+    seat: SeatNumber,
+    name: str,
+    outside: Card | None,
+    definition: CardDefinition | None,
 ) -> CardInstance | Error:
-    """A new instance of a card from outside the game, from its card data or a definition."""
+    """A new instance of a card from outside the game, from its card data or a definition.
+
+    The seat that brings it into the game owns and controls it.
+    """
     if definition is not None:
         data = apply_definition(outside, definition)
         if isinstance(data, Error):
@@ -175,7 +186,13 @@ def _outside_card(
         return Error(ErrorKind.CARD_DATA_NEEDED, subject=name)
     # The instance is in no zone until it is played; exile stands in, and nothing reads it.
     instance = CardInstance(
-        game.new_instance_id(), data.name, Zone.EXILE, definition=data, reading=reading
+        game.new_instance_id(),
+        data.name,
+        Zone.EXILE,
+        owner=seat,
+        controller=seat,
+        definition=data,
+        reading=reading,
     )
     game.cards.append(instance)
     return instance
@@ -191,6 +208,7 @@ def _played_face(deck: LoadedDeck, instance: CardInstance, name: str) -> tuple[i
 
 def _spell_cost(
     game: Game,
+    seat: SeatNumber,
     instance: CardInstance,
     face: Face,
     *,
@@ -204,7 +222,7 @@ def _spell_cost(
     if not face.has_mana_cost:
         events.append(AssumptionMade(AssumptionKind.NO_MANA_COST, face.name))
     cost = face.mana_cost + (choices.extra_cost or ManaString())
-    tax = game.commander_tax(instance) if instance.is_commander else 0
+    tax = game.seat(seat).commander_tax(instance) if instance.is_commander else 0
     if from_zone is Zone.COMMAND and tax:
         cost = cost + ManaString.parse(f"{{{tax}}}")
     cost, assumed = _x_replaced(cost, choices, face.name)
@@ -226,10 +244,11 @@ def _check_timing(
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-007, PLAY-008, PLAY-009, PLAY-010
 # @spec PLAY-011, PLAY-012, PLAY-013, PLAY-014, PLAY-015, PLAY-016, PLAY-017, PLAY-018
 # @spec PLAY-019, PLAY-020, PLAY-021, PLAY-022, PLAY-023, PLAY-024, PLAY-025, PLAY-026
-# @spec PLAY-027, PLAY-028, PLAY-051, PAY-037
+# @spec PLAY-027, PLAY-028, PLAY-051, PAY-037, GAME-061, APP-031
 def play(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     card: object,
     from_zone: object = None,
@@ -242,7 +261,10 @@ def play(
     override: str | None = None,
     outside: Card | None = None,
 ) -> Result:
-    """Play a land, a spell or the commander, then apply the call's delta."""
+    """The acting seat plays a land, a spell or its commander, then applies the call's delta.
+
+    The land drop, the commander's cast count and the payment are the acting seat's own.
+    """
     del reason  # recorded with the call by the application; never judged
     if not isinstance(card, str) or not card.strip():
         return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="card"))
@@ -260,13 +282,13 @@ def play(
     changed = game.copy()
     events: list[Event] = []
     if requested == OUTSIDE:
-        found = _outside_card(changed, card, outside, the_choices.definition)
+        found = _outside_card(changed, seat, card, outside, the_choices.definition)
         if isinstance(found, Error):
             return Refusal.error(found)
         instance, origin = found, OUTSIDE
     else:
         zones = [_FROM_ZONES[str(requested)]] if requested is not None else list(_WITHOUT_FROM)
-        resolved = resolve_one(changed, deck, card, zones)
+        resolved = resolve_one(changed, deck, seat, card, zones)
         if isinstance(resolved, Error):
             return Refusal.error(resolved)
         instance, chosen = resolved
@@ -279,16 +301,17 @@ def play(
     instance.face = index
     from_zone_found = None if requested == OUTSIDE else instance.zone
 
+    acting = changed.seat(seat)
     problems = Problems()
     problems.add(_check_timing(changed, deck, instance, face))
     if face.is_land:
-        if changed.land_drops_used >= 1:
+        if acting.land_drops_used >= 1:
             problems.add(
                 FailedCheck(
-                    CheckKind.LAND_DROP_USED, subject=face.name, number=changed.land_drops_used
+                    CheckKind.LAND_DROP_USED, subject=face.name, number=acting.land_drops_used
                 )
             )
-        changed.land_drops_used += 1
+        acting.land_drops_used += 1
     else:
         if instructions.cost is not None:
             problems.add(
@@ -296,6 +319,7 @@ def play(
             )
         cost, assumed = _spell_cost(
             changed,
+            seat,
             instance,
             face,
             from_zone=from_zone_found,
@@ -306,9 +330,10 @@ def play(
             _pay(
                 changed,
                 deck,
+                seat,
                 cost,
                 instructions,
-                problems,
+                problems=problems,
                 paying_for=face.type_line,
                 playing=instance,
                 subject=face.name,
@@ -316,7 +341,7 @@ def play(
         )
         events.extend(assumed)
         if from_zone_found is Zone.COMMAND and instance.is_commander:
-            changed.commander_casts[instance.id] = changed.commander_casts.get(instance.id, 0) + 1
+            acting.commander_casts[instance.id] = acting.commander_casts.get(instance.id, 0) + 1
 
     if destination is None:
         destination = Destination.BATTLEFIELD if face.is_permanent else Destination.GRAVEYARD
@@ -326,7 +351,7 @@ def play(
     if instance.zone is not Zone.BATTLEFIELD:
         instance.face = 0
 
-    applied = apply_delta(changed, deck, arguments.delta, source=instance.name)
+    applied = apply_delta(changed, deck, seat, arguments.delta, source=instance.name)
     if isinstance(applied, Error):
         problems.add(applied)
     else:
@@ -335,6 +360,7 @@ def play(
     return _finish(
         changed,
         deck,
+        seat,
         problems,
         override=override,
         summary=summary,
@@ -347,9 +373,10 @@ def play(
 
 
 # @spec REC-009, REC-010
-def _answer_reminders(changed: Game, source: str) -> None:
-    """An effect whose source names a reminded permanent answers its reminders this turn."""
-    for reminder in changed.reminders:
+def _answer_reminders(changed: Game, seat: SeatNumber, source: str) -> None:
+    """An effect whose source names a reminded permanent answers the acting seat's reminders
+    of it this turn."""
+    for reminder in changed.seat(seat).reminders:
         if names_reminded_permanent(
             source,
             card_name=reminder.card_name,
@@ -360,10 +387,11 @@ def _answer_reminders(changed: Game, source: str) -> None:
 
 
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-021, PLAY-022, PLAY-029, PLAY-030
-# @spec PLAY-031, PLAY-032, PLAY-051, PAY-040
+# @spec PLAY-031, PLAY-032, PLAY-051, PAY-040, GAME-061, APP-031
 def effect(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     source: object,
     delta: object,
@@ -373,7 +401,8 @@ def effect(
     reason: object = None,
     override: str | None = None,
 ) -> Result:
-    """Record a change not caused by playing a card, paying `pay` first when it is given."""
+    """The acting seat records a change not caused by playing a card, paying `pay` first
+    when it is given."""
     del reason  # recorded with the call by the application; never judged
     if not isinstance(source, str):
         return Refusal.error(Error(ErrorKind.MALFORMED_ARGUMENT, subject="source"))
@@ -392,24 +421,26 @@ def effect(
             _pay(
                 changed,
                 deck,
+                seat,
                 cost,
                 instructions,
-                problems,
+                problems=problems,
                 paying_for=None,
                 playing=None,
                 subject=source,
             )
         )
         events.extend(assumed)
-    applied = apply_delta(changed, deck, arguments.delta, source=source)
+    applied = apply_delta(changed, deck, seat, arguments.delta, source=source)
     if isinstance(applied, Error):
         problems.add(applied)
     else:
         events.extend(applied)
-    _answer_reminders(changed, source)
+    _answer_reminders(changed, seat, source)
     return _finish(
         changed,
         deck,
+        seat,
         problems,
         override=override,
         summary=EffectRecorded(source),

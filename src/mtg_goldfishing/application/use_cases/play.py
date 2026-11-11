@@ -11,6 +11,7 @@ from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.play import playing
 
 TOOL = "play"
@@ -20,13 +21,14 @@ TOOL = "play"
 def play(ports: Ports, arguments: Mapping[str, object]) -> Answer:
     """Play a card. A card from outside the game has its card data resolved first."""
 
-    def operate(game: Game, deck: LoadedDeck, override: str | None) -> Result:
+    def operate(game: Game, deck: LoadedDeck, seat: SeatNumber, override: str | None) -> Result:
         card = arguments.get("card")
         from_zone = arguments.get("from")
         outside = _card_data(ports.catalog, card) if playing.comes_from_outside(from_zone) else None
         return playing.play(
             game,
             deck,
+            seat,
             card=card,
             from_zone=from_zone,
             to=arguments.get("to"),

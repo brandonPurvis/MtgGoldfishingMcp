@@ -103,13 +103,13 @@ def _keyword(reading: FaceReading, keyword: str) -> KeywordReading:
 
 
 def has_keyword(game: Game, deck: LoadedDeck, card: CardInstance, keyword: str) -> bool:
-    """Haste or vigilance: the instance's own, or granted by a permanent on the battlefield."""
+    """Haste or vigilance: the instance's own, or granted by a permanent its controller controls."""
     if _keyword(reading_of(deck, card), keyword).own:
         return True
     if not is_creature(deck, card):
         return False
     words = type_words(type_line(deck, card))
-    for other in game.battlefield:
+    for other in game.battlefield_of(card.controller):
         grant = _keyword(reading_of(deck, other), keyword).grant
         if grant is None:
             continue

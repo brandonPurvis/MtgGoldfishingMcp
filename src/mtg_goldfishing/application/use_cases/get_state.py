@@ -21,7 +21,7 @@ TOOL = "get_state"
 # @spec REC-002
 def get_state(ports: Ports, arguments: Mapping[str, object]) -> Answer:
     def read(call: Call, loaded: Loaded) -> Outcome:
-        listing = list_state(loaded.game, loaded.deck, arguments.get("detail"))
+        listing = list_state(loaded.game, loaded.deck, loaded.seat, arguments.get("detail"))
         if isinstance(listing, Error):
             return an_error(listing, loaded.summary)
         detail = "summary" if listing.library_size is None else "full"

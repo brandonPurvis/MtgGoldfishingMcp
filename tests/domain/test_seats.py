@@ -25,8 +25,6 @@ from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import a_deck, a_game
 
-not_built = pytest.mark.xfail(strict=True, reason="M2: seats inside the game are not built")
-
 FORTY_CARDS = ("Forest",) * 20 + ("Island",) * 10 + ("Cultivate", "Ponder") * 5
 GOBLIN = {"name": "Goblin", "types": "Creature — Goblin", "pt": "1/1"}
 ATRAXA = "Atraxa, Praetors' Voice"
@@ -104,7 +102,6 @@ def names(cards: Any) -> list[str]:
 
 
 # @spec APP-032
-@not_built
 @pytest.mark.parametrize("number", [0, -1, True, "1", 1.5])
 def test_a_seat_number_is_a_whole_number_from_one(number: object) -> None:
     with pytest.raises(ValueError, match="seat number"):
@@ -112,7 +109,6 @@ def test_a_seat_number_is_a_whole_number_from_one(number: object) -> None:
 
 
 # @spec APP-032
-@not_built
 def test_seat_numbers_compare_by_value_and_never_change() -> None:
     assert SeatNumber(2) == SeatNumber(2)
     assert SeatNumber(2) != SeatNumber(3)
@@ -121,7 +117,6 @@ def test_seat_numbers_compare_by_value_and_never_change() -> None:
 
 
 # @spec APP-032
-@not_built
 @pytest.mark.parametrize("text", ["", "   ", "g abc", 7])
 def test_a_seat_id_is_text_without_spaces(text: object) -> None:
     with pytest.raises(ValueError, match="seat id"):
@@ -129,7 +124,6 @@ def test_a_seat_id_is_text_without_spaces(text: object) -> None:
 
 
 # @spec APP-032
-@not_built
 def test_seat_ids_compare_by_value_and_never_change() -> None:
     assert SeatId("gabcdefghij") == SeatId("gabcdefghij")
     assert SeatId("gabcdefghij") != SeatId("gklmnopqrst")
@@ -141,14 +135,12 @@ def test_seat_ids_compare_by_value_and_never_change() -> None:
 
 
 # @spec GAME-055
-@not_built
 def test_a_game_started_without_opponents_has_one_seat_the_tested_seat_numbered_one() -> None:
     game = started()
     assert [(seat.number, seat.tested) for seat in game.seats] == [(the_tested_seat(), True)]
 
 
 # @spec GAME-055
-@not_built
 def test_a_goldfish_game_keeps_tallies_against_three_imaginary_opponents() -> None:
     game = started()
     assert game.imaginary is not None
@@ -156,13 +148,11 @@ def test_a_goldfish_game_keeps_tallies_against_three_imaginary_opponents() -> No
 
 
 # @spec GAME-076
-@not_built
 def test_the_tested_seat_s_seat_id_is_the_game_id() -> None:
     assert started().tested.seat_id == SeatId("gabcdefghij")
 
 
 # @spec APP-030
-@not_built
 def test_a_seat_is_reached_through_its_game_by_its_seat_number() -> None:
     game = a_game_of_two_seats().game
     assert game.seat(the_opposing_seat()) is game.seats[1]
@@ -170,7 +160,6 @@ def test_a_seat_is_reached_through_its_game_by_its_seat_number() -> None:
 
 
 # @spec GAME-061
-@not_built
 def test_a_seat_s_hand_library_and_battlefield_hold_only_its_own_cards() -> None:
     game = a_game_of_two_seats().game
     assert names(game.hand_of(the_opposing_seat())) == ["Island", "Llanowar Elves"]
@@ -179,7 +168,6 @@ def test_a_seat_s_hand_library_and_battlefield_hold_only_its_own_cards() -> None
 
 
 # @spec GAME-061
-@not_built
 def test_a_life_change_reaches_only_the_acting_seat() -> None:
     situation = a_game_of_two_seats()
     recorded(situation, the_opposing_seat(), {"life": -3})
@@ -187,7 +175,6 @@ def test_a_life_change_reaches_only_the_acting_seat() -> None:
 
 
 # @spec GAME-061
-@not_built
 def test_a_land_played_uses_only_the_acting_seat_s_land_drop() -> None:
     situation = a_game_of_two_seats()
     applied(situation, "play", the_opposing_seat(), card="Island")
@@ -195,7 +182,6 @@ def test_a_land_played_uses_only_the_acting_seat_s_land_drop() -> None:
 
 
 # @spec GAME-061
-@not_built
 def test_a_commander_cast_counts_only_for_the_seat_that_cast_it() -> None:
     builder: Any = a_game().with_commander(ATRAXA)
     situation = builder.and_an_opposing_seat().with_commander(ATRAXA).build()
@@ -204,7 +190,6 @@ def test_a_commander_cast_counts_only_for_the_seat_that_cast_it() -> None:
 
 
 # @spec GAME-061, GAME-103
-@not_built
 def test_a_mulligan_changes_only_the_seat_that_took_it() -> None:
     situation = a_mulligan_of_two_seats()
     before = situation.game.copy()
@@ -216,7 +201,6 @@ def test_a_mulligan_changes_only_the_seat_that_took_it() -> None:
 
 
 # @spec GAME-105
-@not_built
 def test_a_game_stays_in_mulligans_until_every_seat_has_kept() -> None:
     situation = a_mulligan_of_two_seats()
     applied(situation, "mulligan", the_opposing_seat(), keep=True)
@@ -229,7 +213,6 @@ def test_a_game_stays_in_mulligans_until_every_seat_has_kept() -> None:
 
 
 # @spec PAY-044
-@not_built
 def test_mana_a_seat_makes_goes_to_its_own_pool() -> None:
     situation = a_game_of_two_seats()
     recorded(situation, the_opposing_seat(), {"mana": "{G}{G}"})
@@ -237,7 +220,6 @@ def test_mana_a_seat_makes_goes_to_its_own_pool() -> None:
 
 
 # @spec PAY-044
-@not_built
 def test_a_seat_cannot_pay_with_another_seat_s_pool() -> None:
     builder: Any = a_game().with_hand("Llanowar Elves")
     situation = builder.and_an_opposing_seat().with_pool("{G}").build()
@@ -247,7 +229,6 @@ def test_a_seat_cannot_pay_with_another_seat_s_pool() -> None:
 
 
 # @spec PAY-044
-@not_built
 def test_a_seat_pays_from_its_own_pool() -> None:
     builder: Any = a_game().with_pool("{G}")
     situation = builder.and_an_opposing_seat().with_hand("Llanowar Elves").with_pool("{G}").build()
@@ -259,7 +240,6 @@ def test_a_seat_pays_from_its_own_pool() -> None:
 
 
 # @spec GAME-100
-@not_built
 def test_every_card_of_a_new_goldfish_game_is_owned_and_controlled_by_the_tested_seat() -> None:
     game = started()
     assert {(card.owner, card.controller) for card in game.cards} == {
@@ -268,7 +248,6 @@ def test_every_card_of_a_new_goldfish_game_is_owned_and_controlled_by_the_tested
 
 
 # @spec GAME-100
-@not_built
 def test_a_card_s_controller_is_recorded_apart_from_its_owner() -> None:
     situation = a_game_of_two_seats()
     bears = situation.named("Grizzly Bears")
@@ -280,7 +259,6 @@ def test_a_card_s_controller_is_recorded_apart_from_its_owner() -> None:
 
 
 # @spec GAME-101
-@not_built
 def test_a_permanent_that_leaves_the_battlefield_returns_to_its_owner_s_control() -> None:
     situation = a_game_of_two_seats()
     situation.named("Grizzly Bears").controller = the_opposing_seat()
@@ -295,7 +273,6 @@ def test_a_permanent_that_leaves_the_battlefield_returns_to_its_owner_s_control(
 
 
 # @spec PLAY-086
-@not_built
 def test_a_token_is_owned_and_controlled_by_the_seat_whose_delta_creates_it() -> None:
     situation = a_game_of_two_seats()
     recorded(situation, the_opposing_seat(), {"tokens": [GOBLIN]})
@@ -307,7 +284,6 @@ def test_a_token_is_owned_and_controlled_by_the_seat_whose_delta_creates_it() ->
 
 
 # @spec GAME-064
-@not_built
 def test_a_token_takes_the_number_after_the_highest_issued_across_every_seat() -> None:
     situation = a_game_of_two_seats()
     highest = max(card.number for card in situation.game.cards)
@@ -316,7 +292,6 @@ def test_a_token_takes_the_number_after_the_highest_issued_across_every_seat() -
 
 
 # @spec GAME-064
-@not_built
 def test_the_number_of_a_card_that_has_left_the_game_is_never_used_again() -> None:
     situation: Any = a_game().with_battlefield("Forest").build()
     recorded(situation, the_tested_seat(), {"tokens": [GOBLIN]})
@@ -330,7 +305,6 @@ def test_the_number_of_a_card_that_has_left_the_game_is_never_used_again() -> No
 
 
 # @spec GAME-084
-@not_built
 def test_a_library_is_in_ascending_instance_order_before_its_first_shuffle() -> None:
     game = started(seed=5)
     dealt = shuffled([f"c{n}" for n in range(2, 42)], 5, 0)
@@ -339,7 +313,6 @@ def test_a_library_is_in_ascending_instance_order_before_its_first_shuffle() -> 
 
 
 # @spec GAME-083
-@not_built
 def test_an_opposing_seat_s_shuffle_is_seeded_with_its_shuffle_key() -> None:
     situation = a_game_of_two_seats()
     before = list(situation.game.seat(the_opposing_seat()).library)
@@ -352,7 +325,6 @@ def test_an_opposing_seat_s_shuffle_is_seeded_with_its_shuffle_key() -> None:
 
 
 # @spec GAME-085
-@not_built
 def test_one_seat_s_shuffle_leaves_another_seat_s_library_and_shuffle_count_alone() -> None:
     situation = a_game_of_two_seats()
     before = list(situation.game.seat(the_tested_seat()).library)
@@ -363,7 +335,6 @@ def test_one_seat_s_shuffle_leaves_another_seat_s_library_and_shuffle_count_alon
 
 
 # @spec GAME-151
-@not_built
 def test_a_mulligan_bottoms_the_hand_in_ascending_instance_order_before_shuffling() -> None:
     game = started(seed=5)
     hand = [card.id for card in game.hand_of(the_tested_seat())]
@@ -378,13 +349,11 @@ def test_a_mulligan_bottoms_the_hand_in_ascending_instance_order_before_shufflin
 
 
 # @spec TURN-032
-@not_built
 def test_a_goldfish_game_has_no_active_seat_during_mulligans() -> None:
     assert started().active is None
 
 
 # @spec TURN-032
-@not_built
 def test_the_tested_seat_is_the_active_seat_of_every_turn_of_a_goldfish_game() -> None:
     situation: Any = a_game().in_mulligan().with_hand("Forest").with_library(*("Island",) * 4)
     situation = situation.build()
@@ -399,7 +368,6 @@ def test_the_tested_seat_is_the_active_seat_of_every_turn_of_a_goldfish_game() -
 
 
 # @spec TURN-034
-@not_built
 def test_the_round_of_a_goldfish_game_is_its_turn() -> None:
     situation: Any = a_game().in_step(Step.CLEANUP, turn=4).with_library("Forest").build()
     applied(situation, "advance", the_tested_seat(), to="main1")
@@ -411,7 +379,6 @@ def test_the_round_of_a_goldfish_game_is_its_turn() -> None:
 
 
 # @spec GAME-140
-@not_built
 def test_a_goldfish_seat_at_zero_life_gets_the_life_notice_and_is_not_eliminated() -> None:
     situation: Any = a_game().with_life(2).build()
     recorded(situation, the_tested_seat(), {"life": -5})
@@ -423,7 +390,6 @@ def test_a_goldfish_seat_at_zero_life_gets_the_life_notice_and_is_not_eliminated
 
 
 # @spec GAME-033
-@not_built
 def test_an_accepted_change_is_remembered_as_the_calling_seat_s_own() -> None:
     situation = a_game_of_two_seats()
     result = recorded(situation, the_opposing_seat(), {"life": -1})
@@ -439,7 +405,6 @@ def test_an_accepted_change_is_remembered_as_the_calling_seat_s_own() -> None:
 
 
 # @spec GAME-036
-@not_built
 def test_a_seat_s_resend_is_judged_against_its_own_most_recent_change() -> None:
     situation = a_game_of_two_seats()
     result = recorded(situation, the_opposing_seat(), {"life": -1})
@@ -452,7 +417,6 @@ def test_a_seat_s_resend_is_judged_against_its_own_most_recent_change() -> None:
 
 
 # @spec REC-070
-@not_built
 def test_ending_a_game_during_mulligans_writes_no_snapshot() -> None:
     situation: Any = a_game().in_mulligan().with_hand("Forest").build()
     result = applied(situation, "end_game", the_tested_seat(), result="stalled")
@@ -463,7 +427,6 @@ def test_ending_a_game_during_mulligans_writes_no_snapshot() -> None:
 
 
 # @spec APP-031
-@not_built
 @pytest.mark.parametrize("operation", list(OPERATIONS.values()), ids=list(OPERATIONS))
 def test_every_operation_a_tool_causes_takes_the_acting_seat(
     operation: Callable[..., object],

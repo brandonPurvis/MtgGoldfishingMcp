@@ -12,7 +12,7 @@ Design: `payment-design.md`. Prefix: `PAY`.
 
 ## Mana pool
 
-- [ ] **PAY-044**: In every game, each seat shall have its own mana pool, holding the mana that seat has made and not yet spent.
+- [x] **PAY-044**: In every game, each seat shall have its own mana pool, holding the mana that seat has made and not yet spent.
 - [x] **PAY-006**: In every game, when a payment is made, the game shall spend suitable mana already in the acting seat's mana pool before tapping any mana source; pool mana pays single-color and colorless symbols before hybrids, and when what is left cannot then be paid the pool and sources are searched together.
 - [x] **PAY-007**: In every game, when a mana source makes more mana than a payment needs, the game shall add the surplus to the acting seat's mana pool and the outcome shall state it.
 - [x] **PAY-008**: In every game, while mana in a seat's mana pool carries a spending restriction, the game shall spend it only on a card whose type line includes one of the restriction's card types, and never on the cost of an `effect`.

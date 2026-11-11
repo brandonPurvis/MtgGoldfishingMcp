@@ -33,6 +33,7 @@ from mtg_goldfishing.domain.game.model import (
 )
 from mtg_goldfishing.domain.game.movement import move
 from mtg_goldfishing.domain.game.naming import Purpose, resolve
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import COLORS, Mana, ManaPool, ManaString, Restriction
 from mtg_goldfishing.domain.payment.auto import (
     OtherCard,
@@ -172,10 +173,14 @@ class PaymentPlan:
         return sum(1 for unit in self.units if unit.paid_as is not None)
 
 
-def other_cards(game: Game, deck: LoadedDeck, playing: CardInstance | None) -> list[OtherCard]:
-    """Cards in hand (other than the one being played) and commanders in the command zone."""
+def other_cards(
+    game: Game, deck: LoadedDeck, seat: SeatNumber, playing: CardInstance | None
+) -> list[OtherCard]:
+    """The paying seat's cards in hand (other than the one being played) and its commanders
+    in the command zone."""
+    paying = game.seat(seat)
     others: list[OtherCard] = []
-    for card in game.hand:
+    for card in game.hand_of(seat):
         if playing is not None and card.id == playing.id:
             continue
         data = card_of(deck, card)
@@ -186,13 +191,13 @@ def other_cards(game: Game, deck: LoadedDeck, playing: CardInstance | None) -> l
         )
         if costs:
             others.append(OtherCard(costs))
-    for card in game.in_zone(Zone.COMMAND):
+    for card in game.in_zone(Zone.COMMAND, seat):
         if not card.is_commander or (playing is not None and card.id == playing.id):
             continue
         data = card_of(deck, card)
         if data is None:
             continue
-        tax = ManaString.parse(f"{{{game.commander_tax(card)}}}")
+        tax = ManaString.parse(f"{{{paying.commander_tax(card)}}}")
         costs = tuple(
             (face.mana_cost.with_x(0) + tax, face.type_line)
             for face in data.faces
@@ -217,12 +222,12 @@ def _ability_making(abilities: Sequence[Source], mana: ManaString) -> Source | N
 
 
 def _resolve_named(
-    game: Game, deck: LoadedDeck, entries: Sequence[PayWith]
+    game: Game, deck: LoadedDeck, seat: SeatNumber, entries: Sequence[PayWith]
 ) -> tuple[list[_Named], list[Error | FailedCheck], list[InstanceChosen]]:
     named: list[_Named] = []
     problems: list[Error | FailedCheck] = []
     names = [entry.source for entry in entries]
-    found = resolve(game, deck, names, [Zone.BATTLEFIELD], Purpose.TAP)
+    found = resolve(game, deck, seat, names, [Zone.BATTLEFIELD], purpose=Purpose.TAP)
     if isinstance(found, Error):
         return [], [found], []
     cards, chosen_events = found
@@ -332,7 +337,7 @@ PlanKey = tuple[int, ScoreKey]
 
 # @spec PAY-021
 def _plan_with_uses(
-    game: Game,
+    life: int,
     cost: ManaString,
     uses: Sequence[_NamedUse],
     *,
@@ -347,7 +352,7 @@ def _plan_with_uses(
     life allows are tried first, then one fewer, and so on.
     """
     named_life = sum(use.source.life for use in uses if use.source is not None)
-    budget = game.life - 1 - extra_life - named_life
+    budget = life - 1 - extra_life - named_life
     units = [unit for unit, _, _ in first]
     most = min(phyrexian_symbols(cost), max(0, budget) // 2)
     for with_life in range(most, -1, -1):
@@ -369,9 +374,13 @@ def _plan_with_uses(
 
 
 # @spec PAY-020, PAY-030, PAY-031, PAY-032, PAY-033, PAY-034, PAY-035, PAY-036, PAY-038
+# @spec PAY-044
+
+
 def plan_payment(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     cost: ManaString,
     *,
     paying_for: str | None,
@@ -379,27 +388,29 @@ def plan_payment(
     instructions: PayInstructions,
     subject: str,
 ) -> tuple[PaymentPlan | None, list[Error | FailedCheck]]:
-    """Work out how a cost will be paid, and the errors and failed checks found doing so.
+    """Work out how the paying seat will pay a cost, and the errors and failed checks found
+    doing so: from its own pool, with the sources it controls, and with its own life.
 
     The plan is None when the cost is not payable or an error stops the payment.
     """
-    named, problems, chosen_events = _resolve_named(game, deck, instructions.with_sources)
+    paying = game.seat(seat)
+    named, problems, chosen_events = _resolve_named(game, deck, seat, instructions.with_sources)
     if any(isinstance(p, Error) for p in problems):
         return None, problems
     if instructions.cost is not None:
         cost = instructions.cost
     pool_mana = [
         unit
-        for unit in game.mana_pool.units
+        for unit in paying.mana_pool.units
         if unit.restriction is None or unit.restriction.allows(paying_for)
     ]
     named_ids = {entry.card.id for entry in named}
     available = [
         s
-        for s in available_sources(game, deck, paying_for=paying_for)
+        for s in available_sources(game, deck, seat, paying_for=paying_for)
         if s.instance_id not in named_ids
     ]
-    others = other_cards(game, deck, playing)
+    others = other_cards(game, deck, seat, playing)
     best: tuple[PlanKey, PaymentPlan] | None = None
     for uses in islice(product(*(entry.uses for entry in named)), _CHOICE_LIMIT):
         first: list[tuple[Unit, Restriction | None, Mana | None]] = [
@@ -409,7 +420,7 @@ def plan_payment(
             restriction = use.source.restriction if use.source is not None else None
             first.extend((unit, restriction, None) for unit in use.output)
         planned = _plan_with_uses(
-            game,
+            paying.life,
             cost,
             uses,
             first=first,
@@ -437,7 +448,7 @@ def plan_payment(
             best = (key, plan)
     if best is None:
         units = [frozenset({m.kind}) for m in pool_mana]
-        budget = game.life - 1 - instructions.life
+        budget = paying.life - 1 - instructions.life
         requirement = Requirement.of(
             cost, phyrexian_life=min(phyrexian_symbols(cost), max(0, budget) // 2)
         )
@@ -459,8 +470,10 @@ def _mana_of(unit: Unit, restriction: Restriction | None) -> Mana:
 
 
 # @spec PAY-007, PAY-017, PAY-039, PAY-042
-def apply_payment(game: Game, deck: LoadedDeck, plan: PaymentPlan) -> list[Event]:
-    """Carry out a planned payment: tap, sacrifice, pay life, update the pool."""
+def apply_payment(game: Game, deck: LoadedDeck, seat: SeatNumber, plan: PaymentPlan) -> list[Event]:
+    """Carry out the paying seat's planned payment: tap, sacrifice, pay its life, update its
+    pool."""
+    paying = game.seat(seat)
     tapped: list[str] = []
     sacrificed: list[str] = []
     moves: list[Event] = []
@@ -481,13 +494,14 @@ def apply_payment(game: Game, deck: LoadedDeck, plan: PaymentPlan) -> list[Event
         for u in plan.units
         if u.pool_mana is None and u.paid_as is None
     ]
-    remaining = list(game.mana_pool.units)
+    remaining = list(paying.mana_pool.units)
     for mana in from_pool:
         remaining.remove(mana)
-    game.mana_pool = ManaPool(tuple(remaining) + tuple(surplus))
-    game.life -= plan.life
-    game.turn_stats.mana_spent += plan.mana_spent
-    game.turn_stats.payments.append(PaymentRecord(plan.cost, plan.mana_spent, plan.life))
+    paying.mana_pool = ManaPool(tuple(remaining) + tuple(surplus))
+    paying.life -= plan.life
+    paying.turn_stats.mana_spent += plan.mana_spent
+    paying.turn_stats.payments.append(PaymentRecord(plan.cost, plan.mana_spent, plan.life))
+
     events: list[Event] = [
         *plan.chosen,
         CostPaid(

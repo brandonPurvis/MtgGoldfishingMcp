@@ -17,9 +17,9 @@ Design: `turn-design.md`. Prefix: `TURN`.
 ## Turns and rounds
 
 - [ ] **TURN-031**: When the active seat of a contested game leaves `cleanup`, its turn shall end and the next seat in turn order that is still in the game (not eliminated) shall become the active seat and begin its turn by entering `untap`.
-- [ ] **TURN-032**: In a goldfish game, the tested seat shall be the active seat of every turn, and the three imaginary opponents shall take no turns.
+- [x] **TURN-032**: In a goldfish game, the tested seat shall be the active seat of every turn, and the three imaginary opponents shall take no turns.
 - [ ] **TURN-033**: When the turn of a contested game passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only seat still in the game, the game shall increase its round number by one; the first turn of the game shall begin round 1.
-- [ ] **TURN-034**: In a goldfish game, the round number shall equal the turn number.
+- [x] **TURN-034**: In a goldfish game, the round number shall equal the turn number.
 - [ ] **TURN-036**: When the active seat of a contested game is eliminated during its turn, the game shall discard the declared attack and every waiting pending choice of kind `blocks`.
 - [ ] **TURN-037**: When the active seat of a contested game is eliminated while other seats' items remain on the stack or a pending choice waits, the game shall go on asking the remaining seats about those items, resolving them and waiting for those pending choices, and shall begin the next seat's turn only once the stack is empty and no pending choice waits.
 - [ ] **TURN-038**: When the turn of an eliminated active seat ends in a contested game, the game shall empty every seat's mana pool and the next seat in turn order still in the game shall begin its turn as it would after a `cleanup`: through `untap`, `upkeep` and `draw` to `main1`, stopping where a reminder stops it.

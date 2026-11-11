@@ -24,6 +24,7 @@ from mtg_goldfishing.domain.game.cards_in_play import (
 from mtg_goldfishing.domain.game.model import OPPONENTS, Attack, CardInstance, Game, Zone
 from mtg_goldfishing.domain.game.naming import Purpose, matches, resolve
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import Walk, return_to_declare_attackers, walk_to
 
@@ -108,10 +109,11 @@ def _targets(
 
 # @spec CMBT-001, CMBT-002, CMBT-003, CMBT-004, CMBT-005, CMBT-006, CMBT-007, CMBT-008, CMBT-009
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
-# @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018
+# @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018, APP-031
 def attack(
     game: Game,
     deck: LoadedDeck,
+    seat: SeatNumber,
     *,
     attackers: object,
     blocked: object = None,
@@ -121,7 +123,8 @@ def attack(
     haste: object = None,
     override: str | None = None,
 ) -> Result:
-    """Declare an attack, moving to declare attackers first when the game is before it."""
+    """The active seat declares an attack, moving to declare attackers first when the game
+    is before it."""
     lists: dict[str, list[str]] = {}
     for argument, value in (
         ("attackers", attackers),
@@ -146,7 +149,10 @@ def attack(
     elif step not in _DECLARING:
         return_to_declare_attackers(changed, deck, walk)
     tapped_before = set(changed.tapped_by_attacks)
-    found = resolve(changed, deck, lists["attackers"], [Zone.BATTLEFIELD], Purpose.TAP)
+    found = resolve(
+        changed, deck, seat, lists["attackers"], [Zone.BATTLEFIELD], purpose=Purpose.TAP
+    )
+
     if isinstance(found, Error):
         return Refusal.error(_attacker_error(found))
     chosen, instances_chosen = found

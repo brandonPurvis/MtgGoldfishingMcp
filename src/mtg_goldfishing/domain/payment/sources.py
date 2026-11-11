@@ -17,6 +17,7 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     type_line,
 )
 from mtg_goldfishing.domain.game.model import CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import COLORS, ManaString, Restriction, SymbolKind
 from mtg_goldfishing.domain.payment.matching import Unit
 from mtg_goldfishing.domain.reading.model import (
@@ -94,9 +95,9 @@ def _commander_identity(deck: LoadedDeck) -> tuple[str, ...]:
     return tuple(color for color in COLORS if color in colors)
 
 
-def _devotion(game: Game, deck: LoadedDeck, colors: tuple[str, ...]) -> int:
+def _devotion(game: Game, deck: LoadedDeck, seat: SeatNumber, colors: tuple[str, ...]) -> int:
     total = 0
-    for card in game.battlefield:
+    for card in game.battlefield_of(seat):
         for symbol in mana_cost(deck, card).symbols:
             if symbol.kind is not SymbolKind.GENERIC and set(symbol.colors) & set(colors):
                 total += 1
@@ -105,20 +106,24 @@ def _devotion(game: Game, deck: LoadedDeck, colors: tuple[str, ...]) -> int:
 
 # @spec PAY-011
 def count(game: Game, deck: LoadedDeck, source: CardInstance, per: Count) -> int:
-    """Evaluate a counted amount from the game's state now."""
+    """Evaluate a counted amount from the game's state now, as seen by the source's
+    controller: its permanents, its devotion, its hand, its graveyard."""
+    seat = source.controller
     match per:
         case PermanentsCount(match=word):
             return sum(
-                1 for card in game.battlefield if word.lower() in type_words(type_line(deck, card))
+                1
+                for card in game.battlefield_of(seat)
+                if word.lower() in type_words(type_line(deck, card))
             )
         case DevotionCount(colors=colors):
-            return _devotion(game, deck, colors)
+            return _devotion(game, deck, seat, colors)
         case CardsInHandCount():
-            return len(game.hand)
+            return len(game.hand_of(seat))
         case CardsInGraveyardCount(match=word):
             return sum(
                 1
-                for card in game.in_zone(Zone.GRAVEYARD)
+                for card in game.in_zone(Zone.GRAVEYARD, seat)
                 if word is None or word.lower() in type_words(type_line(deck, card))
             )
         case CountersOnSelfCount(counter=counter):
@@ -223,16 +228,23 @@ def most_of_color(sources: Iterable[Source], color: str) -> int:
 
 # @spec PAY-012, PAY-013, PAY-014, PAY-041
 def available_sources(
-    game: Game, deck: LoadedDeck, *, paying_for: str | None, ignore_tapped: bool = False
+    game: Game,
+    deck: LoadedDeck,
+    seat: SeatNumber,
+    *,
+    paying_for: str | None,
+    ignore_tapped: bool = False,
 ) -> list[Source]:
-    """Sources the auto payment system may use for a payment, best kind and lowest id first.
+    """The paying seat's sources the auto payment system may use, best kind and lowest id
+    first.
 
-    Every usable mana ability of a permanent is a source of its own; a payment uses at
-    most one of them. `paying_for` is the type line of the card being paid for, or None
-    for an effect. A source with a restriction is used only when the card qualifies.
+    Only permanents the seat controls are its sources. Every usable mana ability of a
+    permanent is a source of its own; a payment uses at most one of them. `paying_for` is
+    the type line of the card being paid for, or None for an effect. A source with a
+    restriction is used only when the card qualifies.
     """
     found: list[Source] = []
-    for card in game.battlefield:
+    for card in game.battlefield_of(seat):
         if card.tapped and not ignore_tapped:
             continue
         if is_summoning_sick(game, deck, card) and not ignore_tapped:

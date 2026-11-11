@@ -50,7 +50,8 @@ def _start(call: Call, arguments: Mapping[str, object]) -> Answer:
         if isinstance(result, Refusal):
             return call.finish(refused(result, None))
         assert deck is not None, "the domain refuses a game on a deck that is not loaded"
-        applied = accept_change(result, TOOL, arguments)
+        tested = result.game.tested.number
+        applied = accept_change(result, tested, TOOL, arguments)
         game = applied.game
         entry = log_entry(
             tool=TOOL,
@@ -61,7 +62,7 @@ def _start(call: Call, arguments: Mapping[str, object]) -> Answer:
             events=applied.events,
         )
         call.game_id = game.game_id
-        outcome = Outcome(Status.OK, applied.summary, applied.events, summarize(game, deck))
+        outcome = Outcome(Status.OK, applied.summary, applied.events, summarize(game, deck, tested))
 
         def write() -> Outcome | None:
             ports.games.add(game)

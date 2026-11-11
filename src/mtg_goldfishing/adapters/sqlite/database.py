@@ -20,7 +20,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from mtg_goldfishing.adapters.sqlite.schema import MIGRATIONS
+from mtg_goldfishing.adapters.sqlite.schema import MIGRATIONS, Migration, sqlite_statements
 
 DEFAULT_BUSY_TIMEOUT = 5.0
 """Seconds a write waits for another connection's transaction before failing."""
@@ -52,7 +52,7 @@ class SqliteDatabase:
         self,
         path: str | Path,
         *,
-        migrations: Sequence[str] = MIGRATIONS,
+        migrations: Sequence[Migration] = MIGRATIONS,
         busy_timeout: float = DEFAULT_BUSY_TIMEOUT,
     ) -> None:
         self.path = Path(path)
@@ -128,12 +128,15 @@ class SqliteDatabase:
 
     def _migrate(self, connection: sqlite3.Connection) -> None:
         """Apply each missing migration in its own transaction, recording the version reached."""
-        for version, script in enumerate(self._migrations, start=1):
+        for version, migration in enumerate(self._migrations, start=1):
             connection.execute("BEGIN IMMEDIATE")
             try:
                 if _stored_version(connection) < version:
-                    for statement in _statements(script):
-                        connection.execute(statement)
+                    if isinstance(migration, str):
+                        for statement in sqlite_statements(migration):
+                            connection.execute(statement)
+                    else:
+                        migration(connection)
                     connection.execute("DELETE FROM schema_version")
                     connection.execute(
                         "INSERT INTO schema_version (version) VALUES (?)", (version,)
@@ -142,27 +145,6 @@ class SqliteDatabase:
                 connection.execute("ROLLBACK")
                 raise
             connection.execute("COMMIT")
-
-
-def _statements(script: str) -> Iterator[str]:
-    """The SQL statements of a script, one at a time.
-
-    `executescript` would commit the open transaction first, so a migration is run statement
-    by statement inside its own transaction instead.
-    """
-    pending = ""
-    for piece in script.split(";"):
-        pending += piece + ";"
-        if sqlite3.complete_statement(pending):
-            if _has_sql(pending):
-                yield pending
-            pending = ""
-    if _has_sql(pending):
-        yield pending
-
-
-def _has_sql(text: str) -> bool:
-    return bool(text.replace(";", "").strip())
 
 
 def _stored_version(connection: sqlite3.Connection) -> int:

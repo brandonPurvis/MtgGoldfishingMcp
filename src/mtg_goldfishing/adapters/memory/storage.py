@@ -15,11 +15,13 @@ from mtg_goldfishing.application.ports import (
     GameRecords,
     GameRepository,
     RecordStore,
+    SeatOfGame,
     StoredGame,
     UnitOfWork,
 )
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 
 
@@ -31,21 +33,28 @@ class _Checkpointed(Protocol):
     def restore(self, checkpoint: object) -> None: ...
 
 
-# @spec APP-013
+# @spec APP-013, APP-045
 class InMemoryGameRepository(GameRepository):
-    """Games by id, each with the version counter it was stored at."""
+    """Games by id, each with the version counter it was stored at, and the game and seat
+    number each seat id names, written when the game is added and never changed."""
 
     def __init__(self) -> None:
         self._games: dict[str, StoredGame] = {}
+        self._seats: dict[SeatId, SeatOfGame] = {}
 
     def get(self, game_id: str) -> StoredGame | None:
         stored = self._games.get(game_id)
         return None if stored is None else StoredGame(stored.game.copy(), stored.version)
 
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._seats.get(seat_id)
+
     def add(self, game: Game) -> None:
         if game.game_id in self._games:
             raise ValueError(f"a game is already stored under {game.game_id}")
         self._games[game.game_id] = StoredGame(game.copy(), 1)
+        for seat in game.seats:
+            self._seats[seat.seat_id] = SeatOfGame(game.game_id, seat.number)
 
     def save(self, game: Game, *, version: int) -> bool:
         stored = self._games.get(game.game_id)
@@ -55,11 +64,13 @@ class InMemoryGameRepository(GameRepository):
         return True
 
     def checkpoint(self) -> object:
-        return dict(self._games)
+        return dict(self._games), dict(self._seats)
 
     def restore(self, checkpoint: object) -> None:
-        assert isinstance(checkpoint, dict)
-        self._games = dict(checkpoint)
+        assert isinstance(checkpoint, tuple)
+        games, seats = checkpoint
+        self._games = dict(games)
+        self._seats = dict(seats)
 
 
 # @spec APP-013

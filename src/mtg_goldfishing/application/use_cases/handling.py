@@ -24,6 +24,7 @@ from mtg_goldfishing.application.ports import (
     IdSource,
     RecordStore,
     Renderer,
+    SeatOfGame,
     StoredGame,
     UnitOfWork,
 )
@@ -38,6 +39,7 @@ from mtg_goldfishing.domain.game.calls import (
 )
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.game.summary import GameSummary, summarize
 from mtg_goldfishing.domain.records.log import log_entry
 from mtg_goldfishing.domain.records.model import CallRecord
@@ -83,7 +85,7 @@ def an_error(error: Error, game: GameSummary | None) -> Outcome:
 
 def status_after_change(game: Game) -> Status:
     """`CHOICE` when the changed game waits for a choice, else `OK`."""
-    return Status.OK if game.pending_choice is None else Status.CHOICE
+    return Status.CHOICE if game.pending else Status.OK
 
 
 def carries_override(arguments: Mapping[str, object]) -> bool:
@@ -169,10 +171,12 @@ class Call:
 
 @dataclass(frozen=True)
 class Loaded:
-    """A game as loaded, the version it was stored at, its deck and its summary."""
+    """A game as loaded, the version it was stored at, the calling seat, that seat's deck,
+    and the game's summary as that seat sees it."""
 
     stored: StoredGame
     deck: LoadedDeck
+    seat: SeatNumber
     summary: GameSummary
 
     @property
@@ -184,70 +188,89 @@ Respond = Callable[[Call, Loaded], Answer]
 """A tool's own step, given the game it is called about."""
 
 
-# @spec APP-014, APP-019, GAME-053
+def find_seat(games: GameRepository, given: str) -> SeatOfGame | None:
+    """The game and seat the id given as `game_id` names, or None when it names no seat."""
+    seat_id = SeatId.read(given)
+    return None if seat_id is None else games.find_seat(seat_id)
+
+
+# @spec APP-014, APP-019, APP-053, APP-054, GAME-053
 def answer_about_game(
     ports: Ports, tool: str, arguments: Mapping[str, object], respond: Respond
 ) -> Answer:
-    """Hold the game's lock, load the game, and answer through the tool's own step.
+    """Find the game and seat the given id names, hold the game's lock, load the game, and
+    answer through the tool's own step, acting as that seat.
 
-    A game id that names no game is an error and changes nothing.
+    An id that names no seat of any game is an error and changes nothing. The call is
+    recorded under the game the id names.
     """
     game_id = arguments.get("game_id")
     if not isinstance(game_id, str):
         call = Call(ports, tool, arguments, None)
         return call.guarded(lambda: call.finish(an_error(malformed("game_id"), None)))
     call = Call(ports, tool, arguments, game_id)
-    with ports.locks.hold(game_id):
-        return call.guarded(lambda: _respond_about(call, game_id, respond))
+
+    def answer() -> Answer:
+        found = find_seat(ports.games, game_id)
+        if found is None:
+            return call.finish(an_error(Error(ErrorKind.UNKNOWN_GAME, subject=game_id), None))
+        call.game_id = found.game_id
+        with ports.locks.hold(found.game_id):
+            return call.guarded(lambda: _respond_about(call, found, respond))
+
+    return call.guarded(answer)
 
 
-def _respond_about(call: Call, game_id: str, respond: Respond) -> Answer:
-    stored = call.ports.games.get(game_id)
+def _respond_about(call: Call, found: SeatOfGame, respond: Respond) -> Answer:
+    stored = call.ports.games.get(found.game_id)
     if stored is None:
-        return call.finish(an_error(Error(ErrorKind.UNKNOWN_GAME, subject=game_id), None))
-    deck = call.ports.decks.get(stored.game.deck_id)
+        raise LookupError(f"a seat of game {found.game_id} is known, but the game is not kept")
+    deck_id = stored.game.seat(found.seat).deck_id
+    deck = call.ports.decks.get(deck_id)
     if deck is None:
-        raise LookupError(f"game {game_id} is played with deck {stored.game.deck_id}, not kept")
-    call.game = summarize(stored.game, deck)
-    return respond(call, Loaded(stored, deck, call.game))
+        raise LookupError(f"game {found.game_id} is played with deck {deck_id}, not kept")
+    call.game = summarize(stored.game, deck, found.seat)
+    return respond(call, Loaded(stored, deck, found.seat, call.game))
 
 
-Operation = Callable[[Game, LoadedDeck], Applied | Refusal]
-"""The domain operation a changing tool asks for, with the call's arguments already bound."""
+Operation = Callable[[Game, LoadedDeck, SeatNumber], Applied | Refusal]
+"""The domain operation a changing tool asks for, with the call's arguments already bound;
+it is given the game, the calling seat's deck and the calling seat, which acts."""
 
 
 def overridable(
     arguments: Mapping[str, object],
-    operate: Callable[[Game, LoadedDeck, str | None], Applied | Refusal],
+    operate: Callable[[Game, LoadedDeck, SeatNumber, str | None], Applied | Refusal],
 ) -> Operation:
     """An operation given the call's `override`, which must be text when present."""
 
-    def operation(game: Game, deck: LoadedDeck) -> Applied | Refusal:
+    def operation(game: Game, deck: LoadedDeck, seat: SeatNumber) -> Applied | Refusal:
         override = text(arguments, "override")
         if isinstance(override, Error):
             return Refusal.error(override)
-        return operate(game, deck, override)
+        return operate(game, deck, seat, override)
 
     return operation
 
 
-# @spec APP-009, APP-017, APP-018, APP-021, APP-023, REC-002, GAME-052, GAME-054
+# @spec APP-009, APP-017, APP-018, APP-021, APP-023, APP-057, REC-002, GAME-052, GAME-054
 def change_game(
     ports: Ports, tool: str, arguments: Mapping[str, object], operation: Operation
 ) -> Answer:
     """Answer a call that changes a game.
 
-    A resend of the game's most recent change is answered with the original report and
-    changes nothing, whatever the game's status. Any other call must be accepted in the
-    game's status and must follow the game's change number. An applied result is counted
-    as the game's next change and saved with its log entry and snapshots in one unit of
-    work; a refusal saves nothing about the game.
+    A resend of the calling seat's most recent change is answered with the original report
+    and changes nothing, whatever the game's status. Any other call must be accepted in the
+    game's status and must follow the game's change number. The domain operation is applied
+    with the calling seat as the acting seat. An applied result is counted as the game's
+    next change and saved with its log entry and snapshots in one unit of work; a refusal
+    saves nothing about the game.
     """
 
     def respond(call: Call, loaded: Loaded) -> Answer:
-        game = loaded.game
+        game, seat = loaded.game, loaded.seat
         after = whole_number(arguments, "after")
-        resent = resend_of(game, tool, arguments, None if isinstance(after, Error) else after)
+        resent = resend_of(game, seat, tool, arguments, None if isinstance(after, Error) else after)
         if resent is not None:
             return _answer_resend(call, loaded, resent)
         not_accepted = check_accepted(game, tool)
@@ -255,15 +278,15 @@ def change_game(
             return call.finish(an_error(not_accepted, loaded.summary))
         if isinstance(after, Error):
             return call.finish(an_error(after, loaded.summary))
-        followed = follow_change(game, tool, arguments, after)
+        followed = follow_change(game, seat, tool, arguments, after)
         if isinstance(followed, Resent):
             return _answer_resend(call, loaded, followed)
         if isinstance(followed, Refusal):
             return call.finish(refused(followed, loaded.summary))
-        result = operation(game, loaded.deck)
+        result = operation(game, loaded.deck, seat)
         if isinstance(result, Refusal):
             return call.finish(refused(result, loaded.summary))
-        return _save_change(call, loaded, accept_change(result, tool, arguments))
+        return _save_change(call, loaded, accept_change(result, seat, tool, arguments))
 
     return answer_about_game(ports, tool, arguments, respond)
 
@@ -288,7 +311,7 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
         status_after_change(changed),
         applied.summary,
         applied.events,
-        summarize(changed, loaded.deck),
+        summarize(changed, loaded.deck, loaded.seat),
     )
 
     def write() -> Outcome | None:

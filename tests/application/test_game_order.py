@@ -15,9 +15,11 @@ from mtg_goldfishing.application.ports import (
     GameRecords,
     GameRepository,
     RecordStore,
+    SeatOfGame,
     StoredGame,
 )
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.game.seats import SeatId
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from tests.support.builders import a_game
 from tests.support.service import GAME_ID, a_service
@@ -69,6 +71,9 @@ class JournaledGames(GameRepository):
         self._journal.happened.append("game loaded")
         return self._inner.get(game_id)
 
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
+
     def add(self, game: Game) -> None:
         self._inner.add(game)
 
@@ -107,6 +112,9 @@ class SlowToLoad(GameRepository):
         stored = self._inner.get(game_id)
         time.sleep(0.05)
         return stored
+
+    def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
+        return self._inner.find_seat(seat_id)
 
     def add(self, game: Game) -> None:
         self._inner.add(game)
@@ -157,7 +165,7 @@ def test_two_calls_for_one_game_at_once_are_applied_one_after_the_other() -> Non
 
     assert sorted(a.outcome.game.change for a in answers if a.outcome.game) == [1, 2]
     assert [a.outcome.status for a in answers] == [Status.OK, Status.OK]
-    assert harness.game().life == 38
+    assert harness.game().tested.life == 38
 
 
 # @spec APP-016

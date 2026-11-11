@@ -13,6 +13,7 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     reading_of,
 )
 from mtg_goldfishing.domain.game.model import OPPONENTS, Game, PaymentRecord, Zone
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.reading.model import ManaAbility
 from mtg_goldfishing.domain.steps import Step
 
@@ -55,9 +56,13 @@ DETAILS = ("summary", "full")
 
 
 # @spec GAME-029, GAME-030, GAME-031, GAME-032
-def list_state(game: Game, deck: LoadedDeck, detail: object = None) -> StateListing | Error:
-    """List the game's public zones. The library's contents and order are never listed."""
+def list_state(
+    game: Game, deck: LoadedDeck, seat: SeatNumber, detail: object = None
+) -> StateListing | Error:
+    """List the calling seat's zones. The library's contents and order are never listed."""
     detail = detail or "summary"
+    listed = game.seat(seat)
+    imaginary = game.imaginary
     if detail not in DETAILS:
         return Error(ErrorKind.MALFORMED_ARGUMENT, subject="detail", names=DETAILS)
     battlefield = tuple(
@@ -71,28 +76,28 @@ def list_state(game: Game, deck: LoadedDeck, detail: object = None) -> StateList
             vigilance=has_vigilance(game, deck, card),
             triggers=reading_of(deck, card).step_triggers,
         )
-        for card in game.battlefield
+        for card in game.battlefield_of(seat)
     )
     listing = StateListing(
-        hand=tuple(card.name for card in game.hand),
+        hand=tuple(card.name for card in game.hand_of(seat)),
         battlefield=battlefield,
-        graveyard=tuple(card.name for card in game.in_zone(Zone.GRAVEYARD)),
-        command=tuple(card.name for card in game.in_zone(Zone.COMMAND)),
+        graveyard=tuple(card.name for card in game.in_zone(Zone.GRAVEYARD, seat)),
+        command=tuple(card.name for card in game.in_zone(Zone.COMMAND, seat)),
         notices=tuple(game.notices),
     )
     if detail == "summary":
         return listing
     return replace(
         listing,
-        exile=tuple(card.name for card in game.in_zone(Zone.EXILE)),
-        library_size=len(game.library),
+        exile=tuple(card.name for card in game.in_zone(Zone.EXILE, seat)),
+        library_size=len(listed.library),
         commanders=tuple(
             CommanderListing(
                 c.name,
-                game.commander_casts.get(c.id, 0),
-                tuple(game.commander_damage.get(c.id, [0] * OPPONENTS)),
+                listed.commander_casts.get(c.id, 0),
+                tuple(imaginary.commander_damage.get(c.id, [0] * OPPONENTS) if imaginary else ()),
             )
-            for c in game.commanders
+            for c in game.commanders_of(seat)
         ),
-        payments=tuple(game.turn_stats.payments),
+        payments=tuple(listed.turn_stats.payments),
     )

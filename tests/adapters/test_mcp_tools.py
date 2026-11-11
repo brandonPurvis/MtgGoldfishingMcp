@@ -124,7 +124,7 @@ def test_selections_sent_as_a_json_string_are_decoded() -> None:
     game_id = _in_main_step_with_forests(harness)
     look = {"look": {"n": 1, "from": "top", "rest": "library_bottom"}}
     surface.call("effect", {"game_id": game_id, "source": "Ponder", "delta": look})
-    choice_id = harness.game(game_id).pending_choice
+    choice_id = harness.game(game_id).waiting_choice
     assert choice_id is not None
 
     response = surface.call(
