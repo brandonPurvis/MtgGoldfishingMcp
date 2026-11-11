@@ -40,13 +40,14 @@ async def test_the_server_gives_its_instructions_to_a_connecting_client() -> Non
 
 
 # @spec TOOL-007
-async def test_the_server_lists_the_twelve_tools() -> None:
+@pytest.mark.xfail(strict=True, reason="M4: not built")
+async def test_the_server_lists_the_thirteen_tools() -> None:
     client, _ = _client()
 
     async with client:
         listed = await client.list_tools()
 
-    assert len({tool.name for tool in listed.tools}) == 12
+    assert len({tool.name for tool in listed.tools}) == 13
 
 
 # @spec TOOL-010, TOOL-028

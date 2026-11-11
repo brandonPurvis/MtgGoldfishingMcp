@@ -35,6 +35,7 @@ class Zone(Enum):
     GRAVEYARD = "graveyard"
     EXILE = "exile"
     COMMAND = "command"
+    STACK = "stack"
 
     @classmethod
     def named(cls, name: str) -> Zone | None:
@@ -163,6 +164,49 @@ class Attack:
     commander_targets: dict[str, int] = field(default_factory=dict)
     targets: dict[str, int] = field(default_factory=dict)
     blocks: dict[str, str] = field(default_factory=dict)
+
+
+class StackItemKind(Enum):
+    """What a stack item is: a spell, whose card is on the stack, or an ability, which has none."""
+
+    SPELL = "spell"
+    ABILITY = "ability"
+
+
+@dataclass(frozen=True)
+class StackItem:
+    """A play or effect of a contested game made and not yet resolved, holding the delta its
+    controller stated, as stated."""
+
+    id: str
+    controller: SeatNumber
+    kind: StackItemKind
+    source: str
+    tool: str
+    delta: dict[str, object] = field(default_factory=dict)
+    card: str | None = None
+    to: Destination | None = None
+    choices: dict[str, object] | None = None
+    disturbed: bool = False
+
+
+class WindowKind(Enum):
+    """What opened a response window: an item put on the stack, declared attackers, or the
+    end step."""
+
+    STACK = "stack"
+    ATTACK = "attack"
+    END = "end"
+
+
+@dataclass(frozen=True)
+class Window:
+    """The open response window: what opened it, the seat being asked, and the seats that have
+    passed in succession since the asking last began."""
+
+    kind: WindowKind
+    asking: SeatNumber | None = None
+    passed: tuple[SeatNumber, ...] = ()
 
 
 @dataclass
@@ -324,6 +368,10 @@ class Game:
     step: Step | None = None
     change: int = 0
     pending: list[PendingChoice] = field(default_factory=list)
+    stack: list[StackItem] = field(default_factory=list)
+    """Bottom first: the last item is the top. Always empty in a goldfish game."""
+    window: Window | None = None
+    next_item: int = 1
     hand_looks: list[HandLook] = field(default_factory=list)
     declared_attack: Attack | None = None
     tapped_by_attacks: list[str] = field(default_factory=list)  # this turn; reset on untap

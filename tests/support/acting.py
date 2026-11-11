@@ -10,6 +10,8 @@ from typing import Any
 
 from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.game.seats import SeatNumber
+from mtg_goldfishing.domain.play.playing import effect, play
+from mtg_goldfishing.domain.stack.passing import pass_
 from tests.support.builders import Situation
 
 S1, S2, S3, S4 = SeatNumber(1), SeatNumber(2), SeatNumber(3), SeatNumber(4)
@@ -45,3 +47,36 @@ def events_named(result: Applied, name: str) -> list[Any]:
 
 def choice_ids(situation: Situation) -> list[str]:
     return [choice.choice_id for choice in situation.game.pending]
+
+
+def cast(situation: Situation, seat: SeatNumber, card: str, **arguments: Any) -> Applied:
+    """The seat plays a card, and the call is applied; the situation then holds the game."""
+    return acted(situation, play(situation.game, situation.deck, seat, card=card, **arguments))
+
+
+def recorded(
+    situation: Situation, seat: SeatNumber, source: str, delta: object = None, **arguments: Any
+) -> Applied:
+    """The seat records an effect, and the call is applied."""
+    result = effect(situation.game, situation.deck, seat, source=source, delta=delta, **arguments)
+    return acted(situation, result)
+
+
+def passed(situation: Situation, seat: SeatNumber) -> Applied:
+    """The seat passes, and the call is applied."""
+    return acted(situation, pass_(situation.game, situation.deck, seat))
+
+
+def stack_ids(situation: Situation) -> list[str]:
+    """The ids of the items on the stack, bottom first."""
+    return [item.id for item in situation.game.stack]
+
+
+def asking(situation: Situation) -> SeatNumber | None:
+    """The seat the open response window is asking, or None when no window is open."""
+    window = situation.game.window
+    return None if window is None else window.asking
+
+
+def zone_of(situation: Situation, instance_id: str) -> str:
+    return situation.game.instance(instance_id).zone.value
