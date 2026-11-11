@@ -149,3 +149,70 @@ def test_the_player_brief_has_a_section_on_contested_games(
     contested = _section(CONTESTED_SECTION)
 
     assert all(word in contested for word in words), instruction
+
+
+M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
+
+
+# @spec TOOL-104, TOOL-105
+@M3
+@pytest.mark.parametrize(
+    ("instruction", "words"),
+    [
+        (
+            "TOOL-104: read rules text rather than rely on memory",
+            ("`get_state` with `card`", "rules text", "rather than relying on memory"),
+        ),
+        (
+            "TOOL-105: apply the legend rule, which the service does not",
+            (
+                "legend rule",
+                "the service does not",
+                "two legendary permanents with the same name",
+                "owner's graveyard with `effect`",
+            ),
+        ),
+    ],
+)
+def test_the_player_brief_gives_every_game_its_rules_reminders(
+    instruction: str, words: tuple[str, ...]
+) -> None:
+    how_to_play = _section("## How to play")
+
+    assert all(word in how_to_play for word in words), instruction
+
+
+# @spec TOOL-103, TOOL-106
+@M3
+@pytest.mark.parametrize(
+    ("instruction", "words"),
+    [
+        (
+            "TOOL-103: keep calling wait until the game ends or the seat is eliminated",
+            (
+                "Keep calling `wait`",
+                "still waiting",
+                "however long",
+                "Never report the game as stalled",
+                "timed out, failed or came back empty",
+                "Stop only when the game ends or your seat is eliminated",
+            ),
+        ),
+        (
+            "TOOL-106: several seats' triggers go on the stack in turn order",
+            (
+                "triggers of several seats",
+                "turn order starting with the active seat",
+                "the last seat's resolve first",
+                "As the active seat",
+                "when you are asked to respond",
+            ),
+        ),
+    ],
+)
+def test_the_player_brief_s_contested_section_says_how_to_wait_and_order_triggers(
+    instruction: str, words: tuple[str, ...]
+) -> None:
+    contested = _section(CONTESTED_SECTION)
+
+    assert all(word in contested for word in words), instruction

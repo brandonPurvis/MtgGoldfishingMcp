@@ -86,3 +86,15 @@ Feature: Effects that reach other seats in a contested game
     And the response says the card is in a hidden zone of S2
     And the response says "Other seats' hands and libraries are reached through ask."
     And the game did not change
+
+  # @spec PLAY-144, TOOL-094
+  @wip
+  Scenario: A move that takes a card from another seat's zone names that seat
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    And seat S1 puts "Sol Ring" onto the battlefield
+    And seat S1 has recorded an effect with delta {"control": {"2": ["Sol Ring"]}}
+    When seat S1 records an immediate effect with delta {"move": {"hand": ["Sol Ring"]}}
+    Then the response is OK
+    And the response says "Moved Sol Ring: S2's battlefield → hand."
+    When seat S2 asks for the state
+    Then the digest says "Moved Sol Ring: S2's battlefield → hand"

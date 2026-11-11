@@ -8,8 +8,9 @@ from typing import Any
 
 import pytest
 
-from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
-from mtg_goldfishing.application.outcome import Outcome, Status
+from mtg_goldfishing.adapters.mcp.rendering import TextRenderer, digest_line, event_lines
+from mtg_goldfishing.application.outcome import DigestElement, Outcome, Status
+from mtg_goldfishing.domain import events
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.events import Refused
 from mtg_goldfishing.domain.game.ending import end_game
@@ -18,6 +19,7 @@ from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.seeing import as_seen_by
 from mtg_goldfishing.domain.game.summary import summarize
+from mtg_goldfishing.domain.play.choosing import choose
 from mtg_goldfishing.domain.play.playing import effect
 from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted
@@ -194,3 +196,103 @@ def test_the_elimination_notices_read_on_every_later_response() -> None:
     lines = response("effect", situation, S1, result).splitlines()
     assert "Notice: every opposing seat has been eliminated" in lines
     assert "Notice: the tested seat has been eliminated" in lines
+
+
+# ------------------------------------------------------------------ moves that name a seat
+
+M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
+
+
+def a_move(card: str, from_zone: str, to: str, **seats: SeatNumber) -> Any:
+    made: Any = events.CardMoved
+    return made(card, from_zone, to, **seats)
+
+
+def event_text(event: Any) -> list[str]:
+    return event_lines(event)
+
+
+# @spec TOOL-094
+@M3
+@pytest.mark.parametrize(
+    ("move", "seats", "line"),
+    [
+        (
+            ("Sol Ring", "graveyard", "battlefield"),
+            {"from_seat": S2},
+            "Moved Sol Ring: S2's graveyard → battlefield.",
+        ),
+        (
+            ("Grizzly Bears", "battlefield", "hand"),
+            {"from_seat": S3, "to_seat": S3},
+            "Moved Grizzly Bears: S3's battlefield → S3's hand.",
+        ),
+        (
+            ("Grizzly Bears", "battlefield", "library_top"),
+            {"from_seat": S2, "to_seat": S2},
+            "Moved Grizzly Bears: S2's battlefield → top of S2's library.",
+        ),
+        (
+            ("Shivan Dragon", "stack", "graveyard"),
+            {"to_seat": S2},
+            "Moved Shivan Dragon: stack → S2's graveyard.",
+        ),
+        (
+            ("Sol Ring", "exile", "command"),
+            {"from_seat": S2, "to_seat": S2},
+            "Moved Sol Ring: S2's exile → S2's command zone.",
+        ),
+    ],
+)
+def test_a_move_names_the_seat_of_each_zone_the_event_names_one_for(
+    move: tuple[str, str, str], seats: dict[str, SeatNumber], line: str
+) -> None:
+    assert event_text(a_move(*move, **seats)) == [line]
+
+
+# @spec TOOL-094
+@M3
+def test_a_digest_line_names_the_reading_seat_s_own_zone_like_any_other_seat_s() -> None:
+    moved = a_move("Sol Ring", "graveyard", "battlefield", from_seat=S2)
+
+    line = digest_line(DigestElement(S1, 5, (moved,)))
+
+    assert line == "S1 #5: Moved Sol Ring: S2's graveyard → battlefield"
+
+
+# @spec TOOL-094, PLAY-144
+@M3
+def test_a_seat_that_moves_another_seat_s_card_reads_that_seat_in_its_response() -> None:
+    situation = three_seats()
+    situation.game.cards[-1].zone = Zone.GRAVEYARD
+    result = recorded(situation, {"move": {"battlefield": ["Llanowar Elves"]}})
+
+    assert (
+        "Moved Llanowar Elves: S2's graveyard → battlefield."
+        in response("effect", situation, S1, result).splitlines()
+    )
+
+
+# @spec TOOL-094, PLAY-146
+@M3
+def test_a_card_placed_from_another_seat_s_hand_reads_both_seats_zones() -> None:
+    situation = three_seats()
+    acted(situation, recorded(situation, {"look_at_hand": 2}))
+    choice = situation.game.pending[0].choice_id
+    choosing: Any = choose
+    result = choosing(
+        situation.game,
+        situation.deck,
+        S1,
+        choice_id=choice,
+        selections={"graveyard": ["Lightning Bolt"]},
+    )
+
+    assert response("choose", situation, S1, result).splitlines()[0] == (
+        "OK Placed the revealed cards: Lightning Bolt from S2's hand → S2's graveyard."
+    )
+
+
+# @spec TOOL-094
+def test_a_goldfish_move_reads_its_zones_alone() -> None:
+    assert event_text(a_move("Forest", "graveyard", "hand")) == ["Moved Forest: graveyard → hand."]

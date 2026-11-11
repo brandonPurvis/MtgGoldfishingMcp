@@ -324,19 +324,50 @@ def test_the_migration_keeps_the_version_counter_and_the_records_of_a_stored_gam
     )
 
 
+def _holds(before: Any, now: Any) -> bool:
+    """Whether `now` holds everything `before` held: every field of an object, with the same
+    value, and lists item by item; `now` may hold fields `before` did not."""
+    if isinstance(before, dict):
+        return isinstance(now, dict) and all(
+            key in now and _holds(value, now[key]) for key, value in before.items()
+        )
+    if isinstance(before, list):
+        return (
+            isinstance(now, list)
+            and len(before) == len(now)
+            and all(_holds(a, b) for a, b in zip(before, now, strict=True))
+        )
+    return bool(before == now)
+
+
+def _answered(migrated: SqliteStores) -> list[tuple[dict[str, Any], str]]:
+    """Each call that followed, and what the service answers to it after the migration."""
+    service = _service(migrated)
+    return [
+        (call, getattr(service, call["tool"])(call["arguments"]).response)
+        for call in STORED["continuation"]
+    ]
+
+
 # @spec STOR-027
 def test_a_goldfish_game_stored_before_seats_answers_every_later_call_as_it_did_before(
     migrated: SqliteStores, path: Path
 ) -> None:
-    service = _service(migrated)
+    answers = [answer for answer in _answered(migrated) if answer[0]["tool"] != "get_log"]
 
-    answers = [
-        {**call, "response": getattr(service, call["tool"])(call["arguments"]).response}
-        for call in STORED["continuation"]
+    assert [response for _, response in answers] == [call["response"] for call, _ in answers]
+    assert _schema_version(path) == SEATS_SCHEMA
+
+
+# @spec STOR-027
+def test_a_goldfish_game_stored_before_seats_exports_every_field_its_log_held_before(
+    migrated: SqliteStores,
+) -> None:
+    (call, response), *_ = [
+        answer for answer in _answered(migrated) if answer[0]["tool"] == "get_log"
     ]
 
-    assert answers == STORED["continuation"]
-    assert _schema_version(path) == SEATS_SCHEMA
+    assert _holds(json.loads(call["response"]), json.loads(response))
 
 
 # @spec STOR-027

@@ -64,7 +64,8 @@ Feature: Starting and taking turns in a contested game
     Then the response is OK
     And every seat plays the Atraxa deck
 
-  # @spec GAME-102, GAME-103, GAME-105, GAME-106, GAME-107, GAME-088, TOOL-048
+  # @spec GAME-102, GAME-103, GAME-105, GAME-106, GAME-107, GAME-088, TOOL-048, TOOL-092
+  @wip
   Scenario: Every seat takes its own mulligans and turn 1 begins once every seat has kept
     Given a contested game against 1 Omnath deck with seed 42 and the tested seat at position 1
     When seat S2 takes a mulligan
@@ -73,7 +74,7 @@ Feature: Starting and taking turns in a contested game
     And the status line reads "Mulligan 1 · Hand 7 · Act S1 you · #2"
     When seat S1 keeps its hand
     Then the response is OK
-    And the status line reads "Mulligan 0 · Hand 7 · Act S2 · #3"
+    And the status line reads "Mulligan 0 · Hand 7 · Act S2 (0 s) · #3"
     When seat S2 keeps its hand
     Then the response is OK
     And the response says "S1 T1 untap → upkeep → draw → main1"
@@ -137,3 +138,20 @@ Feature: Starting and taking turns in a contested game
     When I keep the hand
     Then the response is OK
     And the status line has no seat, Act or Stack field
+
+  # @spec TOOL-090, TOOL-091, APP-094, GAME-182
+  @wip
+  Scenario: A seat that is not to act reads how long the seat to act has been asked
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    When 4 minutes pass
+    And seat S2 asks for the state
+    Then the status line shows "Act S1 turn (4 min) · #"
+    When seat S1 asks for the state
+    Then the status line shows "Act you turn · #"
+
+  # @spec TOOL-041, TOOL-093
+  @wip
+  Scenario: The status line shows the commander damage the calling seat has taken
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    When seat S2 asks for the state
+    Then the status line shows "Cmdr 0 · Cmdr taken 0 · Tax 0"

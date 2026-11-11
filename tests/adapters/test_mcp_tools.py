@@ -187,6 +187,36 @@ def test_a_json_string_that_does_not_decode_is_answered_as_an_error() -> None:
     assert response.text.startswith("ERROR Argument delta is malformed.")
 
 
+M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
+
+
+# @spec TOOL-107
+@M3
+def test_get_state_s_card_sent_as_a_json_list_in_a_string_is_decoded_as_that_list() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call(
+        "get_state", {"game_id": game_id, "card": json.dumps(["Forest", "Grizzly Bears"])}
+    )
+
+    assert response.text.splitlines()[0] == "OK Rules text of 2 cards."
+    assert harness.last_call().arguments["card"] == ["Forest", "Grizzly Bears"]
+
+
+# @spec TOOL-107
+@M3
+@pytest.mark.parametrize("card", ["Grizzly Bears", "[Grizzly Bears"])
+def test_get_state_s_card_sent_as_any_other_text_is_taken_as_one_name(card: str) -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("get_state", {"game_id": game_id, "card": card})
+
+    assert harness.last_call().arguments["card"] == card
+    assert response.text.startswith(("OK Rules text of 1 card.", "ERROR [Grizzly Bears"))
+
+
 # @spec TOOL-027
 def test_an_error_response_sets_the_error_flag() -> None:
     surface, _ = _surface()
