@@ -3,7 +3,10 @@ the start of a contested game, and the turn passing between seats."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
+
+import pytest
 
 from mtg_goldfishing.adapters.mcp.listing_lines import state_lines
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer, status_line
@@ -12,7 +15,7 @@ from mtg_goldfishing.domain.deck.model import DeckCard, DeckEntry, LoadedDeck
 from mtg_goldfishing.domain.events import Error, Refused
 from mtg_goldfishing.domain.game import acting, creation
 from mtg_goldfishing.domain.game.listing import list_state
-from mtg_goldfishing.domain.game.model import GameResult, GameStatus, Result
+from mtg_goldfishing.domain.game.model import GameResult, GameStatus, Result, Zone
 from mtg_goldfishing.domain.game.results import Applied
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.seeing import as_seen_by
@@ -24,6 +27,7 @@ from tests.support.builders import GameBuilder, Situation, a_game
 from tests.support.library import LIBRARY
 
 RENDERER = TextRenderer()
+M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
 S1, S2, S3, S4 = SeatNumber(1), SeatNumber(2), SeatNumber(3), SeatNumber(4)
 ATRAXA = "Atraxa, Praetors' Voice"
 KENRITH = "Kenrith, the Returned King"
@@ -33,6 +37,14 @@ TYMNA = "Tymna the Weaver"
 
 def line_of(situation: Situation, seat: SeatNumber) -> str:
     return status_line(summarize(situation.game, situation.deck, seat))
+
+
+def line_asked_for(situation: Situation, seat: SeatNumber, seconds: int) -> str:
+    """The status line of a summary holding how long the seats to act have been asked."""
+    renew: Any = replace
+    summary = summarize(situation.game, situation.deck, seat)
+    assert summary.table is not None
+    return status_line(renew(summary, table=renew(summary.table, time_asked=seconds)))
 
 
 def response(tool: str, situation: Situation, seat: SeatNumber, result: Any) -> list[str]:
@@ -77,11 +89,22 @@ def four_seats() -> GameBuilder:
 
 
 # @spec TOOL-041
+@M3
 def test_the_status_line_of_a_started_contested_game_as_the_calling_seat_sees_it() -> None:
     situation = two_seats().with_life(35).build()
     assert line_of(situation, S1) == (
         "T2 main1 (S1) · You S1 · Hand 1 · Lands 1 (1 untapped) · Pool {} · Life 40"
-        " · S2 35 · Cmdr 0 · Tax 0 · Act you turn · #0"
+        " · S2 35 · Cmdr 0 · Cmdr taken 0 · Tax 0 · Act you turn · #0"
+    )
+
+
+# @spec TOOL-041, TOOL-090
+@M3
+def test_the_status_line_of_a_seat_not_to_act_ends_act_with_the_time_asked() -> None:
+    situation = two_seats(active=2).with_life(35).build()
+    assert line_asked_for(situation, S1, 240) == (
+        "T2 main1 (S2) · You S1 · Hand 1 · Lands 1 (1 untapped) · Pool {} · Life 40"
+        " · S2 35 · Cmdr 0 · Cmdr taken 0 · Tax 0 · Act S2 turn (4 min) · #0"
     )
 
 
@@ -115,6 +138,7 @@ def test_commander_damage_is_shown_to_each_other_seat_in_the_order_of_the_life_g
 
 
 # @spec TOOL-045, TOOL-058
+@M3
 def test_two_commanders_show_a_group_each_in_name_order_for_damage_and_tax() -> None:
     builder: Any = (
         a_game()
@@ -125,7 +149,43 @@ def test_two_commanders_show_a_group_each_in_name_order_for_damage_and_tax() -> 
     situation = builder.and_an_opposing_seat().build()
     thrasios = situation.named(THRASIOS)
     situation.game.seat(S1).commander_casts[thrasios.id] = 1
-    assert " · Cmdr 3|5 · Tax 2|0 · " in line_of(situation, S1)
+    assert " · Cmdr 3|5 · Cmdr taken 0 · Tax 2|0 · " in line_of(situation, S1)
+
+
+# @spec TOOL-093
+@M3
+def test_commander_damage_taken_is_shown_from_each_other_seat_in_the_order_of_the_life_groups() -> (
+    None
+):
+    builder: Any = a_game().with_commander(ATRAXA)
+    builder = builder.and_an_opposing_seat().with_commander(KENRITH)
+    builder = builder.with_commander_damage(KENRITH, 1, 3)
+    builder = builder.and_an_opposing_seat().eliminated().with_commander(ATRAXA)
+    builder = builder.with_commander_damage(ATRAXA, 1, 9)
+    builder = builder.and_an_opposing_seat().with_commander(KENRITH)
+    line = line_of(builder.build(), S1)
+    assert " · S2 40 · S3 out · S4 40 · Cmdr 0/0/0 · Cmdr taken 3/9/0 · Tax 0 · " in line
+
+
+# @spec TOOL-093
+@M3
+def test_a_seat_with_two_commanders_shows_a_group_of_two_in_its_commanders_name_order() -> None:
+    builder: Any = a_game().with_commander(ATRAXA)
+    builder = builder.and_an_opposing_seat().with_commander(KENRITH)
+    builder = builder.with_commander_damage(KENRITH, 1, 3)
+    builder = builder.and_an_opposing_seat().with_commander(TYMNA, THRASIOS)
+    builder = builder.with_commander_damage(TYMNA, 1, 9).with_commander_damage(THRASIOS, 1, 12)
+    assert " · Cmdr taken 3/12|9 · " in line_of(builder.build(), S1)
+
+
+# @spec TOOL-093
+@M3
+def test_damage_taken_from_a_commander_counts_under_the_seat_whose_deck_it_is() -> None:
+    builder: Any = a_game().with_commander(ATRAXA).with_commander_damage(ATRAXA, 2, 6)
+    builder = builder.and_an_opposing_seat().with_commander(KENRITH)
+    builder = builder.and_an_opposing_seat().with_commander(KENRITH, zone=Zone.BATTLEFIELD)
+    builder = builder.controlled_by(KENRITH, 2).with_commander_damage(KENRITH, 1, 5)
+    assert " · Cmdr taken 0/5 · " in line_of(builder.build(), S1)
 
 
 # @spec TOOL-047
@@ -133,6 +193,32 @@ def test_act_names_the_seat_to_act_as_you_or_by_seat_number_with_what_it_is_aske
     situation = two_seats(active=2).build()
     assert line_of(situation, S1).endswith(" · Act S2 turn · #0")
     assert line_of(situation, S2).endswith(" · Act you turn · #0")
+
+
+# @spec TOOL-090
+@M3
+def test_the_calling_seat_to_act_is_shown_no_time_asked() -> None:
+    situation = two_seats(active=2).build()
+    assert line_asked_for(situation, S2, 240).endswith(" · Act you turn · #0")
+
+
+# @spec TOOL-090
+def test_a_summary_holding_no_time_asked_shows_none_on_act() -> None:
+    situation = two_seats(active=2).build()
+    assert line_of(situation, S1).endswith(" · Act S2 turn · #0")
+
+
+# @spec TOOL-091
+@M3
+@pytest.mark.parametrize(
+    ("seconds", "shown"),
+    [(0, "0 s"), (45, "45 s"), (59, "59 s"), (60, "1 min"), (299, "4 min"), (4500, "75 min")],
+)
+def test_a_time_asked_is_whole_seconds_under_a_minute_and_whole_minutes_after(
+    seconds: int, shown: str
+) -> None:
+    situation = two_seats(active=2).build()
+    assert line_asked_for(situation, S1, seconds).endswith(f" · Act S2 turn ({shown}) · #0")
 
 
 # @spec TOOL-059
@@ -162,6 +248,15 @@ def test_during_mulligans_the_line_names_every_seat_still_to_keep() -> None:
     assert line_of(situation, S3) == "Mulligan 0 · Hand 2 · Act S1 you · #0"
 
 
+# @spec TOOL-092
+@M3
+def test_during_mulligans_a_seat_that_has_kept_reads_how_long_the_others_have_been_asked() -> None:
+    builder: Any = a_game().in_mulligan().with_hand("Forest")
+    builder = builder.and_an_opposing_seat().with_hand("Island").having_kept()
+    situation = builder.and_an_opposing_seat().with_hand("Swamp", "Swamp").build()
+    assert line_asked_for(situation, S2, 120) == "Mulligan 0 · Hand 1 · Act S1 S3 (2 min) · #0"
+
+
 # @spec TOOL-049
 def test_an_eliminated_calling_seat_s_line_begins_with_out() -> None:
     builder: Any = a_game().with_library("Plains")
@@ -179,13 +274,14 @@ def test_an_ended_game_s_line_puts_ended_before_out() -> None:
 
 
 # @spec TOOL-062
+@M3
 def test_an_ended_contested_game_s_line_has_no_act() -> None:
     situation = two_seats().build()
     situation.game.status = GameStatus.ENDED
     situation.game.result = Result(GameResult.WIN, "")
     assert line_of(situation, S1) == (
         "Ended (win) · T2 main1 (S1) · You S1 · Hand 1 · Lands 1 (1 untapped) · Pool {}"
-        " · Life 40 · S2 40 · Cmdr 0 · Tax 0 · #0"
+        " · Life 40 · S2 40 · Cmdr 0 · Cmdr taken 0 · Tax 0 · #0"
     )
 
 

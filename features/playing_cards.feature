@@ -72,3 +72,14 @@ Feature: Playing cards
     Then the response is OK
     And the response says "Cast trigger: Thousand-Year Storm."
     And "Llanowar Elves" is on the battlefield
+
+  # @spec GAME-186, GAME-187, TOOL-095
+  @wip
+  Scenario: Asking for a card's rules text answers it in place of the listing
+    Given "Sol Ring" is in my hand
+    When I ask for the rules text of "Sol Ring"
+    Then the response is OK
+    And the response says "Rules text of 1 card."
+    And the response says "Sol Ring {1} · Artifact"
+    And the response says "  {T}: Add {C}{C}."
+    And the response does not say "Hand ("

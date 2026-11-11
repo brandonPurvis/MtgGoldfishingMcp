@@ -48,12 +48,14 @@ Feature: Coordinating the seats of a contested game
     And seat S1 ends its turn
     Then seat S2's wait returns "OK You are asked to take your turn."
 
-  # @spec APP-066, TOOL-063
-  Scenario: wait times out and names the seat the game is waiting on
+  # @spec APP-066, APP-096, TOOL-063
+  @wip
+  Scenario: wait times out and names the seat the game is waiting on and for how long
     Given a started contested game against 1 Omnath deck with the tested seat first
-    When seat S2 waits with a timeout of 1 second
+    When 2 minutes pass
+    And seat S2 waits with a timeout of 1 second
     Then the response is OK
-    And the response says "Still waiting: S1 is asked to take its turn."
+    And the response says "Still waiting: S1 is asked to take its turn (for 2 min)."
 
   # @spec GAME-036, GAME-126, APP-055
   Scenario: A resend is recognised against the sending seat's own change after another seat acted

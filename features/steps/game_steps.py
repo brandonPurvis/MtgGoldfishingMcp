@@ -96,3 +96,8 @@ def step_impl(context: Any, card: str) -> None:
 @when('I end the game as a "{result:Quoted}" with the verdict "{notes:Quoted}"')
 def step_impl(context: Any, result: str, notes: str) -> None:
     context.agent.call("end_game", result=result, notes=notes, after=context.agent.change())
+
+
+@when('I ask for the rules text of "{card:Quoted}"')
+def step_impl(context: Any, card: str) -> None:
+    context.agent.call("get_state", card=card)
