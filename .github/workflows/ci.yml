@@ -15,3 +15,5 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
       - run: uv run behave
+      # @spec APP-080: the HTTP scenarios start the real service; CI runs them, commits do not.
+      - run: uv run behave features/http --tags=@http

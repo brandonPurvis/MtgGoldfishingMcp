@@ -143,7 +143,8 @@ DELTA_SHAPE = (
     " seat. damage: {seat number: damage}, never a single number. ask: [{seats: [seat"
     ' numbers] or "opponents", text}], what other seats must decide (a discard, a'
     " sacrifice); each answers with its own delta (applied after shuffle). look_at_hand: a"
-    " seat number, which reveals that seat's hand to you for a pending choice."
+    " seat number, which reveals that seat's hand to you for a pending choice. counter:"
+    " [stack item ids or spell names], items on the stack countered."
 )
 
 PAY_SHAPE = (
@@ -277,7 +278,9 @@ MULLIGAN = ToolDefinition(
         " With keep true, puts the `bottom` cards on the bottom of the library in the order"
         " given (one card for each mulligan after the first, which is free), then starts the"
         " game and takes it through untap, upkeep and draw to turn 1's first main step,"
-        " drawing a card unless the game was started without a first-turn draw."
+        " drawing a card unless the game was started without a first-turn draw. Contested"
+        " games: each seat keeps or mulligans its own hand, and turn 1 begins once every seat"
+        " has kept."
     ),
     parameters=(
         _game_id(),
@@ -313,7 +316,9 @@ GET_STATE = ToolDefinition(
         " its step triggers), the graveyard, the command zone and notices; full adds exile,"
         " the number of cards in the library, each commander's casts and damage, and this"
         " turn's payments. The library's order is never shown. Accepted in every game"
-        " status."
+        " status. Contested games: shows every seat's battlefield, graveyard and command zone"
+        " with its life and its hand and library sizes, the stack and who is asked; of the"
+        " hands, only yours."
     ),
     parameters=(
         _game_id(),
@@ -338,7 +343,10 @@ PLAY = ToolDefinition(
         " destination: a permanent to the battlefield (tapped if it enters tapped), an"
         " instant or sorcery to the graveyard. The delta is applied last. The library is"
         " shuffled after a fetch, a commander bound for the graveyard or exile goes to the"
-        " command zone, and a token that leaves the battlefield ceases to exist."
+        " command zone, and a token that leaves the battlefield ceases to exist. Contested"
+        " games: a spell goes on the stack with its cost paid, and resolves once every other"
+        " seat has passed: only then does the card move and the delta apply. A land does not"
+        " use the stack."
     ),
     parameters=(
         _game_id(),
@@ -401,7 +409,9 @@ EFFECT = ToolDefinition(
         " same bookkeeping as `play`: the library is shuffled after a fetch, a commander"
         " bound for the graveyard or exile goes to the command zone, and a token that leaves"
         " the battlefield ceases to exist. When `source` names one of your permanents, the"
-        " call answers that permanent's reminder."
+        " call answers that permanent's reminder. Contested games: the effect goes on the"
+        " stack with its cost paid, and its delta is applied when it resolves, unless"
+        " immediate."
     ),
     parameters=(
         _game_id(),
@@ -510,12 +520,19 @@ CHOOSE = ToolDefinition(
             " resolves with in place of the held ones; one left out keeps the held value.",
             {"delta": {}, "to": "graveyard"},
         ),
-        _override("the blocker untapped in response"),
+        Parameter(
+            "override",
+            Kind.TEXT,
+            "Contested games: your reason for declaring blocks although rule checks failed; it"
+            " is recorded.",
+            "the blocker untapped in response",
+        ),
     ),
     overridable=(
-        "Contested games: a blocker that is tapped or is not a creature fails a rule check"
-        " that `override` passes. A wrong choice id, a card that was not revealed, or an"
-        " argument the choice's kind is not answered with is an error."
+        "Nothing; a wrong choice id or a card that was not revealed is an error. Contested"
+        " games: a blocker that is tapped or is not a creature fails a rule check that"
+        " `override` passes, and an argument the choice's kind is not answered with is an"
+        " error."
     ),
 )
 
@@ -611,6 +628,9 @@ ADVANCE = ToolDefinition(
         " with an OK response that says why, on entering a step where one of your permanents"
         " has a step trigger (a reminder: resolve it with `effect`, or pass it), or before"
         " cleanup with more than seven cards in hand. Send `advance` again to continue."
+        " Contested games: also stops on entering end, where the other seats may respond, and"
+        " where another seat has a reminder; it never goes past your cleanup, and the next"
+        " seat's turn then goes on to its first main step."
     ),
     parameters=(
         _game_id(),
@@ -688,7 +708,8 @@ END_GAME = ToolDefinition(
     automatic=(
         "Discards any pending choice and declared attack, writes the turn snapshot if this"
         " turn has none, and ends the game; afterwards only `get_state` and `get_log` are"
-        " accepted."
+        " accepted. Contested games: only the tested seat ends the game; an opposing seat's"
+        " end_game concedes, which eliminates it, and the game goes on."
     ),
     parameters=(
         _game_id(),
@@ -743,7 +764,7 @@ GET_LOG = ToolDefinition(
     overridable="Nothing; it changes nothing.",
 )
 
-# @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011
+# @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011, TOOL-033
 TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
     LOAD_DECK,
     NEW_GAME,
