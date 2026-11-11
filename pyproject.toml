@@ -56,7 +56,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"features/steps/*.py" = ["F811"]   # behave steps reuse the name step_impl
+"features/**/steps/*.py" = ["F811"]   # behave steps reuse the name step_impl
 
 [tool.mypy]
 python_version = "3.13"
