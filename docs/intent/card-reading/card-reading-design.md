@@ -18,7 +18,7 @@ Every mana ability reading, keyword reading and enters-tapped reading carries a 
 
 Reading follows the tenet *Best guess, shown*. When text matches a known form only partly, the reader returns its best reading together with a plain statement of what it assumed. It returns "no reading" only when it has nothing usable. It never guesses silently.
 
-Reading is pure: text in, reading out, no game state. Readings that depend on game state (counted amounts) are returned as a rule to be evaluated later by whoever holds the state.
+Reading is pure: text in, reading out, no game state. Which deck's reading a card instance in a game is given — its owner's, whichever seat controls it — is decided by `game`. Readings that depend on game state (counted amounts) are returned as a rule to be evaluated later by whoever holds the state.
 
 ## Mana Sources
 

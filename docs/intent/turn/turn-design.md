@@ -75,7 +75,7 @@ Stopped at upkeep for the reminder. Send advance(to="main1", after=42) again to 
 T7 upkeep · Hand 4 · Lands 6 (6 untapped) · ... · #42
 ```
 
-Reminders are found from the step-trigger readings of the face in play of each permanent on the battlefield. One reminder is issued per permanent, to the seat that controls it; several permanents with the same name and controller are listed once with a count (`Rhystic Study ×2`).
+Reminders are found from the step-trigger readings of the face in play of each permanent on the battlefield, each read from its owner's deck (see `game`). One reminder is issued per permanent, to the seat that controls it; several permanents with the same name and controller are listed once with a count (`Rhystic Study ×2`).
 
 A reminder for the active seat is not enforced and is never waited on: the active seat may record the trigger with `effect` or advance straight on, and `pass` remains an error for it.
 

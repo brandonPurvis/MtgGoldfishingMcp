@@ -50,7 +50,7 @@ A refused `attack` changes nothing, including the step.
 
 ### What happens on declaring
 
-Each attacker is tapped unless it has vigilance: its own, granted by a permanent the service has read that the attacker's controller controls (including the attacker's own grant when that grant includes itself; a permanent another seat controls grants nothing), or listed in `vigilance`. The declaration is stored on the game.
+Each attacker is tapped unless it has vigilance: its own, granted by a permanent the service has read that the attacker's controller controls (including the attacker's own grant when that grant includes itself; a permanent another seat controls grants nothing), or listed in `vigilance`. The attacker and every permanent that could grant it a keyword are each read from their owner's deck, whichever seat controls them (see `game`). The declaration is stored on the game.
 
 In a contested game, declaring attackers opens a response window (see `stack`), in which other seats may remove or change attackers before blocks. An attacker that has left the battlefield or changed control by the time of blocks, or whose target seat has been eliminated, is removed from the declaration. The same holds at combat damage: an attacker that has left the battlefield or changed control since blocks, or whose target seat has since been eliminated, deals no damage.
 
