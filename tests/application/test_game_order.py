@@ -6,6 +6,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
+from datetime import datetime
 
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.adapters.system import InProcessGameLocks
@@ -103,6 +104,9 @@ class JournaledRecords(RecordStore):
 
     def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
         return self._inner.digest_baseline(game_id, seat)
+
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        return self._inner.change_time(game_id, change)
 
 
 class SlowToLoad(GameRepository):

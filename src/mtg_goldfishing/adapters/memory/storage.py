@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Protocol
 
 from mtg_goldfishing.application.ports import (
@@ -162,6 +163,16 @@ class InMemoryRecordStore(RecordStore):
             if call.game_id == game_id and call.seat == seat and call.tool != "get_log"
         ]
         return latest[-1] if latest else None
+
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        return next(
+            (
+                call.time
+                for call in self._records.calls
+                if call.game_id == game_id and call.change == change
+            ),
+            None,
+        )
 
     def calls(self) -> tuple[CallRecord, ...]:
         """Every call record in the order added, whatever game it names or none."""

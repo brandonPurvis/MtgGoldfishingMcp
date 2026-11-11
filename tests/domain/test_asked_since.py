@@ -28,8 +28,6 @@ from tests.domain.test_contested_start import OPPOSING_DECK, a_contested_game, c
 from tests.support.acting import S1, S2, S3
 from tests.support.builders import a_game
 
-pytestmark = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 # Reached untyped, so that these tests read the same before and after `before` exists.
 accept_change: Any = calls.accept_change
 NO_FIELD = "the game holds no asked-since change number at all"

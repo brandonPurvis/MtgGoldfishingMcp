@@ -15,8 +15,6 @@ from mtg_goldfishing.domain.play.playing import effect
 from tests.support.acting import S1, S2, acted, events_named
 from tests.support.builders import Situation, a_game
 
-pytestmark = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 
 def two_seats(*, first: Any = None, second: Any = None) -> Situation:
     """Seat 1's turn in its first main step; each seat as the functions given describe it."""

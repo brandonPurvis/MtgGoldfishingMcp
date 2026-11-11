@@ -88,7 +88,6 @@ Feature: Effects that reach other seats in a contested game
     And the game did not change
 
   # @spec PLAY-144, TOOL-094
-  @wip
   Scenario: A move that takes a card from another seat's zone names that seat
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield

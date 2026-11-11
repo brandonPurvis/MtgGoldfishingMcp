@@ -27,8 +27,16 @@ def _leave(game: Game, card: CardInstance) -> None:
         card.controller = card.owner
 
 
+def _named(game: Game, seat: SeatNumber, mover: SeatNumber | None) -> SeatNumber | None:
+    """The seat a contested game's move names with a zone: the zone's seat, unless it is the
+    seat whose delta or answer moved the card."""
+    if mover is None or not game.contested or seat == mover:
+        return None
+    return seat
+
+
 # @spec PLAY-046, PLAY-047, PLAY-048, PLAY-049, PLAY-052, PLAY-053, PLAY-054, GAME-020
-# @spec GAME-101, PLAY-088, PLAY-089, PLAY-119
+# @spec GAME-101, PLAY-088, PLAY-089, PLAY-119, PLAY-144, PLAY-145, PLAY-147
 def move(
     game: Game,
     deck: LoadedDeck,
@@ -37,6 +45,7 @@ def move(
     *,
     commander_stays: bool = False,
     arriving_under: SeatNumber | None = None,
+    mover: SeatNumber | None = None,
 ) -> list[Event]:
     """Move a card to a destination; `deck` is the card's owner's.
 
@@ -47,10 +56,13 @@ def move(
     permanent arriving on the battlefield enters under the control of `arriving_under`, or
     its owner when none is named, tapped when its reading says so, or always for
     `battlefield_tapped`. In a contested game a permanent moved from the battlefield to the
-    battlefield leaves and arrives again.
+    battlefield leaves and arrives again. When `mover`, the seat whose delta or answer moves
+    the card, is given, the move names the seat whose zone the card leaves or enters when
+    that is another seat; the stack is no seat's.
     """
     from_zone = card.zone
     owner = card.owner if game.contested else None
+    from_seat = None if from_zone is Zone.STACK else _named(game, card.zone_seat, mover)
     redirected = False
     if (
         card.is_commander
@@ -69,7 +81,15 @@ def move(
     if card.is_token and from_zone is Zone.BATTLEFIELD and not arriving_again:
         game.remove_token(card)
         return [
-            CardMoved(card.name, from_zone.value, destination.value, token_gone=True, owner=owner)
+            CardMoved(
+                card.name,
+                from_zone.value,
+                destination.value,
+                token_gone=True,
+                owner=owner,
+                from_seat=from_seat,
+                to_seat=_named(game, card.owner, mover),
+            )
         ]
     enters_tapped = False
     if destination.zone is Zone.BATTLEFIELD:
@@ -82,9 +102,16 @@ def move(
     game.put(card, destination, tapped=enters_tapped)
     if card.zone is Zone.BATTLEFIELD:
         card.controller = arriving_under or card.owner
-    events.insert(
-        0, CardMoved(card.name, from_zone.value, destination.value, redirected, owner=owner)
+    moved = CardMoved(
+        card.name,
+        from_zone.value,
+        destination.value,
+        redirected,
+        owner=owner,
+        from_seat=from_seat,
+        to_seat=_named(game, card.zone_seat, mover),
     )
+    events.insert(0, moved)
     return events
 
 

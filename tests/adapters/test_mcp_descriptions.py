@@ -50,16 +50,11 @@ MCP_ADAPTER = Path(__file__).resolve().parents[2] / "src" / "mtg_goldfishing" / 
 RENDERER_MODULES = ("rendering.py", "listing_lines.py", "refusal_lines.py")
 
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
-
 def _ids(definition: ToolDefinition) -> str:
     return definition.name
 
 
-DESCRIBED = [
-    pytest.param(d, id=d.name, marks=M3 if d.name == "get_state" else ()) for d in TOOL_DEFINITIONS
-]
+DESCRIBED = [pytest.param(d, id=d.name) for d in TOOL_DEFINITIONS]
 """Every tool's definition; `get_state` gains `card` and a purpose that names rules text."""
 
 
@@ -233,7 +228,7 @@ def _contested_part(text: str) -> str:
 # @spec TOOL-033
 @pytest.mark.parametrize(
     "name",
-    [pytest.param(name, marks=M3 if name == "get_state" else ()) for name in GOLDFISH_DESCRIPTIONS],
+    [pytest.param(name) for name in GOLDFISH_DESCRIPTIONS],
 )
 def test_a_goldfish_agent_reads_every_description_as_before_once_contested_parts_are_left_out(
     name: str,
@@ -299,7 +294,6 @@ def test_a_tool_that_exists_for_contested_games_says_so_in_its_purpose(tool: str
 
 
 # @spec TOOL-034
-@M3
 def test_the_server_instructions_begin_with_the_guide_for_every_game_unchanged() -> None:
     assert SERVER_INSTRUCTIONS.startswith(GOLDFISH_GUIDE)
 
@@ -360,7 +354,6 @@ def test_the_contested_section_says_to_give_a_named_card_or_guess_as_text() -> N
 
 
 # @spec TOOL-098
-@M3
 @pytest.mark.parametrize(
     "words",
     [
@@ -379,7 +372,6 @@ def test_get_state_describes_card_for_every_game(words: str) -> None:
 
 
 # @spec TOOL-098
-@M3
 def test_get_state_gives_an_example_of_card() -> None:
     (card,) = [p for p in DEFINITIONS["get_state"].parameters if p.name == "card"]
 
@@ -387,7 +379,6 @@ def test_get_state_gives_an_example_of_card() -> None:
 
 
 # @spec TOOL-099
-@M3
 def test_the_wait_description_says_still_waiting_means_the_seat_to_act_has_not_acted() -> None:
     contested = _contested_part(DEFINITIONS["wait"].automatic)
 
@@ -396,7 +387,6 @@ def test_the_wait_description_says_still_waiting_means_the_seat_to_act_has_not_a
 
 
 # @spec TOOL-100
-@M3
 def test_the_guide_for_every_game_says_to_read_rules_text_rather_than_rely_on_memory() -> None:
     for words in ("rules text", "`get_state` and `card`", "rather than relying on memory"):
         assert words in GOLDFISH_GUIDE, words
@@ -404,7 +394,6 @@ def test_the_guide_for_every_game_says_to_read_rules_text_rather_than_rely_on_me
 
 
 # @spec TOOL-101
-@M3
 def test_the_contested_section_says_to_call_wait_again_while_still_waiting_however_long() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 
@@ -418,7 +407,6 @@ def test_the_contested_section_says_to_call_wait_again_while_still_waiting_howev
 
 
 # @spec TOOL-102
-@M3
 def test_the_contested_section_gives_wait_s_default_and_most_and_says_to_keep_the_default() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 
@@ -431,7 +419,6 @@ def test_the_contested_section_gives_wait_s_default_and_most_and_says_to_keep_th
 
 
 # @spec TOOL-108
-@M3
 def test_the_contested_section_says_a_failed_or_empty_wait_is_the_client_giving_up() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 

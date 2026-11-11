@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from mtg_goldfishing.adapters.memory import InMemoryGameRepository, InMemoryRecordStore
 from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.application.ports import (
@@ -63,6 +65,9 @@ class SnapshotsCannotBeWritten(RecordStore):
     def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
         return self._inner.digest_baseline(game_id, seat)
 
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        return self._inner.change_time(game_id, change)
+
 
 class CallRecordsCannotBeAdded(RecordStore):
     """A record store whose disk fills up whenever a call record is added."""
@@ -84,6 +89,9 @@ class CallRecordsCannotBeAdded(RecordStore):
 
     def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
         return self._inner.digest_baseline(game_id, seat)
+
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        return self._inner.change_time(game_id, change)
 
 
 def errors_of(summary: object) -> list[ErrorKind]:

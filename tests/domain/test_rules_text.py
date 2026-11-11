@@ -26,8 +26,6 @@ from tests.support.acting import S1, S2, S3
 from tests.support.builders import Situation, a_game
 from tests.support.library import LIBRARY
 
-pytestmark = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 SOL_RING = LIBRARY["Sol Ring"][0]
 FOREST = LIBRARY["Forest"][0]
 VALKI = LIBRARY["Valki, God of Lies // Tibalt, Cosmic Impostor"][0]

@@ -65,7 +65,6 @@ Feature: Starting and taking turns in a contested game
     And every seat plays the Atraxa deck
 
   # @spec GAME-102, GAME-103, GAME-105, GAME-106, GAME-107, GAME-088, TOOL-048, TOOL-092
-  @wip
   Scenario: Every seat takes its own mulligans and turn 1 begins once every seat has kept
     Given a contested game against 1 Omnath deck with seed 42 and the tested seat at position 1
     When seat S2 takes a mulligan
@@ -140,7 +139,6 @@ Feature: Starting and taking turns in a contested game
     And the status line has no seat, Act or Stack field
 
   # @spec TOOL-090, TOOL-091, APP-094, GAME-182
-  @wip
   Scenario: A seat that is not to act reads how long the seat to act has been asked
     Given a started contested game against 1 Omnath deck with the tested seat first
     When 4 minutes pass
@@ -150,7 +148,6 @@ Feature: Starting and taking turns in a contested game
     Then the status line shows "Act you turn · #"
 
   # @spec TOOL-041, TOOL-093
-  @wip
   Scenario: The status line shows the commander damage the calling seat has taken
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S2 asks for the state

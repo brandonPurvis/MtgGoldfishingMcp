@@ -7,7 +7,7 @@ from dataclasses import replace
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import AskedKind, Error, ErrorKind, Event, Passed
-from mtg_goldfishing.domain.game.acting import seats_to_act
+from mtg_goldfishing.domain.game.asking import seats_to_act
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Result

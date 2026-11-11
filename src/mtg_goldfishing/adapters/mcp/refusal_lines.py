@@ -84,7 +84,7 @@ def _not_your_call(asked: Asked | None) -> str:
     )
 
 
-# @spec TOOL-026, TOOL-050, TOOL-067, TOOL-068
+# @spec TOOL-026, TOOL-050, TOOL-067, TOOL-068, TOOL-097
 def error_text(error: Error) -> str:
     """The one wording of an error's kind, filled with its facts."""
     return _through_ask(error, _error_text(error))
@@ -147,6 +147,15 @@ def _error_text(error: Error) -> str:
             return f"S{error.number} has been eliminated."
         case ErrorKind.HIDDEN_ZONE:
             return f"{subject} is in a hidden zone of S{error.number}."
+        case ErrorKind.NO_CARD_SEEN:
+            return f"{subject} names no card you can see."
+        case ErrorKind.LIBRARY_CARD_BY_ID:
+            return f"{subject} is in your library; ask for a library card's rules text by name."
+        case ErrorKind.CARD_WITH_DETAIL:
+            return (
+                "Give card or detail, not both: get_state answers either the listing or the"
+                " rules text."
+            )
         case ErrorKind.TOO_MANY_REVEALS:
             return (
                 "A delta holds at most one of look, search and look_at_hand."

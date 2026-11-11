@@ -6,10 +6,10 @@ from dataclasses import dataclass
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Asked, NoticeKind
-from mtg_goldfishing.domain.game.acting import seats_to_act
+from mtg_goldfishing.domain.game.asking import seats_to_act
 from mtg_goldfishing.domain.game.cards_in_play import is_land
 from mtg_goldfishing.domain.game.decks import Decks
-from mtg_goldfishing.domain.game.model import OPPONENTS, Game, GameStatus
+from mtg_goldfishing.domain.game.model import OPPONENTS, Game, GameStatus, Seat
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.steps import Step
 
@@ -26,17 +26,25 @@ class CommanderStatus:
 
 @dataclass(frozen=True)
 class SeatStanding:
-    """What the status line shows of another seat: its life, or that it is out."""
+    """What the status line shows of another seat: its life, or that it is out, and the
+    combat damage the calling seat has taken from each of its commanders, in their name
+    order."""
 
     seat: SeatNumber
     life: int
     eliminated: bool
+    commander_damage_taken: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
 class TableSummary:
     """What a contested game's status line adds: the calling seat, the active seat, every
-    other seat's standing in ascending seat number, the stack's size and who is to act."""
+    other seat's standing in ascending seat number, the stack's size and who is to act.
+
+    `time_asked` is how long, in whole seconds, the seats to act have been asked what they
+    are asked now, when the calling seat is not among them and that is known; the domain
+    reads no clock, so the application gives it.
+    """
 
     seat: SeatNumber
     active: SeatNumber | None
@@ -44,6 +52,7 @@ class TableSummary:
     stack: int
     asked: Asked | None
     eliminated: bool
+    time_asked: int | None = None
 
 
 @dataclass(frozen=True)
@@ -74,7 +83,15 @@ def seat_notices(game: Game) -> tuple[tuple[NoticeKind, SeatNumber], ...]:
     return tuple((notice, seat.number) for seat in game.seats for notice in seat.notices)
 
 
-# @spec GAME-089, APP-035, TOOL-046, TOOL-060
+def _standing(game: Game, other: Seat, seat: SeatNumber) -> SeatStanding:
+    """Another seat's life, and the combat damage `seat` has taken from its commanders."""
+    taken = tuple(
+        other.commander_damage_to(commander, seat) for commander in game.commanders_of(other.number)
+    )
+    return SeatStanding(other.number, other.life, other.eliminated, taken)
+
+
+# @spec GAME-089, APP-035, TOOL-046, TOOL-060, TOOL-093
 def summarize(
     game: Game, deck: LoadedDeck, seat: SeatNumber, *, decks: Decks | None = None
 ) -> GameSummary:
@@ -120,7 +137,7 @@ def summarize(
         else TableSummary(
             seat=seat,
             active=game.active,
-            others=tuple(SeatStanding(o.number, o.life, o.eliminated) for o in others),
+            others=tuple(_standing(game, o, seat) for o in others),
             stack=len(game.stack),
             asked=seats_to_act(game),
             eliminated=shown.eliminated,

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 
@@ -215,6 +216,36 @@ class Call:
         )
 
 
+# ---------------------------------------------------------------------- how long a seat is asked
+
+
+# @spec APP-094, APP-095
+def with_time_asked(
+    call: Call, game: Game, summary: GameSummary, *, made_by_the_call: bool = False
+) -> GameSummary:
+    """The summary, holding how long the seats to act have been asked when the calling seat
+    of a contested game is not among them: from the time of the change since which they have
+    been asked to the clock's now, in whole seconds, never below zero.
+
+    The change was made at the time on its call record. When `made_by_the_call`, the change
+    the summary is of was made by this very call, whose record is not yet saved; the call's
+    own time is then that change's. No time is held for a goldfish game, a calling seat to
+    act, a game with no seat to act or no asked-since change, or a change of no call record.
+    """
+    table = summary.table
+    if table is None or table.asked is None or table.seat in table.asked.seats:
+        return summary
+    if game.asked_since is None:
+        return summary
+    since = call.ports.records.change_time(game.game_id, game.asked_since)
+    if since is None and made_by_the_call and game.asked_since == game.change:
+        since = call.time
+    if since is None:
+        return summary
+    seconds = max(0, math.floor((call.ports.clock.now() - since).total_seconds()))
+    return replace(summary, table=replace(table, time_asked=seconds))
+
+
 # ---------------------------------------------------------------------------------- digests
 
 GET_LOG = "get_log"
@@ -321,7 +352,8 @@ def load(call: Call, found: SeatOfGame) -> Loaded:
         call.seat = found.seat
     call.about(stored.game)
     decks = decks_of(call.ports.decks, stored.game)
-    call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
+    summary = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
+    call.game = with_time_asked(call, stored.game, summary)
     return Loaded(stored, decks, found.seat, call.game)
 
 
@@ -392,7 +424,8 @@ def change_game(
         result = operation(game, loaded.decks, seat)
         if isinstance(result, Refusal):
             return call.finish(refused(result, loaded.summary))
-        return _save_change(call, loaded, accept_change(result, seat, tool, arguments))
+        applied = accept_change(result, seat, tool, arguments, before=game)
+        return _save_change(call, loaded, applied)
 
     return answer_about_game(ports, tool, arguments, respond)
 
@@ -426,11 +459,12 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
         seat=loaded.seat,
     )
     summary, events = _seen(loaded.seat, applied.summary, applied.events)
+    game = summarize(changed, loaded.deck, loaded.seat, decks=loaded.decks)
     outcome = Outcome(
         status_after_change(changed, loaded.seat),
         summary,
         events,
-        summarize(changed, loaded.deck, loaded.seat, decks=loaded.decks),
+        with_time_asked(call, changed, game, made_by_the_call=True),
     )
 
     def write() -> Outcome | None:

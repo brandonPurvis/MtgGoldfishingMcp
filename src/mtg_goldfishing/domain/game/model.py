@@ -397,6 +397,9 @@ class Game:
     round: int = 0
     step: Step | None = None
     change: int = 0
+    asked_since: int | None = None
+    """A contested game's change since which its seats to act have been asked what they are
+    asked now; None in a goldfish game, and in a game stored before it was kept."""
     pending: list[PendingChoice] = field(default_factory=list)
     stack: list[StackItem] = field(default_factory=list)
     """Bottom first: the last item is the top. Always empty in a goldfish game."""

@@ -6,8 +6,6 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.memory.clock import DEFAULT_TIME
 from mtg_goldfishing.application.outcome import Answer
 from tests.application.test_wait import (
@@ -22,8 +20,6 @@ from tests.application.test_wait import (
 )
 from tests.support.builders import a_game
 from tests.support.service import a_service
-
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
 
 NO_FIELD = "the game summary holds no time asked at all"
 
@@ -40,7 +36,6 @@ def later(harness: Any, **elapsed: float) -> None:
 
 
 # @spec APP-094
-@M3
 def test_a_seat_not_to_act_is_given_the_whole_seconds_the_seat_to_act_has_been_asked() -> None:
     harness = contested()
     started(harness)
@@ -50,7 +45,6 @@ def test_a_seat_not_to_act_is_given_the_whole_seconds_the_seat_to_act_has_been_a
 
 
 # @spec APP-094
-@M3
 def test_the_time_asked_counts_from_the_change_since_which_the_seat_to_act_is_asked() -> None:
     harness = contested()
     started(harness)
@@ -62,7 +56,6 @@ def test_the_time_asked_counts_from_the_change_since_which_the_seat_to_act_is_as
 
 
 # @spec APP-094
-@M3
 def test_a_change_that_asks_another_seat_is_answered_with_that_seat_asked_for_no_time() -> None:
     harness = contested()
     started(harness)
@@ -76,7 +69,6 @@ def test_a_change_that_asks_another_seat_is_answered_with_that_seat_asked_for_no
 
 
 # @spec APP-094
-@M3
 def test_a_clock_set_back_since_the_change_gives_no_less_than_no_time() -> None:
     harness = contested()
     started(harness)
@@ -86,7 +78,6 @@ def test_a_clock_set_back_since_the_change_gives_no_less_than_no_time() -> None:
 
 
 # @spec APP-094
-@M3
 def test_an_error_to_a_seat_not_to_act_carries_the_time_asked() -> None:
     harness = contested()
     started(harness)
@@ -96,7 +87,6 @@ def test_an_error_to_a_seat_not_to_act_carries_the_time_asked() -> None:
 
 
 # @spec APP-094
-@M3
 def test_during_mulligans_a_seat_that_has_kept_is_given_the_time_since_the_game_began() -> None:
     harness = contested(opposing=2)
     later(harness, minutes=1)
@@ -107,7 +97,6 @@ def test_during_mulligans_a_seat_that_has_kept_is_given_the_time_since_the_game_
 
 
 # @spec APP-095
-@M3
 def test_a_seat_to_act_is_given_no_time_asked() -> None:
     harness = contested()
     started(harness)
@@ -117,7 +106,6 @@ def test_a_seat_to_act_is_given_no_time_asked() -> None:
 
 
 # @spec APP-095
-@M3
 def test_a_game_that_has_ended_gives_no_time_asked() -> None:
     harness = contested()
     started(harness)
@@ -127,7 +115,6 @@ def test_a_game_that_has_ended_gives_no_time_asked() -> None:
 
 
 # @spec APP-095
-@M3
 def test_a_game_that_holds_no_asked_since_change_gives_no_time_asked() -> None:
     harness = a_service()
     game_id = harness.holding(a_game().and_an_opposing_seat().build())
@@ -136,7 +123,6 @@ def test_a_game_that_holds_no_asked_since_change_gives_no_time_asked() -> None:
 
 
 # @spec APP-095
-@M3
 def test_a_change_no_call_record_holds_gives_no_time_asked() -> None:
     harness = a_service()
     situation = a_game().and_an_opposing_seat().build()
@@ -165,7 +151,6 @@ def test_a_goldfish_game_s_summary_holds_no_table_and_so_no_time_asked() -> None
 
 
 # @spec APP-096
-@M3
 def test_a_wait_that_times_out_says_how_long_the_seat_to_act_has_been_asked() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -177,7 +162,6 @@ def test_a_wait_that_times_out_says_how_long_the_seat_to_act_has_been_asked() ->
 
 
 # @spec APP-096
-@M3
 def test_a_wait_that_times_out_on_a_game_holding_no_asked_since_change_says_no_time() -> None:
     harness = a_service(changes=ImpatientChanges())
     game_id = harness.holding(a_game().and_an_opposing_seat().build())
