@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -114,6 +115,11 @@ class Card:
             if same_name(name, face.name):
                 return index
         return None
+
+
+def resolve_name(name: str, cards: Iterable[Card]) -> Card | None:
+    """The card a requested name resolves to among these cards, if any."""
+    raise NotImplementedError("M4: not implemented yet")
 
 
 class LookupStatus(Enum):

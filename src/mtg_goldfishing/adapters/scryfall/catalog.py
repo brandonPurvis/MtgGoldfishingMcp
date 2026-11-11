@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -25,6 +26,11 @@ HEADERS = {"User-Agent": f"mtg-goldfishing/{__version__}", "Accept": "applicatio
 
 Sleep = Callable[[float], None]
 Monotonic = Callable[[], float]
+Now = Callable[[], datetime]
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 class RequestSpacing:
@@ -85,6 +91,7 @@ class ScryfallCatalog(CardCatalog):
         client: httpx.Client | None = None,
         sleep: Sleep = time.sleep,
         monotonic: Monotonic = time.monotonic,
+        now: Now = utc_now,
         spacing: RequestSpacing | None = None,
     ) -> None:
         self._cache = cache
@@ -92,6 +99,7 @@ class ScryfallCatalog(CardCatalog):
         self._client = client if client is not None else httpx.Client(timeout=TIMEOUT)
         self._sleep = sleep
         self._monotonic = monotonic
+        self._now = now
         self._spacing = spacing if spacing is not None else PROCESS_SPACING
 
     def close(self) -> None:

@@ -20,10 +20,10 @@ Design: `card-data-design.md`. Prefix: `CARD`.
 ## Fetching from Scryfall
 
 - [ ] **CARD-008**: When asked for card names that are not in the cache, the Scryfall adapter shall request them from Scryfall's collection endpoint with at most 75 name identifiers in each request, the spellings of one requested name (CARD-023) always in the same request.
-- [ ] **CARD-023**: When the Scryfall adapter requests from Scryfall a card name that contains `/`, it shall put in the same request, as a second name identifier, the name with each slash separator (CARD-021) written as ` // `, unless that spelling equals the name as given, ignoring surrounding whitespace.
+- [ ] **CARD-023**: When the Scryfall adapter requests from Scryfall a card name that contains a slash separator (CARD-021), it shall put in the same request, as a second name identifier, the part of the name before its first slash separator, without surrounding whitespace, unless that part is empty.
 - [x] **CARD-009**: The Scryfall adapter shall send a `User-Agent` of the form `mtg-goldfishing/<version>` and an `Accept` header on every request, and shall send nothing that identifies the person running the service.
 - [x] **CARD-010**: The Scryfall adapter shall leave at least 100 ms between the starts of any two requests to Scryfall made by the same process.
-- [x] **CARD-011**: When Scryfall returns a card, the Scryfall adapter shall accept it for a requested name only if that name matches the returned card under the name-matching rule (CARD-006).
+- [ ] **CARD-011**: When Scryfall returns a card, the Scryfall adapter shall accept it for a requested name only if that name matches the returned card under the name-matching rule (CARD-006, CARD-021).
 - [x] **CARD-012**: If no card returned by Scryfall matches a requested name, then the Scryfall adapter shall report that name as not found.
 - [x] **CARD-013**: If a request to Scryfall fails with a network error, exceeds 10 seconds, or returns a non-success status other than not-found, then the Scryfall adapter shall report the names in that request as unavailable, distinct from not found.
 - [ ] **CARD-014**: If a request to Scryfall returns status 429 or a server-error status (500 or above), then the Scryfall adapter shall retry that request, up to three times, before reporting its names as unavailable.
