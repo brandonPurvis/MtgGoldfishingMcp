@@ -33,6 +33,8 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-038**: A digest shall hold no event of the calling seat's own call, no log entry the calling seat made, and never the log entry of `new_game`, which no seat makes.
 - [x] **APP-039**: When assembling a digest, the use case shall take each log entry's stored `public` or `private` event list as it is, and shall neither compute the public or private form of any event nor merge the two lists.
 - [x] **APP-040**: When a use case handles a call in a goldfish game, its outcome shall hold no digest and no calling seat number.
+- [ ] **APP-094**: When a use case builds the game summary for a call made with a seat id of a contested game whose calling seat is not among the seats to act, and the game holds the change number since which its seats to act have been asked (GAME-180) and `RecordStore` gives a time for that change (APP-093), the game summary shall hold how long the seats to act have been asked: the whole seconds, rounded down, from that time to the `Clock`'s now, or 0 when that time is later than now.
+- [ ] **APP-095**: When a use case builds a game summary for a goldfish game, for a calling seat that is among the seats to act, for a game with no seat to act, for a game that holds no change number since which its seats to act have been asked, or for a change of which `RecordStore` gives no time, the game summary shall hold no time asked.
 
 ## Ports
 
@@ -45,6 +47,7 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-044**: If a class inheriting from a port does not implement every operation of that port, then constructing an object of that class shall fail.
 - [x] **APP-045**: `GameRepository` shall offer an operation that finds the game and seat number a seat id names, answering for a game id with that game and its tested seat's number, and reporting when the id names none.
 - [x] **APP-046**: `RecordStore` shall offer an operation that gives a seat's digest baseline for a game: the change number on that seat's most recent call record for a tool other than `get_log`, reporting when the seat has no such call record.
+- [ ] **APP-093**: `RecordStore` shall offer an operation that gives the time a game's change was made: the time held by the call record of the call that made that change (the time that call was received), which is the earliest-stored call record of that game whose change number is that change, reporting when the game has no such call record.
 - [x] **APP-092**: If `RecordStore` is asked to add a snapshot for a game and table turn that already has one, then it shall raise an exception and leave the stored snapshot as it was, a second snapshot for a table turn being a defect and never a replacement.
 - [x] **APP-047**: `IdSource` shall supply seat ids as well as game ids and seeds.
 - [x] **APP-048**: `GameLocks` and `GameChanges` shall each have exactly one implementation, in-process in `adapters/system`, used by both the running service and the tests.
@@ -93,6 +96,7 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-064**: When `wait` is called by a seat of a contested game that is not a seat to act, the use case shall hold the call open until the game changes so that the seat is a seat to act, and then return an `OK` outcome whose summary says what that seat is asked to do.
 - [x] **APP-065**: When a contested game changes while a `wait` call is open and the calling seat is still not a seat to act, not eliminated and the game not ended, the use case shall go on waiting for what remains of the timeout, also when the change raised a notice.
 - [x] **APP-066**: When the timeout of a `wait` call passes before the calling seat becomes a seat to act, the use case shall return an `OK` outcome whose summary is a timed-out event naming each seat to act (during mulligans, every seat still to keep) and what it is asked to do.
+- [ ] **APP-096**: When the timeout of a `wait` call in a contested game passes before the calling seat becomes a seat to act, the timed-out event of APP-066 shall hold how long the seats to act have been asked, computed as APP-094 says, or no time when APP-095 gives none.
 - [x] **APP-067**: When `wait` is called by an eliminated seat, or on a game that has ended, or the seat is eliminated or the game ends while the call is open, the use case shall return without waiting further.
 - [x] **APP-088**: When `wait` returns because the game has ended, in a goldfish game or a contested game, its outcome shall be `OK` with a summary saying the game has ended, also when the calling seat is eliminated.
 - [x] **APP-089**: When `wait` returns because the calling seat of a contested game that has not ended is eliminated, its outcome shall be `OK` with a summary saying the seat is eliminated.
