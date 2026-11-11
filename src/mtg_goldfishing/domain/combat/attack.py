@@ -1,5 +1,6 @@
 """`attack`: declare attackers, and in a goldfish game which of them the imaginary opponents
-block; in a contested game, which seat each attacker attacks."""
+block; in a contested game, which seat each attacker attacks, and, once blocks are known, the
+trample damage each blocked attacker deals the seat it attacks."""
 
 from __future__ import annotations
 
@@ -14,8 +15,11 @@ from mtg_goldfishing.domain.events import (
     CheckKind,
     Error,
     ErrorKind,
+    Evasion,
     Event,
     FailedCheck,
+    TrampleDamage,
+    TrampleDamageStated,
 )
 from mtg_goldfishing.domain.game.cards_in_play import (
     face_name,
@@ -146,15 +150,17 @@ def _seat_targets(
     return targets
 
 
-# @spec CMBT-054, CMBT-055, CMBT-056, CMBT-069, CMBT-072
+# @spec CMBT-054, CMBT-055, CMBT-056, CMBT-069, CMBT-072, CMBT-095
 def _misplaced(
-    game: Game, *, blocked: object, commander_target: object, targets: object
+    game: Game, *, blocked: object, commander_target: object, targets: object, evasion: object
 ) -> Error | None:
     """What a game of the other kind takes, or an attack at a moment that has no meaning:
     a second declaration in one combat, or one after blockers are being declared."""
     if not game.contested:
         if targets is not None:
             return Error(ErrorKind.CONTESTED_ONLY, subject="targets")
+        if evasion is not None:
+            return Error(ErrorKind.CONTESTED_ONLY, subject="evasion")
         return None
     if blocked is not None:
         return Error(ErrorKind.GOLDFISH_ONLY, subject="blocked")
@@ -165,6 +171,115 @@ def _misplaced(
     if game.declared_attack is not None:
         return Error(ErrorKind.ATTACK_DECLARED)
     return None
+
+
+_EVASIONS = {evasion.value: evasion for evasion in Evasion}
+
+
+def _evasions(value: object) -> list[Evasion] | None:
+    """One evasion, or a non-empty list of distinct ones, as `evasion` names them."""
+    names = [value] if isinstance(value, str) else value
+    if not isinstance(names, list) or not names or len(set(map(str, names))) != len(names):
+        return None
+    found = [_EVASIONS.get(name) if isinstance(name, str) else None for name in names]
+    return [evasion for evasion in found if evasion is not None] if all(found) else None
+
+
+# @spec CMBT-080, CMBT-093, CMBT-094
+def _evasion(
+    decks: Decks, attackers: Sequence[CardInstance], value: object
+) -> dict[str, list[Evasion]] | Error:
+    """The evasion the attacking seat lists for each attacker, beyond what the game reads."""
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        return Error(ErrorKind.MALFORMED_ARGUMENT, subject="evasion")
+    listed: dict[str, list[Evasion]] = {}
+    for name, given in value.items():
+        evasions = _evasions(given)
+        if evasions is None:
+            return Error(ErrorKind.MALFORMED_ARGUMENT, subject="evasion")
+        found = _among(decks, attackers, [str(name)])
+        if isinstance(found, Error):
+            return found
+        listed[found[0].id] = evasions
+    return listed
+
+
+_DECLARATION = ("attackers", "targets", "damage", "vigilance", "haste", "evasion")
+"""The arguments of a declaration, none of which an `attack` stating trample damage takes."""
+
+
+def _trample_entries(
+    game: Game, decks: Decks, value: object
+) -> list[tuple[CardInstance, int]] | Error:
+    """Each attacker of the declared attack a `trample` map names, with its amount."""
+    attack = game.declared_attack
+    assert attack is not None
+    if not isinstance(value, Mapping):
+        return Error(ErrorKind.MALFORMED_ARGUMENT, subject="trample")
+    attackers = [card for card in map(game.find, attack.attackers) if card is not None]
+    entries: list[tuple[CardInstance, int]] = []
+    for name, amount in value.items():
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount < 0:
+            return Error(ErrorKind.MALFORMED_ARGUMENT, subject="trample")
+        found = _among(decks, attackers, [str(name)])
+        if isinstance(found, Error):
+            return found
+        card = found[0]
+        if card.id not in attack.blocked:
+            return Error(ErrorKind.NOT_BLOCKED, subject=face_name(decks.of(card.owner), card))
+        entries.append((card, amount))
+    return entries
+
+
+# @spec CMBT-069, CMBT-072, CMBT-098, CMBT-099, CMBT-100, CMBT-101, CMBT-102, CMBT-103
+# @spec CMBT-104, CMBT-105, CMBT-106, CMBT-107, CMBT-108
+def _state_trample(
+    game: Game, decks: Decks, trample: object, given: Mapping[str, object]
+) -> Result:
+    """The attacking seat states the trample damage of blocked attackers, once every blocks
+    choice of the combat is answered: each entry replaces that attacker's earlier statement,
+    and 0 takes it back. Nothing is declared or tapped, no window opens and the game stays in
+    declare blockers. The amounts are not checked against power, toughness or readings."""
+    if not game.contested:
+        return Refusal.error(Error(ErrorKind.CONTESTED_ONLY, subject="trample"))
+    alongside = next((name for name in _DECLARATION if given.get(name) is not None), None)
+    if alongside is not None:
+        return Refusal.error(Error(ErrorKind.TRAMPLE_ALONE, subject=alongside))
+    for name in ("blocked", "commander_target"):
+        if given.get(name) is not None:
+            return Refusal.error(Error(ErrorKind.GOLDFISH_ONLY, subject=name))
+    attack = game.declared_attack
+    if (
+        game.step is not Step.DECLARE_BLOCKERS
+        or attack is None
+        or any(choice.kind == "blocks" for choice in game.pending)
+    ):
+        return Refusal.error(Error(ErrorKind.TRAMPLE_NOT_NOW))
+    entries = _trample_entries(game, decks, trample)
+    if isinstance(entries, Error):
+        return Refusal.error(entries)
+    changed = game.copy()
+    stated = changed.declared_attack
+    assert stated is not None
+    for card, amount in entries:
+        if amount:
+            stated.trample[card.id] = amount
+        else:
+            stated.trample.pop(card.id, None)
+    summary = TrampleDamageStated(
+        tuple(
+            TrampleDamage(
+                face_name(decks.of(card.owner), card),
+                card.id,
+                amount,
+                SeatNumber(stated.targets[card.id]),
+            )
+            for card, amount in entries
+        )
+    )
+    return Applied(changed, summary, ())
 
 
 def _targets(
@@ -212,13 +327,13 @@ def _not_declared(
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
 # @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018, APP-031
 # @spec CMBT-053, CMBT-060, CMBT-068, CMBT-070, CMBT-071, STACK-036
-# @spec CMBT-079
+# @spec CMBT-079, CMBT-080, CMBT-096
 def attack(
     game: Game,
     deck: LoadedDeck,
     seat: SeatNumber,
     *,
-    attackers: object,
+    attackers: object = None,
     blocked: object = None,
     commander_target: object = None,
     damage: object = None,
@@ -227,14 +342,35 @@ def attack(
     override: str | None = None,
     targets: object = None,
     decks: Decks | None = None,
+    evasion: object = None,
+    trample: object = None,
 ) -> Result:
     """The active seat declares an attack, moving to declare attackers first when the game
     is before it. In a contested game each attacker attacks a seat, and a seat attacks only
-    with creatures it controls, once each combat. `decks` gives each seat's deck; omitted,
-    every seat plays `deck`."""
+    with creatures it controls, once each combat; once blocks are known, an `attack` giving
+    `trample` alone states blocked attackers' trample damage instead. `decks` gives each
+    seat's deck; omitted, every seat plays `deck`."""
     every = decks or Decks.everyone_playing(game, deck)
+    if trample is not None:
+        given = {
+            "attackers": attackers,
+            "targets": targets,
+            "damage": damage,
+            "vigilance": vigilance,
+            "haste": haste,
+            "evasion": evasion,
+            "blocked": blocked,
+            "commander_target": commander_target,
+        }
+        return _state_trample(game, every, trample, given)
+    if attackers is None:
+        return Refusal.error(Error(ErrorKind.ATTACKERS_NEEDED))
     misplaced = _misplaced(
-        game, blocked=blocked, commander_target=commander_target, targets=targets
+        game,
+        blocked=blocked,
+        commander_target=commander_target,
+        targets=targets,
+        evasion=evasion,
     )
     if misplaced is not None:
         return Refusal.error(misplaced)
@@ -298,6 +434,9 @@ def attack(
     damage_by_id = _damage(every, chosen, damage)
     if isinstance(damage_by_id, Error):
         return Refusal.error(damage_by_id)
+    evasion_by_id = _evasion(every, chosen, evasion)
+    if isinstance(evasion_by_id, Error):
+        return Refusal.error(evasion_by_id)
     commander_targets: dict[str, int] = {}
     seat_targets: dict[str, SeatNumber] = {}
     if changed.contested:
@@ -348,6 +487,7 @@ def attack(
             damage=damage_by_id,
             commander_targets=commander_targets,
             targets={card_id: target.value for card_id, target in seat_targets.items()},
+            evasion=evasion_by_id,
         )
         if chosen
         else None
@@ -374,6 +514,11 @@ def attack(
         tapped=tuple(face_name(deck_of(c), c) for c in newly_tapped),
         targets=tuple(
             (face_name(deck_of(c), c), seat_targets[c.id]) for c in chosen if c.id in seat_targets
+        ),
+        evasion=tuple(
+            (face_name(deck_of(c), c), tuple(evasion_by_id[c.id]))
+            for c in chosen
+            if c.id in evasion_by_id
         ),
     )
     return Applied(changed, summary, tuple(events), tuple(walk.snapshots))

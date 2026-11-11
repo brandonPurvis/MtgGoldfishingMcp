@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 
+from mtg_goldfishing.domain.combat.evasion import held_evasion
 from mtg_goldfishing.domain.deck.model import LoadedDeck
-from mtg_goldfishing.domain.events import Error, ErrorKind, NoticeKind, RevealedCard
+from mtg_goldfishing.domain.events import Error, ErrorKind, Evasion, NoticeKind, RevealedCard
 from mtg_goldfishing.domain.game.cards_in_play import (
     face_name,
     has_haste,
@@ -91,9 +92,9 @@ class WindowListing:
 class ChoiceListing:
     """A pending choice the calling seat owes, with what it asks: the cards a `look`,
     `search` or `hand` choice revealed; the text of an `ask` and the seat that asked; the
-    attackers a `blocks` choice may block; or the stack item a `resolve` choice is about,
-    with its source, held delta and destination (None for its default one) and the error
-    that kept it from resolving as held."""
+    attackers a `blocks` choice may block, with the evasion held for each in `evasion`; or
+    the stack item a `resolve` choice is about, with its source, held delta and destination
+    (None for its default one) and the error that kept it from resolving as held."""
 
     choice_id: str
     kind: str
@@ -101,6 +102,7 @@ class ChoiceListing:
     text: str = ""
     asked_by: SeatNumber | None = None
     attackers: tuple[RevealedCard, ...] = ()
+    evasion: tuple[tuple[Evasion, ...], ...] = ()
     item: str | None = None
     source: str = ""
     delta: Mapping[str, object] = field(default_factory=dict)
@@ -205,14 +207,22 @@ def _cards(
     return tuple(shown)
 
 
-# @spec GAME-173, GAME-174, GAME-175, GAME-176
+# @spec GAME-173, GAME-174, GAME-175, GAME-176, CMBT-081
 def _choice(game: Game, decks: Decks, choice: PendingChoice) -> ChoiceListing:
     """A pending choice as the seat it is addressed to may see it, with what it asks."""
     listed = ChoiceListing(choice.choice_id, choice.kind)
     if choice.kind == "ask":
         return replace(listed, text=choice.text, asked_by=choice.asked_by)
     if choice.kind == "blocks":
-        return replace(listed, attackers=_cards(game, decks, choice.attackers, by_face=True))
+        attackers = _cards(game, decks, choice.attackers, by_face=True)
+        evasion = tuple(
+            tuple(
+                held.evasion
+                for held in held_evasion(game, decks, game.instance(attacker.instance_id))
+            )
+            for attacker in attackers
+        )
+        return replace(listed, attackers=attackers, evasion=evasion)
     if choice.kind == "resolve":
         item = next((i for i in game.stack if i.id == choice.item), None)
         if item is None:

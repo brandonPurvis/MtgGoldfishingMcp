@@ -90,7 +90,7 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
 - [x] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
 - [x] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
-- [ ] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flying, horsemanship, reach, "can't be blocked", flash, step triggers, entering tapped) — from the loaded deck of its owner, whichever seat controls it.
+- [x] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flying, horsemanship, reach, "can't be blocked", flash, step triggers, entering tapped) — from the loaded deck of its owner, whichever seat controls it.
 
 ## Mulligan
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import fields
 
+from mtg_goldfishing.domain.combat.evasion import evasion_checks
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import (
     AskAnswered,
@@ -247,7 +248,7 @@ def _blocker_error(error: Error) -> Error:
 
 
 # @spec CMBT-039, CMBT-040, CMBT-041, CMBT-042, CMBT-043, CMBT-044, CMBT-045, CMBT-046
-# @spec CMBT-049
+# @spec CMBT-049, CMBT-082, CMBT-083, CMBT-084, CMBT-085, CMBT-089, CMBT-091, CMBT-092
 def _answer_blocks(
     changed: Game,
     decks: Decks,
@@ -258,8 +259,9 @@ def _answer_blocks(
     override: str | None,
 ) -> Applied | Refusal | Error:
     """Each blocker, among the creatures the answering seat controls, blocks an attacker
-    attacking that seat; several may block one attacker. A tapped blocker, or one that is
-    not a creature, fails a rule check."""
+    attacking that seat; several may block one attacker. A tapped blocker, one that is not
+    a creature, or a block the attacker's evasion forbids, as the cards stand now, fails a
+    rule check. An attacker once blocked stays blocked for the rest of the combat."""
     pairs = read_blocks(blocks)
     if isinstance(pairs, Error):
         return pairs
@@ -289,6 +291,8 @@ def _answer_blocks(
             problems.add(FailedCheck(CheckKind.BLOCKER_TAPPED, subject=shown))
         if not is_creature(decks.of(blocker.owner), blocker):
             problems.add(FailedCheck(CheckKind.BLOCKER_NOT_A_CREATURE, subject=shown))
+        for check in evasion_checks(changed, decks, blocker, attacker):
+            problems.add(check)
         declared.append((blocker, attacker))
     judged = problems.judge(override)
     if isinstance(judged, Refusal):

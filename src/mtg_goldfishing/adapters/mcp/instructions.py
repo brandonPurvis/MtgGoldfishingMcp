@@ -4,7 +4,7 @@ from __future__ import annotations
 
 SERVER_NAME = "goldfishing"
 
-# @spec TOOL-012, TOOL-034
+# @spec TOOL-012, TOOL-034, TOOL-078
 SERVER_INSTRUCTIONS = """\
 MTG Goldfishing keeps the state of a Commander goldfish game you play against three \
 imaginary opponents who take no actions. You make every decision and say what each card \
@@ -41,7 +41,9 @@ asked to respond, `play` or `effect` to respond, or `pass`.
 4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect \
 asks of you, or whether a spell still does what was stated.
 5. After blocks, the attacking seat states what happens to the creatures with `effect` and \
-`immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it.
+`immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it. \
+A blocked attacker deals a seat nothing unless the attacking seat states its trample damage \
+with `attack` and `trample` before combat damage.
 6. Each response begins with what the other seats did since your last call.
 7. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
 """

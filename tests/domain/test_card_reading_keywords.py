@@ -217,25 +217,20 @@ def test_a_grant_under_a_condition_is_a_grant_with_the_condition_assumed() -> No
 
 # ------------------------------------------------------------------ evasion and reach
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
-
 
 # @spec READ-055
-@NOT_BUILT
 def test_flying_on_a_line_of_its_own_is_the_cards_own() -> None:
     wind_drake = a_card("Wind Drake", "Flying", "Creature — Drake")
     assert face_reading(wind_drake).flying == KeywordReading(own=True)
 
 
 # @spec READ-055
-@NOT_BUILT
 def test_flying_in_a_comma_separated_keyword_line_is_the_cards_own() -> None:
     serra_angel = a_card("Serra Angel", "Flying, vigilance", "Creature — Angel")
     assert face_reading(serra_angel).flying == KeywordReading(own=True)
 
 
 # @spec READ-055
-@NOT_BUILT
 def test_reach_followed_by_reminder_text_is_the_cards_own() -> None:
     giant_spider = a_card(
         "Giant Spider",
@@ -246,7 +241,6 @@ def test_reach_followed_by_reminder_text_is_the_cards_own() -> None:
 
 
 # @spec READ-055
-@NOT_BUILT
 def test_horsemanship_followed_by_reminder_text_is_the_cards_own() -> None:
     shu_cavalry = a_card(
         "Shu Cavalry",
@@ -258,14 +252,12 @@ def test_horsemanship_followed_by_reminder_text_is_the_cards_own() -> None:
 
 
 # @spec READ-056
-@NOT_BUILT
 def test_creatures_you_control_have_flying_is_a_grant_that_includes_the_card() -> None:
     levitation = a_card("Levitation", "Creatures you control have flying.", "Enchantment")
     assert face_reading(levitation).flying == KeywordReading(grant=KeywordGrant())
 
 
 # @spec READ-056
-@NOT_BUILT
 def test_other_subtype_creatures_get_and_have_reach_is_a_grant_limited_to_the_subtype() -> None:
     card = a_card(
         "Spider Matriarch",
@@ -278,14 +270,12 @@ def test_other_subtype_creatures_get_and_have_reach_is_a_grant_limited_to_the_su
 
 
 # @spec READ-057
-@NOT_BUILT
 def test_spirits_you_control_have_flying_is_a_grant_limited_to_spirit() -> None:
     card = a_card("Spirit Lord", "Spirits you control have flying.", "Creature — Spirit")
     assert face_reading(card).flying == KeywordReading(grant=KeywordGrant(subtype="Spirit"))
 
 
 # @spec READ-058
-@NOT_BUILT
 def test_this_creature_can_t_be_blocked_is_the_cards_own() -> None:
     phantom_warrior = a_card(
         "Phantom Warrior", "This creature can't be blocked.", "Creature — Illusion Warrior"
@@ -294,7 +284,6 @@ def test_this_creature_can_t_be_blocked_is_the_cards_own() -> None:
 
 
 # @spec READ-058
-@NOT_BUILT
 def test_a_card_that_says_by_name_it_can_t_be_blocked_has_it_as_its_own() -> None:
     card = a_card(
         "Invisible Stalker",
@@ -305,7 +294,6 @@ def test_a_card_that_says_by_name_it_can_t_be_blocked_has_it_as_its_own() -> Non
 
 
 # @spec READ-059
-@NOT_BUILT
 def test_other_rogues_you_control_can_t_be_blocked_is_a_grant_limited_to_rogue() -> None:
     card = a_card(
         "Rogue Captain", "Other Rogues you control can't be blocked.", "Creature — Human Rogue"
@@ -316,7 +304,6 @@ def test_other_rogues_you_control_can_t_be_blocked_is_a_grant_limited_to_rogue()
 
 
 # @spec READ-059
-@NOT_BUILT
 def test_creatures_you_control_can_t_be_blocked_is_a_grant_that_includes_the_card() -> None:
     card = a_card("Unseen Host", "Creatures you control can't be blocked.", "Enchantment")
     assert face_reading(card).cant_be_blocked == KeywordReading(grant=KeywordGrant())
@@ -379,7 +366,6 @@ def test_evasion_or_reach_conferred_through_attachment_is_not_read(text: str, ke
 
 
 # @spec READ-063
-@NOT_BUILT
 def test_flying_under_a_condition_before_it_is_the_cards_own_with_the_condition_assumed() -> None:
     card = a_card(
         "Island Skimmer",
@@ -392,7 +378,6 @@ def test_flying_under_a_condition_before_it_is_the_cards_own_with_the_condition_
 
 
 # @spec READ-063
-@NOT_BUILT
 def test_can_t_be_blocked_under_a_condition_after_it_is_the_cards_own_with_it_assumed() -> None:
     card = a_card(
         "Tidal Lurker",
@@ -405,7 +390,6 @@ def test_can_t_be_blocked_under_a_condition_after_it_is_the_cards_own_with_it_as
 
 
 # @spec READ-063
-@NOT_BUILT
 def test_a_grant_of_horsemanship_under_an_if_condition_is_a_grant_with_it_assumed() -> None:
     card = a_card(
         "Cavalry Banner",

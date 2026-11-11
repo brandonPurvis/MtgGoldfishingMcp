@@ -28,7 +28,6 @@ from tests.support.combat import (
     stating_trample,
 )
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 ATRAXA = "Atraxa, Praetors' Voice"
 
 
@@ -61,7 +60,6 @@ def trample_of(situation: Situation, name: str) -> Any:
 
 
 # @spec CMBT-098, CMBT-069, CMBT-072
-@NOT_BUILT
 def test_once_blocks_are_answered_the_active_seat_states_trample_damage_with_attack() -> None:
     situation = blocks_answered()
     acted(situation, stating_trample(situation, {"Shivan Dragon": 3}))
@@ -69,7 +67,6 @@ def test_once_blocks_are_answered_the_active_seat_states_trample_damage_with_att
 
 
 # @spec CMBT-099
-@NOT_BUILT
 def test_a_later_statement_replaces_only_the_attackers_it_names() -> None:
     situation = blocks_answered(
         attackers=("Shivan Dragon", "Grizzly Bears"),
@@ -83,7 +80,6 @@ def test_a_later_statement_replaces_only_the_attackers_it_names() -> None:
 
 
 # @spec CMBT-099
-@NOT_BUILT
 def test_an_entry_of_zero_takes_an_earlier_statement_back() -> None:
     situation = blocks_answered()
     acted(situation, stating_trample(situation, {"Shivan Dragon": 3}))
@@ -93,7 +89,6 @@ def test_an_entry_of_zero_takes_an_earlier_statement_back() -> None:
 
 
 # @spec CMBT-100
-@NOT_BUILT
 def test_a_trample_statement_taps_nothing_opens_no_window_and_moves_to_no_step() -> None:
     situation = blocks_answered()
     tapped_before = {card.id for card in situation.game.cards if card.tapped}
@@ -110,7 +105,6 @@ def test_a_trample_statement_taps_nothing_opens_no_window_and_moves_to_no_step()
 
 
 # @spec CMBT-101
-@NOT_BUILT
 def test_the_outcome_lists_each_named_attacker_with_its_trample_damage_and_its_seat() -> None:
     situation = blocks_answered(seats=3)
     result = acted(situation, stating_trample(situation, {"Shivan Dragon": 3}))
@@ -120,7 +114,6 @@ def test_the_outcome_lists_each_named_attacker_with_its_trample_damage_and_its_s
 
 
 # @spec CMBT-101
-@NOT_BUILT
 def test_the_trample_statement_is_shown_alike_to_every_seat() -> None:
     situation = blocks_answered(seats=3)
     result: Applied = acted(situation, stating_trample(situation, {"Shivan Dragon": 3}))
@@ -129,7 +122,6 @@ def test_the_trample_statement_is_shown_alike_to_every_seat() -> None:
 
 
 # @spec CMBT-102
-@NOT_BUILT
 def test_trample_damage_beyond_the_attacker_s_power_is_accepted_without_a_rule_check() -> None:
     situation = blocks_answered(attackers=("Grizzly Bears",))
     result = acted(situation, stating_trample(situation, {"Grizzly Bears": 7}))
@@ -138,7 +130,6 @@ def test_trample_damage_beyond_the_attacker_s_power_is_accepted_without_a_rule_c
 
 
 # @spec CMBT-082
-@NOT_BUILT
 def test_an_attacker_whose_blockers_all_left_stays_blocked_and_deals_its_trample_damage() -> None:
     situation = blocks_answered()
     immediately(situation, {"move": {"graveyard": ["Llanowar Elves"]}})
@@ -151,7 +142,6 @@ def test_an_attacker_whose_blockers_all_left_stays_blocked_and_deals_its_trample
 
 
 # @spec CMBT-097
-@NOT_BUILT
 def test_a_blocked_commander_s_trample_damage_counts_as_commander_damage() -> None:
     builder: Any = a_game().with_commander(ATRAXA, zone=Zone.BATTLEFIELD)
     situation: Situation = builder.and_an_opposing_seat().with_battlefield("Llanowar Elves").build()
@@ -167,7 +157,6 @@ def test_a_blocked_commander_s_trample_damage_counts_as_commander_damage() -> No
 
 
 # @spec CMBT-103
-@NOT_BUILT
 def test_trample_is_not_given_in_a_goldfish_game() -> None:
     situation = a_game().in_step(Step.DECLARE_BLOCKERS).with_battlefield("Grizzly Bears").build()
     acted(situation, attacking(situation, attackers=["Grizzly Bears"], blocked=["Grizzly Bears"]))
@@ -176,7 +165,6 @@ def test_trample_is_not_given_in_a_goldfish_game() -> None:
 
 
 # @spec CMBT-104
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("argument", "value"),
     [
@@ -199,7 +187,6 @@ def test_trample_given_with_a_declaration_s_arguments_is_an_error(
 
 
 # @spec CMBT-105
-@NOT_BUILT
 def test_trample_before_blockers_are_declared_is_an_error() -> None:
     situation = attacked(a_duel(attackers=("Shivan Dragon",)), attackers=["Shivan Dragon"])
     assert situation.game.step is Step.DECLARE_ATTACKERS
@@ -208,7 +195,6 @@ def test_trample_before_blockers_are_declared_is_an_error() -> None:
 
 
 # @spec CMBT-105
-@NOT_BUILT
 def test_trample_with_no_attack_declared_is_an_error() -> None:
     situation = a_duel(attackers=("Shivan Dragon",))
     acted(situation, attacking(situation, attackers=[]))
@@ -218,7 +204,6 @@ def test_trample_with_no_attack_declared_is_an_error() -> None:
 
 
 # @spec CMBT-106
-@NOT_BUILT
 def test_trample_for_something_that_is_not_among_the_attackers_is_an_error() -> None:
     situation = blocks_answered()
     result = stating_trample(situation, {"Llanowar Elves": 3})
@@ -226,7 +211,6 @@ def test_trample_for_something_that_is_not_among_the_attackers_is_an_error() -> 
 
 
 # @spec CMBT-107
-@NOT_BUILT
 def test_trample_for_an_attacker_that_is_not_blocked_is_an_error() -> None:
     situation = blocks_answered(blocks={})
     result = stating_trample(situation, {"Shivan Dragon": 3})
@@ -234,7 +218,6 @@ def test_trample_for_an_attacker_that_is_not_blocked_is_an_error() -> None:
 
 
 # @spec CMBT-108
-@NOT_BUILT
 @pytest.mark.parametrize(
     "amount", [-1, 1.5, "3", True], ids=["negative", "a fraction", "text", "a flag"]
 )
@@ -247,7 +230,6 @@ def test_a_trample_amount_that_is_not_a_whole_number_of_zero_or_more_is_an_error
 
 
 # @spec CMBT-096
-@NOT_BUILT
 @pytest.mark.parametrize("seats", [1, 2], ids=["goldfish", "contested"])
 def test_an_attack_with_neither_attackers_nor_trample_is_an_error(seats: int) -> None:
     situation = a_duel(attackers=("Grizzly Bears",), seats=seats)

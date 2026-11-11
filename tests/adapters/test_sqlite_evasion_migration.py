@@ -21,7 +21,6 @@ from mtg_goldfishing.domain.reading.reader import read_card
 from tests.support.builders import a_game
 from tests.support.cards import a_card
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 BEFORE_EVASION = MIGRATIONS[:3]
 """The migrations of a database written before evasion and reach readings."""
 NEW_READINGS = ("flying", "horsemanship", "reach", "cant_be_blocked")
@@ -132,7 +131,6 @@ def _face(deck: LoadedDeck, name: str) -> Any:
 
 
 # @spec STOR-036
-@NOT_BUILT
 def test_a_stored_deck_s_readings_gain_evasion_read_from_its_card_data(path: Path) -> None:
     _stored_before_evasion(path)
 
@@ -143,7 +141,6 @@ def test_a_stored_deck_s_readings_gain_evasion_read_from_its_card_data(path: Pat
 
 
 # @spec STOR-036
-@NOT_BUILT
 def test_a_stored_deck_s_readings_gain_reach_from_a_card_definition_s_keywords(path: Path) -> None:
     _stored_before_evasion(path)
 
@@ -154,7 +151,6 @@ def test_a_stored_deck_s_readings_gain_reach_from_a_card_definition_s_keywords(p
 
 
 # @spec STOR-037
-@NOT_BUILT
 def test_a_stored_game_s_own_card_readings_gain_evasion_read_from_their_card_data(
     path: Path,
 ) -> None:
@@ -180,7 +176,6 @@ def test_the_migration_adds_no_reading_to_a_card_instance_that_holds_none(path: 
 
 
 # @spec STOR-038
-@NOT_BUILT
 def test_the_migration_leaves_every_other_part_of_a_reading_and_the_deck_id_unchanged(
     path: Path,
 ) -> None:

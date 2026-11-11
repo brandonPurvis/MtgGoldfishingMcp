@@ -8,7 +8,6 @@ Feature: Combat in a contested game
     And the Omnath test deck is loaded
 
   # @spec CMBT-030, CMBT-031, CMBT-037, CMBT-039, CMBT-061, TOOL-079
-  @wip
   Scenario: Attackers attack seats, and each attacked seat declares its blockers
     Given a started contested game against 2 Omnath decks with the tested seat first
     And seat S1 puts "Grizzly Bears" onto the battlefield
@@ -60,7 +59,6 @@ Feature: Combat in a contested game
     And the status line shows "Cmdr 4"
 
   # @spec CMBT-063, CMBT-064, CMBT-098, CMBT-101
-  @wip
   Scenario: A blocked attacker deals the seat it attacks only the trample damage its seat states
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Grizzly Bears" onto the battlefield
@@ -80,7 +78,6 @@ Feature: Combat in a contested game
     Then seat S2's life is 36
 
   # @spec CMBT-081, CMBT-083, CMBT-090, CMBT-091, TOOL-079
-  @wip
   Scenario: A block the attacker's flying forbids is refused, and an override records it
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Birds of Paradise" onto the battlefield

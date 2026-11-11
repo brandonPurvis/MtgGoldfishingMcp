@@ -23,7 +23,6 @@ TOOLS = (
     "get_log",
 )
 CONTESTED_SECTION = "## Contested games"
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 
 
 def _front_matter() -> dict[str, str]:
@@ -105,27 +104,23 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
         ("TOOL-053: answer choices addressed to it", ("`choose`", "blocks", "other seats")),
         ("TOOL-053: state combat after blocks", ("`effect`", "`immediate: true`", "after blocks")),
         ("TOOL-072: leave out the damage to seats", ("leave out", "damage to seats")),
-        pytest.param(
+        (
             "TOOL-072: state trample damage once blocks are known",
             ("`attack` and `trample`", "once blocks are known", "before advancing to combat"),
-            marks=NOT_BUILT,
         ),
-        pytest.param(
+        (
             "TOOL-072: a blocked attacker otherwise deals nothing",
             ("blocked attacker otherwise deals the seat nothing",),
-            marks=NOT_BUILT,
         ),
-        pytest.param(
+        (
             "TOOL-080: give evasion an attacker has only this turn",
             ("`evasion`", 'flying, horsemanship or "can\'t be blocked"', "only this turn"),
-            marks=NOT_BUILT,
         ),
-        pytest.param(
+        (
             "TOOL-080: block only as evasion allows",
             ("block only as the attackers' evasion allows",),
-            marks=NOT_BUILT,
         ),
-        pytest.param(
+        (
             "TOOL-080: override a refused block only when it is wrong for this turn",
             (
                 "override a refused block only when",
@@ -133,7 +128,6 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
                 "lost its evasion",
                 "assumed condition",
             ),
-            marks=NOT_BUILT,
         ),
         ("TOOL-073: attack not declared", ("not declared", "`wait`", "same `attack`")),
         ("TOOL-054: the tested seat's verdict", ("tested seat", "what the opposition did")),

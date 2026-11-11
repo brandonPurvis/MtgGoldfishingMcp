@@ -183,7 +183,8 @@ GOLDFISH_DESCRIPTIONS: dict[str, str] = json.loads(
 )
 """Each tool's description as an agent playing a goldfish game reads it: the descriptions the
 service gave before contested games existed, with `new_game`'s `starting_life` and `choose`'s
-optional `selections`, which goldfish games also take."""
+optional `selections`, which goldfish games also take, and with `attack`'s `attackers` not marked
+required, since a contested game's `attack` stating trample damage gives none."""
 GOLDFISH_GUIDE = (FIXTURES / "goldfish_server_instructions.txt").read_text(encoding="utf-8")
 CONTESTED = "Contested games:"
 CONTESTED_TOOLS = ("pass", "wait")
@@ -310,7 +311,6 @@ def test_the_server_instructions_continue_with_a_section_on_contested_games(
 
 
 # @spec TOOL-078
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_trample() -> None:
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 

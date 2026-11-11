@@ -23,7 +23,6 @@ from tests.support.combat import (
     immediately,
 )
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 EVASION = "evasion_forbids_block"
 
 
@@ -44,7 +43,6 @@ def held(check: Any) -> tuple[str, str, str, bool, bool, tuple[str, ...]]:
 
 
 # @spec CMBT-083
-@NOT_BUILT
 def test_a_blocker_without_flying_or_reach_blocking_a_flyer_fails_a_rule_check() -> None:
     situation = at_blocks(a_duel(attackers=("Wind Drake",)), attackers=["Wind Drake"])
     result = blocking(situation, S2, {"Llanowar Elves": "Wind Drake"})
@@ -52,7 +50,6 @@ def test_a_blocker_without_flying_or_reach_blocking_a_flyer_fails_a_rule_check()
 
 
 # @spec CMBT-084
-@NOT_BUILT
 def test_a_blocker_without_horsemanship_blocking_a_horseman_fails_a_rule_check() -> None:
     situation = at_blocks(a_duel(attackers=("Shu Cavalry",)), attackers=["Shu Cavalry"])
     assert check_kinds(blocking(situation, S2, {"Llanowar Elves": "Shu Cavalry"})) == [EVASION]
@@ -69,7 +66,6 @@ def test_a_blocker_with_horsemanship_may_block_a_horseman() -> None:
 
 
 # @spec CMBT-085
-@NOT_BUILT
 @pytest.mark.parametrize("blocker", ["Llanowar Elves", "Wind Drake", "Wu Light Cavalry"])
 def test_any_blocker_blocking_an_attacker_that_can_t_be_blocked_fails_a_rule_check(
     blocker: str,
@@ -100,7 +96,6 @@ def test_a_blocker_with_flying_or_reach_or_both_may_block_a_flyer(
 
 
 # @spec CMBT-087
-@NOT_BUILT
 def test_flying_granted_by_a_permanent_the_attacking_seat_controls_is_checked() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",), attacking_seat_also=("Levitation",)),
@@ -125,7 +120,6 @@ def test_a_grant_that_excludes_its_own_card_gives_that_attacker_no_flying() -> N
 
 
 # @spec CMBT-087
-@NOT_BUILT
 def test_a_grant_limited_to_a_subtype_reaches_an_attacker_of_that_subtype() -> None:
     situation = at_blocks(
         a_duel(attackers=("Spirit Wisp",), attacking_seat_also=("Spirit Banner",)),
@@ -144,7 +138,6 @@ def test_a_grant_limited_to_a_subtype_does_not_reach_an_attacker_of_another_type
 
 
 # @spec CMBT-080, CMBT-087
-@NOT_BUILT
 def test_evasion_listed_on_the_attack_is_held_for_the_attacker_and_checked() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",)),
@@ -155,7 +148,6 @@ def test_evasion_listed_on_the_attack_is_held_for_the_attacker_and_checked() -> 
 
 
 # @spec CMBT-080
-@NOT_BUILT
 def test_evasion_listed_on_one_declaration_is_not_held_for_the_next_combat() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",)),
@@ -179,7 +171,6 @@ def test_reach_granted_by_a_permanent_the_answering_seat_controls_lets_a_blocker
 
 
 # @spec CMBT-088
-@NOT_BUILT
 def test_reach_granted_by_a_permanent_another_seat_controls_does_not_reach_the_blocker() -> None:
     situation = at_blocks(
         a_duel(attackers=("Wind Drake",), attacking_seat_also=("Treetop Snare",)),
@@ -189,7 +180,6 @@ def test_reach_granted_by_a_permanent_another_seat_controls_does_not_reach_the_b
 
 
 # @spec CMBT-089
-@NOT_BUILT
 def test_evasion_is_read_from_the_attackers_as_they_stand_when_blocks_are_given() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",), attacking_seat_hand=("Levitation",)),
@@ -203,7 +193,6 @@ def test_evasion_is_read_from_the_attackers_as_they_stand_when_blocks_are_given(
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_the_refusal_names_the_blocker_the_attacker_and_flying_read_from_its_card() -> None:
     situation = at_blocks(a_duel(attackers=("Wind Drake",)), attackers=["Wind Drake"])
     result = blocking(situation, S2, {"Llanowar Elves": "Wind Drake"})
@@ -214,7 +203,6 @@ def test_the_refusal_names_the_blocker_the_attacker_and_flying_read_from_its_car
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_the_refusal_gives_the_assumption_of_a_reading_under_a_condition() -> None:
     situation = at_blocks(a_duel(attackers=("Island Skimmer",)), attackers=["Island Skimmer"])
     result = blocking(situation, S2, {"Llanowar Elves": "Island Skimmer"})
@@ -223,7 +211,6 @@ def test_the_refusal_gives_the_assumption_of_a_reading_under_a_condition() -> No
 
 
 # @spec CMBT-090
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("attacker", "read"), [("Grizzly Bears", False), ("Wind Drake", True)], ids=["listed", "both"]
 )
@@ -239,7 +226,6 @@ def test_the_refusal_says_whether_flying_was_listed_in_evasion_or_also_read(
 
 
 # @spec CMBT-090
-@NOT_BUILT
 def test_an_attacker_with_two_evasions_fails_one_check_for_each() -> None:
     situation = at_blocks(a_duel(attackers=("Sky Rider",)), attackers=["Sky Rider"])
     result = blocking(situation, S2, {"Llanowar Elves": "Sky Rider"})
@@ -248,7 +234,6 @@ def test_an_attacker_with_two_evasions_fails_one_check_for_each() -> None:
 
 
 # @spec CMBT-091
-@NOT_BUILT
 def test_an_override_records_the_blocks_and_names_the_overridden_evasion_checks() -> None:
     situation = at_blocks(a_duel(attackers=("Wind Drake",)), attackers=["Wind Drake"])
     result = blocked(
@@ -278,7 +263,6 @@ def test_blocks_recorded_stand_when_the_attacker_gains_evasion_afterwards() -> N
 
 
 # @spec CMBT-081
-@NOT_BUILT
 def test_a_blocks_choice_shows_each_attacker_with_the_evasion_held_for_it() -> None:
     situation = attacked(
         a_duel(attackers=("Grizzly Bears", "Wind Drake")),
@@ -295,7 +279,6 @@ def test_a_blocks_choice_shows_each_attacker_with_the_evasion_held_for_it() -> N
 
 
 # @spec CMBT-081
-@NOT_BUILT
 def test_the_listing_of_a_blocks_choice_shows_evasion_as_held_when_it_is_listed() -> None:
     situation = at_blocks(
         a_duel(attackers=("Grizzly Bears",), attacking_seat_hand=("Levitation",)),
@@ -311,7 +294,6 @@ def test_the_listing_of_a_blocks_choice_shows_evasion_as_held_when_it_is_listed(
 
 
 # @spec CMBT-093
-@NOT_BUILT
 def test_evasion_for_something_that_is_not_an_attacker_is_an_error() -> None:
     situation = a_duel(attackers=("Grizzly Bears", "Wind Drake"))
     result = attacking(situation, attackers=["Grizzly Bears"], evasion={"Wind Drake": "flying"})
@@ -319,7 +301,6 @@ def test_evasion_for_something_that_is_not_an_attacker_is_an_error() -> None:
 
 
 # @spec CMBT-094
-@NOT_BUILT
 @pytest.mark.parametrize(
     "value",
     ["trample", [], ["flying", "flying"], ["flying", "menace"], 3],
@@ -334,7 +315,6 @@ def test_an_evasion_entry_that_is_not_an_evasion_or_a_list_of_distinct_ones_is_a
 
 
 # @spec CMBT-095
-@NOT_BUILT
 def test_evasion_is_not_given_in_a_goldfish_game() -> None:
     situation = a_duel(attackers=("Grizzly Bears",), seats=1)
     result = attacking(situation, attackers=["Grizzly Bears"], evasion={"Grizzly Bears": "flying"})

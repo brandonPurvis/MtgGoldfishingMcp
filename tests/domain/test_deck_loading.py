@@ -251,7 +251,6 @@ def test_haste_among_a_definitions_keywords_is_the_cards_own_in_the_loaded_deck(
 
 
 # @spec DECK-040
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_flying_among_a_definitions_keywords_is_the_cards_own_in_the_loaded_deck() -> None:
     load = a_deck_list().with_definition(name="Grizzly Bears", keywords=["Flying"]).loaded()
     assert deck_card_reading(load, "Grizzly Bears").flying.own
@@ -781,7 +780,6 @@ def test_the_report_lists_cards_that_grant_haste_or_vigilance() -> None:
 
 
 # @spec DECK-041
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_the_report_lists_cards_that_grant_evasion_or_reach_with_the_keyword_granted() -> None:
     load = (
         a_deck_list()
@@ -800,7 +798,6 @@ def test_the_report_lists_cards_that_grant_evasion_or_reach_with_the_keyword_gra
 
 
 # @spec DECK-041
-@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 def test_the_report_does_not_list_a_card_that_only_has_evasion_itself() -> None:
     load = a_deck_list().with_cards("Serra Angel").loaded()
     report: Any = load.summary.report

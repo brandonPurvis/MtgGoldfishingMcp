@@ -9,8 +9,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
+
+from mtg_goldfishing.adapters.sqlite.codec import from_data, to_data
+from mtg_goldfishing.domain.cards import Card
+from mtg_goldfishing.domain.deck.definitions import definitions_reading
+from mtg_goldfishing.domain.deck.model import CardDefinition
+from mtg_goldfishing.domain.reading.model import CardReading, KeywordReading
+from mtg_goldfishing.domain.reading.reader import read_card
 
 Migration = str | Callable[[sqlite3.Connection], None]
 
@@ -162,6 +169,75 @@ def add_step_trigger_turns(connection: sqlite3.Connection) -> None:
             )
 
 
+EVASION_AND_REACH = ("flying", "horsemanship", "reach", "cant_be_blocked")
+"""The readings migration 4 adds, by their field names in a stored face reading."""
+
+
+def _with_readings(stored: dict[str, Any], reading: CardReading) -> dict[str, Any]:
+    """A stored card reading with each face's evasion and reach readings added from
+    `reading`, every other part of it as it was."""
+    faces = stored.get("faces")
+    if not isinstance(faces, list):
+        return stored
+    rewritten = []
+    for index, face in enumerate(faces):
+        made = reading.face(index)
+        added = {name: to_data(getattr(made, name), KeywordReading) for name in EVASION_AND_REACH}
+        rewritten.append({**face, **added} if isinstance(face, dict) else face)
+    return {**stored, "faces": rewritten}
+
+
+def _definitions_of(card: Card, definitions: Sequence[CardDefinition]) -> list[CardDefinition]:
+    names = {card.name.casefold(), *(face.name.casefold() for face in card.faces)}
+    return [d for d in definitions if d.name.strip().casefold() in names]
+
+
+def _deck_with_evasion(stored: dict[str, Any]) -> dict[str, Any]:
+    """A stored loaded deck whose card readings hold the evasion and reach readings made from
+    the card data stored with each, card definitions applied, as `load_deck` makes them."""
+    definitions = [from_data(d, CardDefinition) for d in stored.get("definitions", [])]
+    cards = []
+    for deck_card in stored.get("cards", []):
+        card = from_data(deck_card["card"], Card)
+        own = _definitions_of(card, definitions)
+        reading = definitions_reading(card, own) if own else read_card(card)
+        cards.append({**deck_card, "reading": _with_readings(deck_card["reading"], reading)})
+    return {**stored, "cards": cards}
+
+
+def _game_with_evasion(stored: dict[str, Any]) -> dict[str, Any]:
+    """A stored game whose card instances that hold card data and a reading of their own have
+    the evasion and reach readings made from that card data added; an instance that holds no
+    reading gets none."""
+    cards = []
+    for instance in stored.get("cards", []):
+        data, reading = instance.get("definition"), instance.get("reading")
+        if data is None or reading is None:
+            cards.append(instance)
+            continue
+        made = read_card(from_data(data, Card))
+        cards.append({**instance, "reading": _with_readings(reading, made)})
+    return {**stored, "cards": cards}
+
+
+# @spec STOR-036, STOR-037, STOR-038, STOR-039
+def add_evasion_and_reach(connection: sqlite3.Connection) -> None:
+    """Add the flying, horsemanship, reach and "can't be blocked" readings to every card
+    reading held in a stored loaded deck or game, made from the card data stored with it.
+    Deck ids and a game's version counter are left as they were."""
+    for table, key, column, rewrite in (
+        ("decks", "deck_id", "deck", _deck_with_evasion),
+        ("games", "game_id", "state", _game_with_evasion),
+    ):
+        rows = connection.execute(f"SELECT {key}, {column} FROM {table}").fetchall()
+        for row_key, document in rows:
+            rewritten = rewrite(json.loads(document))
+            connection.execute(
+                f"UPDATE {table} SET {column} = ? WHERE {key} = ?",
+                (json.dumps(rewritten, ensure_ascii=False, separators=(",", ":")), row_key),
+            )
+
+
 def sqlite_statements(script: str) -> list[str]:
     """The SQL statements of a script, one at a time, so that each can run inside an open
     transaction (`executescript` would commit it first)."""
@@ -237,6 +313,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     """,
     add_seats,
     add_step_trigger_turns,
+    add_evasion_and_reach,
 )
 """A database at version n has had the first n migrations applied."""
 

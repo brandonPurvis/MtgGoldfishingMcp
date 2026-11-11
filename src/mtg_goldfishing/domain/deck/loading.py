@@ -36,7 +36,7 @@ from mtg_goldfishing.domain.events import (
 )
 from mtg_goldfishing.domain.game.results import Problems, Refusal
 from mtg_goldfishing.domain.reading.model import KeywordReport, ReadAbility
-from mtg_goldfishing.domain.reading.reader import read_card, report
+from mtg_goldfishing.domain.reading.reader import evasion_and_reach_of, read_card, report
 
 MAX_COMMANDERS = 2
 DECK_ID_PREFIX = "d"
@@ -401,7 +401,7 @@ def _place(
 # The report
 
 
-# @spec DECK-037
+# @spec DECK-037, DECK-041
 def deck_report(deck: LoadedDeck) -> DeckReport:
     """What `load_deck` tells about a loaded deck's definitions and readings."""
     readings = report((deck_card.card, deck_card.reading) for deck_card in deck.cards)
@@ -420,6 +420,7 @@ def deck_report(deck: LoadedDeck) -> DeckReport:
                     ("haste", reading.haste),
                     ("vigilance", reading.vigilance),
                     ("flash", reading.flash),
+                    *evasion_and_reach_of(reading),
                 )
                 if keyword_reading.assumptions
             )
@@ -430,6 +431,9 @@ def deck_report(deck: LoadedDeck) -> DeckReport:
         not_used_on_their_own=tuple(not_used_on_their_own),
         granting_haste_or_vigilance=tuple(
             keyword for keyword in readings.keywords if keyword.reading.grant is not None
+        ),
+        granting_evasion_or_reach=tuple(
+            keyword for keyword in readings.evasion_and_reach if keyword.reading.grant is not None
         ),
         enters_tapped=readings.enters_tapped,
         assumed_untapped=readings.assumed_untapped,
