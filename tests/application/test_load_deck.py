@@ -92,3 +92,12 @@ def test_a_refresh_that_is_not_true_or_false_is_a_malformed_argument() -> None:
     assert [(e.kind, e.subject) for e in answer.outcome.summary.errors] == [
         (ErrorKind.MALFORMED_ARGUMENT, "refresh")
     ]
+
+
+# @spec DECK-004, CARD-021
+def test_a_deck_listing_a_split_card_written_with_one_slash_loads_with_no_definition() -> None:
+    cards = a_deck_list().of_size(99).text() + "\nGallifrey Falls/No More"
+    answer = a_service().service.load_deck(
+        {"cards": cards, "commander": ATRAXA, "override": "off-color split card"}
+    )
+    assert answer.outcome.status is Status.OK

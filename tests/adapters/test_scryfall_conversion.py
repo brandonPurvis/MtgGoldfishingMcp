@@ -56,6 +56,16 @@ def test_a_split_card_face_takes_its_own_mana_cost() -> None:
 
 
 # @spec CARD-003
+def test_each_half_of_a_split_card_takes_its_own_cost_and_type_line() -> None:
+    gallifrey = recorded_card("Gallifrey Falls // No More")
+
+    assert [(face.name, str(face.mana_cost), face.type_line) for face in gallifrey.faces] == [
+        ("Gallifrey Falls", "{4}{R}{R}", "Instant"),
+        ("No More", "{2}{W}", "Instant"),
+    ]
+
+
+# @spec CARD-003
 def test_a_face_lacking_power_and_toughness_takes_the_card_level_values() -> None:
     card = card_from_scryfall(_two_faced_object(power="3", toughness="3"))
 

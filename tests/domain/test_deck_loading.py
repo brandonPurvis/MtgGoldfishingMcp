@@ -873,3 +873,111 @@ def test_the_names_to_look_up_are_the_commanders_and_every_entry() -> None:
     request = read_deck_request(cards="Sol Ring\n2 Forest", commander=ATRAXA)
     assert not isinstance(request, Refusal)
     assert request.names_to_look_up == (ATRAXA, "Sol Ring", "Forest")
+
+
+# Cards written with slash separators
+
+GALLIFREY = "Gallifrey Falls // No More"
+
+
+# @spec DECK-004
+def test_a_split_card_written_with_one_slash_is_an_entry_under_its_full_name() -> None:
+    builder = a_deck_list().with_override("off-color").of_size(99)
+    load = builder.loaded(builder.text() + "\nGallifrey Falls/No More")
+    assert DeckEntry(GALLIFREY, 1) in load.deck.entries
+
+
+# @spec DECK-004
+def test_a_card_named_by_full_name_and_written_with_a_slash_is_one_entry() -> None:
+    builder = a_deck_list().with_override("off-color").of_size(98)
+    load = builder.loaded(builder.text() + "\nFire // Ice\nfire / ICE")
+    assert DeckEntry("Fire // Ice", 2) in load.deck.entries
+
+
+# @spec DECK-004
+def test_a_card_written_with_a_slash_and_named_by_a_face_is_one_entry() -> None:
+    builder = a_deck_list().with_override("off-color").of_size(98)
+    load = builder.loaded(builder.text() + "\n Fire//Ice \nIce")
+    assert DeckEntry("Fire // Ice", 2) in load.deck.entries
+
+
+# @spec DECK-043
+def test_a_definition_named_with_a_slash_applies_to_the_card_s_first_face() -> None:
+    load = (
+        a_deck_list()
+        .with_cards("Fire // Ice")
+        .with_definition(name="Fire/Ice", mana_cost="{R}")
+        .with_override("testing a split card")
+        .loaded()
+    )
+    card = load.deck.card("Fire // Ice")
+    assert card is not None
+    assert [face.mana_cost for face in card.card.faces] == [M("{R}"), M("{1}{U}")]
+
+
+# @spec DECK-043, DECK-011
+def test_a_definition_named_with_a_slash_applies_to_the_face_it_names() -> None:
+    load = (
+        a_deck_list()
+        .with_cards("Fire // Ice")
+        .with_definition(name="fire / ice", face="Ice", mana_cost="{U}")
+        .with_override("testing a split card")
+        .loaded()
+    )
+    card = load.deck.card("Fire // Ice")
+    assert card is not None
+    assert [face.mana_cost for face in card.card.faces] == [M("{1}{R}"), M("{U}")]
+
+
+# @spec DECK-043, DECK-012
+def test_a_definition_named_with_a_misspelled_slash_name_is_not_in_the_deck() -> None:
+    refusal = (
+        a_deck_list()
+        .with_cards("Fire // Ice")
+        .with_definition(name="Fire/Ise", mana_cost="{R}")
+        .with_override("testing a split card")
+        .refused()
+    )
+    assert refusal.errors == (Error(ErrorKind.DEFINITION_NOT_IN_DECK, subject="Fire/Ise"),)
+
+
+# Naming the cards not legal in Commander
+
+
+def _legality(refusal: Refusal) -> FailedCheck:
+    return next(check for check in refusal.checks if check.kind is CheckKind.LEGALITY)
+
+
+# @spec DECK-042
+def test_the_legality_check_names_every_card_not_legal_in_commander() -> None:
+    refusal = (
+        a_deck_list()
+        .with_cards("Black Lotus")
+        .with_changed_card_data("Sol Ring", commander_legal=False)
+        .refused()
+    )
+    assert sorted(_legality(refusal).names) == ["Black Lotus", "Sol Ring"]
+
+
+# @spec DECK-042
+def test_the_legality_check_names_a_commander_not_legal_in_commander() -> None:
+    refusal = a_deck_list().with_changed_card_data(ATRAXA, commander_legal=False).refused()
+    assert _legality(refusal).names == (ATRAXA,)
+
+
+# @spec DECK-042
+def test_the_legality_check_names_a_card_listed_on_several_lines_once() -> None:
+    builder = a_deck_list().of_size(98)
+    refusal = builder.refused(builder.text() + "\nBlack Lotus\nblack lotus")
+    assert _legality(refusal).names == ("Black Lotus",)
+
+
+# @spec DECK-042
+def test_the_legality_check_names_a_card_from_scryfall_with_a_definition_applied() -> None:
+    refusal = (
+        a_deck_list()
+        .with_cards("Black Lotus")
+        .with_definition(name="Black Lotus", oracle_text="{T}: Add one mana of any color.")
+        .refused()
+    )
+    assert _legality(refusal).names == ("Black Lotus",)

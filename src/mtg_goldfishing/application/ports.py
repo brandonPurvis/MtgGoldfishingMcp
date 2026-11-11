@@ -137,7 +137,7 @@ class CardCache(ABC):
 
     @abstractmethod
     def get(self, name: str) -> Card | None:
-        """The cached card whose full name or a face name matches, ignoring case."""
+        """The cached card a name resolves to by the card model's name-matching rule."""
         ...
 
     @abstractmethod

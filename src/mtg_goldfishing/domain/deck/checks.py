@@ -52,7 +52,7 @@ def can_be_a_commander(card: Card) -> bool:
     return is_legendary_creature or bool(_CAN_BE_YOUR_COMMANDER.search(_rules_text(card)))
 
 
-# @spec DECK-021, DECK-022, DECK-023, DECK-024, DECK-025, DECK-026
+# @spec DECK-021, DECK-022, DECK-023, DECK-024, DECK-025, DECK-026, DECK-042
 def check_deck(
     commanders: Sequence[Card], cards: Sequence[tuple[Card, int]]
 ) -> tuple[FailedCheck, ...]:
