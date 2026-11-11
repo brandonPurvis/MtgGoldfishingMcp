@@ -29,7 +29,9 @@ from mtg_goldfishing.domain.reading.model import (
     FaceReading,
     PermanentsCount,
 )
+from mtg_goldfishing.domain.reading.reader import read_card
 from tests.support.builders import TESTED, Situation, a_game
+from tests.support.card_data import recorded_cards
 
 M = ManaString.parse
 CREATURE = "Creature — Bear"
@@ -614,3 +616,62 @@ def test_the_auto_payment_system_taps_no_source_the_payment_could_do_without() -
     assert paid is not None
     assert len(paid.tapped) == 4
     assert str(situation.game.tested.mana_pool) == "{}"
+
+
+# ------------------------------------------------------------------ layouts of named sources
+
+LOTUS = "Gilded Lotus"
+CAVES = "Caves of Koilos"
+"""Gilded Lotus makes three mana of any one color, five layouts; Caves of Koilos makes {C}
+through one ability or {W} or {B} through another, two layouts."""
+
+
+def with_lotuses(count: int, *others: str) -> Situation:
+    lotus = next(card for card in recorded_cards() if card.name == LOTUS)
+    builder = a_game().with_card(lotus, read_card(lotus)).with_hand("Llanowar Elves")
+    return builder.with_battlefield(*(LOTUS,) * count, *others).build()
+
+
+def named(*sources: str) -> PayInstructions:
+    return PayInstructions(with_sources=tuple(PayWith(source) for source in sources))
+
+
+# @spec PAY-048
+def test_named_sources_pay_the_best_way_over_the_layouts_tried_not_the_first_that_pays() -> None:
+    situation = with_lotuses(1)
+
+    paid, problems = pay(situation, "{1}", instructions=named(LOTUS))
+
+    assert (paid is not None, problems) == (True, [])
+    assert str(situation.game.tested.mana_pool) == "{G}{G}"
+
+
+# @spec PAY-052
+def test_layouts_are_tried_with_the_last_listed_source_s_choice_changing_first() -> None:
+    first = with_lotuses(3, CAVES)
+    last = with_lotuses(3, CAVES)
+    cost = "{C}" + "{B}" * 9
+
+    paid_first, _ = pay(first, cost, instructions=named(CAVES, LOTUS, LOTUS, LOTUS))
+    paid_last, _ = pay(last, cost, instructions=named(LOTUS, LOTUS, LOTUS, CAVES))
+
+    assert (paid_first is not None, paid_last is not None) == (True, False)
+
+
+# @spec PAY-053
+def test_a_cost_only_a_layout_past_the_64th_would_pay_is_not_payable() -> None:
+    situation = with_lotuses(3)
+
+    paid, problems = pay(situation, "{G}" * 9, instructions=named(LOTUS, LOTUS, LOTUS))
+
+    assert paid is None
+    assert [p.kind for p in problems] == [CheckKind.COST_NOT_PAYABLE]
+
+
+# @spec PAY-048, PAY-053
+def test_a_cost_a_layout_among_the_first_64_pays_is_paid() -> None:
+    situation = with_lotuses(3)
+
+    paid, problems = pay(situation, "{B}" * 9, instructions=named(LOTUS, LOTUS, LOTUS))
+
+    assert (paid is not None, problems) == (True, [])
