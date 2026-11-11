@@ -295,7 +295,7 @@ A notice never changes the game's status and never stops play. Once raised, a no
 end_game(game_id, result, notes?)
 ```
 
-From the tested seat, ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-text verdict. The result is trusted; no condition is required, and the game may be ended whatever it is waiting on. Every pending choice, open window, stack item and declared attack is discarded, and a snapshot is written for the turn in progress if it does not have one (see `records`). After this the status is `ended` and only `get_state`, `get_log` and `wait` are accepted.
+From the tested seat, ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-text verdict. The result is trusted; no condition is required, and the game may be ended whatever it is waiting on. Every pending choice, open window, stack item and declared attack is discarded, and a snapshot is written for the turn in progress if it does not have one; in a contested game the call's log entry also records every seat's state as the game ended (see `records`). After this the status is `ended` and only `get_state`, `get_log` and `wait` are accepted.
 
 From an opposing seat, `end_game` concedes: the seat is eliminated, its `notes` are recorded, and the game goes on. A concession is accepted at any moment, like the tested seat's `end_game`: during mulligans, out of turn, and while the game waits on the conceding seat.
 

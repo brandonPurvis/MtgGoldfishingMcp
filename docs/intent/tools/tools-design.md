@@ -73,6 +73,11 @@ Two more serve an agent that is unsure or waiting:
 - `get_state`: `card`, a card name or instance id or a list of them, gives those cards' rules text in place of the listing, for cards the calling seat may see; it is not given with `detail`.
 - `wait`: an answer that says the seat is still waiting means only that the seat to act has not yet acted, and the calling seat calls `wait` again.
 
+Two serve whoever reads the records (see `records`):
+
+- `get_log`: `tools`, a list of tool names, keeps only the log entries and call records of those tools, leaving snapshots as they are; its `Contested games:` part describes `seat`, which keeps only the entries and call records of calls that seat made and the snapshots of its turns.
+- `end_game`: its `Contested games:` part says that when the tested seat ends the game, the log records every seat's life, commander damage taken, hand, battlefield and graveyard as the game ended, so a verdict spends its words on judgement rather than restating the board.
+
 ### Server instructions
 
 The MCP server's instructions field carries a short guide to playing a game, so an agent connecting cold knows the order of things:

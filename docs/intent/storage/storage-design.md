@@ -64,6 +64,8 @@ The migrations, by the version they reach:
 
 No migration changes a game's version counter: a migrated game is the same game.
 
+Every seat's state at the end of a contested game (see `records`) needs no migration. It is part of a log entry's `outcome`, which is stored as JSON as built: an `end_game` entry stored before it holds none and is not rewritten, and the ended game's stored document still holds the state it ended in.
+
 Cast triggers (see `stack` and `records`) need no migration. A stack item stored before them holds no `cast_with` and is read as no cast trigger, and a log entry stored before them holds no `cast_triggers` and is read as stating none; neither is rewritten, and the schema version does not change.
 
 The change number since which a contested game's seats to act have been asked (see `game`) needs no migration either. A game document stored before it holds none and is read as holding none, which shows no time beside the seat to act until the game's next change sets one.
