@@ -101,7 +101,15 @@ def put_back(game: Game, cards: Sequence[CardInstance], destination: Destination
     ordered = list(reversed(cards)) if destination is Destination.LIBRARY_TOP else list(cards)
     for card in ordered:
         game.put(card, destination)
-    return [CardMoved(card.name, Zone.LIBRARY.value, destination.value) for card in cards]
+    return [
+        CardMoved(
+            card.name,
+            Zone.LIBRARY.value,
+            destination.value,
+            owner=card.owner if game.contested else None,
+        )
+        for card in cards
+    ]
 
 
 def _through_ask(game: Game, found: object) -> object:

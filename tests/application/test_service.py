@@ -11,7 +11,7 @@ import pytest
 from mtg_goldfishing.adapters.memory import FixedClock, FixedIdSource
 from mtg_goldfishing.adapters.memory.cards import InMemoryCardCatalog
 from mtg_goldfishing.adapters.sqlite import SqliteStores
-from mtg_goldfishing.adapters.system import InProcessGameLocks
+from mtg_goldfishing.adapters.system import InProcessGameChanges, InProcessGameLocks
 from mtg_goldfishing.application import ports
 from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.application.service import Service
@@ -33,6 +33,7 @@ TOOLS = (
     "choose",
     "attack",
     "advance",
+    "wait",
     "end_game",
     "get_log",
 )
@@ -46,6 +47,7 @@ PORTS = {
     "ids": "IdSource",
     "clock": "Clock",
     "renderer": "Renderer",
+    "changes": "GameChanges",
 }
 
 
@@ -86,6 +88,7 @@ def sqlite_service(tmp_path: Path) -> Iterator[tuple[Service, SqliteStores]]:
                 ids=FixedIdSource(game_ids=["sqlite0001"], seeds=[31337]),
                 clock=FixedClock(),
                 renderer=PlainRenderer(),
+                changes=InProcessGameChanges(),
             ),
             stores,
         )

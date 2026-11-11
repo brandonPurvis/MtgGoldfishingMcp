@@ -29,14 +29,16 @@ def _opponents(arguments: Mapping[str, object]) -> list[str] | Error:
     return malformed("opponents")
 
 
-# @spec GAME-004, GAME-006, APP-017, APP-061, APP-087
+# @spec GAME-004, GAME-006, APP-017, APP-061, APP-087, REC-059, REC-060
 def new_game(ports: Ports, arguments: Mapping[str, object]) -> Answer:
     """Start a game on a loaded deck, against the loaded decks of `opponents` if any.
 
     The id source gives the game id first — `g` and ten characters — then a seed when the
     call gave none, then one seat id per opposing seat in `opponents` order, so the seat ids
     a seat receives do not depend on the turn order the seed draws. The new game, its first
-    log entry and the call record are saved in one unit of work.
+    log entry and the call record are saved in one unit of work. The call record of a
+    contested game keeps the response with every opposing seat's seat id redacted, and
+    names no seat: whoever starts the game is none of them.
     """
     call = Call(ports, TOOL, arguments, None)
     return call.guarded(lambda: _start(call, arguments))
@@ -85,8 +87,10 @@ def _start(call: Call, arguments: Mapping[str, object]) -> Answer:
             after=game,
             summary=applied.summary,
             events=applied.events,
+            seat=None,
         )
         call.game_id = game.game_id
+        call.about(game)
         outcome = Outcome(Status.OK, applied.summary, applied.events, summarize(game, deck, tested))
 
         def write() -> Outcome | None:
@@ -94,6 +98,7 @@ def _start(call: Call, arguments: Mapping[str, object]) -> Answer:
             ports.records.append_entry(game.game_id, entry)
             for snapshot in applied.snapshots:
                 ports.records.add_snapshot(game.game_id, snapshot)
+            call.announcement = (game.game_id, game.change)
             return None
 
         return call.finish(outcome, write)

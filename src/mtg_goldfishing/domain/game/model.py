@@ -218,10 +218,11 @@ class TurnStats:
 
 @dataclass
 class Reminder:
-    """A reminder issued for one permanent this turn.
+    """A reminder issued for one permanent.
 
     `name` is the name of the permanent's face in play when reminded; `card_name` its card
-    name, kept so the reminder can be answered after the permanent has left the battlefield.
+    name, kept so the reminder can be answered after the permanent has left the battlefield;
+    `turn` the table turn it was issued in, within which it may be answered.
     """
 
     instance_id: str
@@ -229,6 +230,7 @@ class Reminder:
     step: Step
     answered: bool = False
     card_name: str = ""
+    turn: int = 0
 
 
 @dataclass
@@ -262,6 +264,7 @@ class Seat:
     tested: bool
     shuffle_key: str = ""
     life: int = STARTING_LIFE
+    starting_life: int = STARTING_LIFE
     eliminated: bool = False
     kept: bool = False
     mulligans: int = 0
@@ -277,6 +280,8 @@ class Seat:
     library: list[str] = field(default_factory=list)
     last_change: LastChange | None = None
     reminders: list[Reminder] = field(default_factory=list)
+    notices: list[NoticeKind] = field(default_factory=list)
+    """The notices that are this seat's own: in a contested game, its empty library notice."""
 
     def commander_tax(self, commander: CardInstance) -> int:
         return COMMANDER_TAX * self.commander_casts.get(commander.id, 0)

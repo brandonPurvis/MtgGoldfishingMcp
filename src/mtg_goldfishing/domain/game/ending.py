@@ -11,6 +11,7 @@ from mtg_goldfishing.domain.game.mulligan import start_first_turn
 from mtg_goldfishing.domain.game.results import Applied, Refusal
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.play.settling import settle
+from mtg_goldfishing.domain.records.model import TurnSnapshot
 from mtg_goldfishing.domain.records.snapshots import take_snapshot
 
 
@@ -24,6 +25,7 @@ def _concede(game: Game, decks: Decks, seat: SeatNumber, notes: str) -> Applied:
     conceded = game.copy()
     (summary, *events) = eliminate(conceded, seat, EliminationCause.CONCEDE, notes)
     reported: list[Event] = list(events)
+    snapshots: tuple[TurnSnapshot, ...] = ()
     if conceded.status is GameStatus.MULLIGAN:
         if all(other.kept for other in conceded.seats if other.in_game):
             walk = start_first_turn(conceded, decks)
@@ -33,10 +35,11 @@ def _concede(game: Game, decks: Decks, seat: SeatNumber, notes: str) -> Applied:
         if walk.entered:
             reported.append(walk.summary)
         reported.extend(walk.events)
-    return Applied(conceded, summary, tuple(reported))
+        snapshots = tuple(walk.snapshots)
+    return Applied(conceded, summary, tuple(reported), snapshots)
 
 
-# @spec GAME-045, GAME-046, GAME-047, REC-012, REC-070, APP-031, GAME-148, GAME-149
+# @spec GAME-045, GAME-046, GAME-047, REC-012, REC-070, APP-031, GAME-148, GAME-149, REC-050
 def end_game(
     game: Game,
     deck: LoadedDeck,

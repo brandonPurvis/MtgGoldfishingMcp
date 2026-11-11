@@ -18,10 +18,11 @@ from mtg_goldfishing.adapters.memory import (
     InMemoryRecordStore,
     InMemoryStores,
 )
-from mtg_goldfishing.adapters.system import InProcessGameLocks
+from mtg_goldfishing.adapters.system import InProcessGameChanges, InProcessGameLocks
 from mtg_goldfishing.application.outcome import Answer
 from mtg_goldfishing.application.ports import (
     CardCatalog,
+    GameChanges,
     GameLocks,
     GameRecords,
     GameRepository,
@@ -51,6 +52,7 @@ class ServiceHarness:
     locks: GameLocks
     ids: FixedIdSource
     clock: FixedClock
+    changes: GameChanges
 
     def holding(self, situation: Situation, game_id: str = GAME_ID) -> str:
         """Store a built game and its deck, as if the game had been started earlier.
@@ -131,6 +133,7 @@ def a_service(
     games: Callable[[InMemoryGameRepository], GameRepository] | None = None,
     records: Callable[[InMemoryRecordStore], RecordStore] | None = None,
     locks: GameLocks | None = None,
+    changes: GameChanges | None = None,
     renderer: Renderer | None = None,
     cards: Iterable[Card] | None = None,
     unavailable: Iterable[str] = (),
@@ -140,11 +143,13 @@ def a_service(
     """A service over in-memory adapters.
 
     `games` and `records` wrap the in-memory stores, for tests that need a store to
-    misbehave; the unit of work still spans the stores underneath.
+    misbehave; the unit of work still spans the stores underneath. Waiting seats are woken
+    by the in-process game changes unless `changes` is given.
     """
     stores = InMemoryStores()
     catalog = InMemoryCardCatalog(recorded_cards() if cards is None else cards, unavailable)
     held = locks or InProcessGameLocks()
+    announced = changes or InProcessGameChanges()
     ids = FixedIdSource(game_ids=game_ids, seeds=seeds)
     clock = FixedClock()
     service = Service(
@@ -157,5 +162,6 @@ def a_service(
         ids=ids,
         clock=clock,
         renderer=renderer or PlainRenderer(),
+        changes=announced,
     )
-    return ServiceHarness(service, stores, catalog, held, ids, clock)
+    return ServiceHarness(service, stores, catalog, held, ids, clock, announced)

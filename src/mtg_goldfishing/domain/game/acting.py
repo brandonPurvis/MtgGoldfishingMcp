@@ -6,7 +6,16 @@ the game's status alone. In a contested game one rule answers whose call it is.
 
 from __future__ import annotations
 
-from mtg_goldfishing.domain.events import Asked, AskedKind, Error, ErrorKind
+from mtg_goldfishing.domain.events import (
+    Asked,
+    AskedKind,
+    Error,
+    ErrorKind,
+    GameHasEnded,
+    SeatOut,
+    SeatToAct,
+    StillWaiting,
+)
 from mtg_goldfishing.domain.game.calls import check_accepted
 from mtg_goldfishing.domain.game.model import Game, GameStatus
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -74,3 +83,25 @@ def may_call(game: Game, seat: SeatNumber, tool: str) -> Error | None:
     if tool not in ANSWERS[asked.kind]:
         return Error(ErrorKind.NOT_ACCEPTED_NOW, subject=tool, asked=asked)
     return None
+
+
+# @spec APP-063, APP-064, APP-067, APP-074, APP-088, APP-089, GAME-114
+def what_ends_a_wait(game: Game, seat: SeatNumber) -> SeatToAct | SeatOut | GameHasEnded | None:
+    """Why a seat's `wait` returns now, or None while it goes on waiting: the game has
+    ended, whatever the seat's state; the seat is eliminated; or it is a seat to act, with
+    what it is asked. A goldfish game's only seat is always the seat to act."""
+    if game.status is GameStatus.ENDED:
+        return GameHasEnded()
+    if game.seat(seat).eliminated:
+        return SeatOut(seat)
+    asked = seats_to_act(game)
+    if asked is None or seat not in asked.seats:
+        return None
+    return SeatToAct(Asked((seat,), asked.kind, asked.choice))
+
+
+# @spec APP-066
+def still_waiting(game: Game) -> StillWaiting:
+    """A `wait` that timed out: the seats the game is waiting on, every seat still to keep
+    during mulligans, and what they are asked."""
+    return StillWaiting(seats_to_act(game))

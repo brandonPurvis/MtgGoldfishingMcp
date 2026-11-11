@@ -137,7 +137,14 @@ def new_game(
         draw_first_turn=draw_first_turn if isinstance(draw_first_turn, bool) else True,
     )
     if not opposing:
-        tested = Seat(TESTED_SEAT, SeatId(game_id), deck.deck_id, tested=True, life=lives[0])
+        tested = Seat(
+            TESTED_SEAT,
+            SeatId(game_id),
+            deck.deck_id,
+            tested=True,
+            life=lives[0],
+            starting_life=lives[0],
+        )
         seat_up(game, deck, tested)
         game.imaginary = ImaginaryOpponents(
             commander_damage={c.id: [0] * OPPONENTS for c in game.commanders_of(TESTED_SEAT)}
@@ -149,7 +156,15 @@ def new_game(
     ordered = turn_order(keys[0], keys[1:], seed, place)
     for (seat_deck, seat_id, key), life in zip(asked_for, lives, strict=True):
         number = SeatNumber(ordered.index(key) + 1)
-        seat = Seat(number, seat_id, seat_deck.deck_id, tested=not key, shuffle_key=key, life=life)
+        seat = Seat(
+            number,
+            seat_id,
+            seat_deck.deck_id,
+            tested=not key,
+            shuffle_key=key,
+            life=life,
+            starting_life=life,
+        )
         seat_up(game, seat_deck, seat)
     game.seats.sort(key=lambda seat: seat.number)
     started = tuple(

@@ -16,6 +16,7 @@ from mtg_goldfishing.application.ports import (
     CardCatalog,
     Clock,
     DeckRepository,
+    GameChanges,
     GameLocks,
     GameRepository,
     IdSource,
@@ -36,6 +37,7 @@ from mtg_goldfishing.application.use_cases import (
     mulligan,
     new_game,
     play,
+    wait,
 )
 from mtg_goldfishing.application.use_cases.handling import Ports
 
@@ -58,6 +60,7 @@ class Service:
         ids: IdSource,
         clock: Clock,
         renderer: Renderer,
+        changes: GameChanges,
     ) -> None:
         self._ports = Ports(
             games=games,
@@ -69,6 +72,7 @@ class Service:
             ids=ids,
             clock=clock,
             renderer=renderer,
+            changes=changes,
         )
 
     def load_deck(self, arguments: Arguments) -> Answer:
@@ -108,6 +112,10 @@ class Service:
     def advance(self, arguments: Arguments) -> Answer:
         """`game_id, to?, discard?, override?, after?`"""
         return advance.advance(self._ports, arguments)
+
+    def wait(self, arguments: Arguments) -> Answer:
+        """`game_id, timeout?`"""
+        return wait.wait(self._ports, arguments)
 
     def end_game(self, arguments: Arguments) -> Answer:
         """`game_id, result, notes?, after?`"""

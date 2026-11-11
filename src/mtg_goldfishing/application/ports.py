@@ -87,8 +87,13 @@ class DeckRepository(ABC):
         ...
 
 
+# @spec APP-046, APP-092
 class RecordStore(ABC):
-    """Keeps a game's log entries, turn snapshots and call records."""
+    """Keeps a game's log entries, turn snapshots and call records.
+
+    A game has at most one snapshot per table turn: adding a second is a defect, and raises
+    with the stored snapshot left as it was.
+    """
 
     @abstractmethod
     def append_entry(self, game_id: str, entry: LogEntry) -> None: ...
@@ -102,6 +107,12 @@ class RecordStore(ABC):
     @abstractmethod
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         """Entries with seq > since, calls with change > since, snapshots written after since."""
+        ...
+
+    @abstractmethod
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        """A seat's digest baseline: the change number on its latest call record for a tool
+        other than `get_log`, or None when it has no such call record."""
         ...
 
 
@@ -146,6 +157,23 @@ class GameLocks(ABC):
 
     @abstractmethod
     def hold(self, game_id: str) -> AbstractContextManager[None]: ...
+
+
+# @spec APP-041
+class GameChanges(ABC):
+    """Wakes seats waiting on a game: an applied change is announced once committed, and a
+    wait returns when a change after the one it saw is announced, or when its time is up."""
+
+    @abstractmethod
+    def announce(self, game_id: str, change: int) -> None:
+        """Announce that a game has changed, to the change number given."""
+        ...
+
+    @abstractmethod
+    def wait_for_change(self, game_id: str, after: int, timeout: float) -> bool:
+        """Wait up to `timeout` seconds for a change of the game numbered after `after`;
+        True as soon as one has been announced, at once if one already has, else False."""
+        ...
 
 
 # @spec APP-047

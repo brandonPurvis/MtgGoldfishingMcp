@@ -37,7 +37,7 @@ def _take_mulligan(game: Game, seat: SeatNumber) -> Applied:
     draw(game, seat, OPENING_HAND)
     taking.mulligans += 1
     hand = tuple(c.name for c in game.hand_of(seat))
-    return Applied(game, MulliganTaken(taking.mulligans, hand))
+    return Applied(game, MulliganTaken(taking.mulligans, hand, seat if game.contested else None))
 
 
 def start_first_turn(game: Game, decks: Decks) -> Walk:
@@ -93,7 +93,9 @@ def mulligan(
         changed.put(card, Destination.LIBRARY_BOTTOM)
     keeping.kept = True
     summary = HandKept(
-        tuple(c.name for c in found[0]), tuple(c.name for c in changed.hand_of(seat))
+        tuple(c.name for c in found[0]),
+        tuple(c.name for c in changed.hand_of(seat)),
+        seat if changed.contested else None,
     )
     if not all(other.kept for other in changed.seats if other.in_game):
         return Applied(changed, summary, (judged,) if judged is not None else ())

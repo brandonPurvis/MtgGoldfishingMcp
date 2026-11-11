@@ -5,15 +5,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.summary import summarize
 from mtg_goldfishing.domain.play.playing import effect
 from tests.support.acting import S1, S2, S3, acted
 from tests.support.builders import Situation, a_game
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 
 
 def three_seats_with_empty_libraries() -> Situation:
@@ -29,7 +25,6 @@ def drew(situation: Situation, seat: SeatNumber) -> list[Any]:
 
 
 # @spec GAME-145
-@NOT_BUILT
 def test_a_seat_drawing_from_an_empty_library_raises_its_own_notice_naming_it() -> None:
     situation = three_seats_with_empty_libraries()
     (notice,) = drew(situation, S2)
@@ -37,7 +32,6 @@ def test_a_seat_drawing_from_an_empty_library_raises_its_own_notice_naming_it() 
 
 
 # @spec GAME-145
-@NOT_BUILT
 def test_a_second_seat_s_empty_library_raises_its_own_notice_beside_the_first() -> None:
     situation = three_seats_with_empty_libraries()
     drew(situation, S2)
@@ -53,7 +47,6 @@ def test_a_seat_s_empty_library_notice_is_raised_once_however_often_it_draws_sho
 
 
 # @spec GAME-145, GAME-043
-@NOT_BUILT
 def test_every_seat_is_shown_each_seat_s_empty_library_notice() -> None:
     situation = three_seats_with_empty_libraries()
     drew(situation, S2)

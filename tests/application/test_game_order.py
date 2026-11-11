@@ -19,7 +19,7 @@ from mtg_goldfishing.application.ports import (
     StoredGame,
 )
 from mtg_goldfishing.domain.game.model import Game
-from mtg_goldfishing.domain.game.seats import SeatId
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from tests.support.builders import a_game
 from tests.support.service import GAME_ID, a_service
@@ -100,6 +100,9 @@ class JournaledRecords(RecordStore):
 
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
+
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
 
 
 class SlowToLoad(GameRepository):

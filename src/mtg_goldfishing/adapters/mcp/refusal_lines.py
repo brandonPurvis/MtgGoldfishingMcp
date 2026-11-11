@@ -46,7 +46,7 @@ def asked_to(asked: Asked, *, yourself: bool) -> str:
             assert_never(asked.kind)
 
 
-def _seats(asked: Asked) -> str:
+def seats_asked(asked: Asked) -> str:
     """The seats to act by seat number, with the verb: `S3 is`, `S2 and S3 are`."""
     named = [str(seat) for seat in asked.seats]
     if len(named) == 1:
@@ -67,7 +67,8 @@ def _not_your_call(asked: Asked | None) -> str:
     if asked is None or not asked.seats:
         return "Not your seat's call: the game is waiting on no seat."
     return (
-        f"Not your seat's call: {_seats(asked)} asked to {asked_to(asked, yourself=False)}."
+        f"Not your seat's call: {seats_asked(asked)} asked to"
+        f" {asked_to(asked, yourself=False)}."
         " Call wait to be told when it is yours."
     )
 
@@ -290,6 +291,8 @@ def _error_text(error: Error) -> str:
             return f"There is a definition for {subject}, which is not in the deck."
         case ErrorKind.DEFINITION_NEEDS_TYPE_LINE:
             return f"{subject} was not found, so its definition needs a type_line."
+        case ErrorKind.BAD_TIMEOUT:
+            return "timeout must be a number of seconds from 1 to 60."
         case ErrorKind.CHANGED_UNDERNEATH:
             return "The game changed while this call was applied, so nothing was. Send it again."
         case ErrorKind.INTERNAL_FAILURE:

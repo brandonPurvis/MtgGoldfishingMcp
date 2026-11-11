@@ -40,7 +40,7 @@ def check_accepted(game: Game, tool: str) -> Error | None:
     )
 
 
-# @spec GAME-036, GAME-054
+# @spec GAME-036, GAME-054, GAME-126
 def resend_of(
     game: Game,
     seat: SeatNumber,
@@ -62,11 +62,11 @@ def resend_of(
         and last.tool == tool
         and last.arguments == arguments_without_after(arguments)
     ):
-        return Resent(game, last.summary, (*last.events, AlreadyApplied(game.change)))
+        return Resent(game, last.summary, (*last.events, AlreadyApplied(last.change)))
     return None
 
 
-# @spec GAME-035, GAME-036, GAME-037
+# @spec GAME-035, GAME-036, GAME-037, GAME-127
 def follow_change(
     game: Game,
     seat: SeatNumber,

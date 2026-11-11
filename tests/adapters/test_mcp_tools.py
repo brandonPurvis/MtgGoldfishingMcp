@@ -19,6 +19,7 @@ TOOLS = (
     "choose",
     "attack",
     "advance",
+    "wait",
     "end_game",
     "get_log",
 )
@@ -44,7 +45,7 @@ def _parameters(surface: ToolSurface, tool: str) -> list[str]:
 
 
 # @spec TOOL-007
-def test_the_surface_offers_exactly_the_eleven_tools() -> None:
+def test_the_surface_offers_exactly_the_twelve_tools() -> None:
     surface, _ = _surface()
 
     assert sorted(surface.names) == sorted(TOOLS)

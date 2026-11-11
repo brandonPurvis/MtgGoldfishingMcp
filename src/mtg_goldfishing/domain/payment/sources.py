@@ -104,7 +104,7 @@ def _devotion(game: Game, deck: LoadedDeck, seat: SeatNumber, colors: tuple[str,
     return total
 
 
-# @spec PAY-011
+# @spec PAY-011, PAY-051
 def count(game: Game, deck: LoadedDeck, source: CardInstance, per: Count) -> int:
     """Evaluate a counted amount from the game's state now, as seen by the source's
     controller: its permanents, its devotion, its hand, its graveyard."""
@@ -226,7 +226,7 @@ def most_of_color(sources: Iterable[Source], color: str) -> int:
     )
 
 
-# @spec PAY-012, PAY-013, PAY-014, PAY-041, PAY-045, PAY-046
+# @spec PAY-012, PAY-013, PAY-014, PAY-041, PAY-045, PAY-046, PAY-050
 def available_sources(
     game: Game,
     deck: LoadedDeck,

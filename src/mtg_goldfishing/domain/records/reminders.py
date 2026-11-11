@@ -37,12 +37,20 @@ def _effect_source(entry: LogEntry) -> str | None:
     return source if isinstance(source, str) else entry.card
 
 
+def _in_its_turn(entry: LogEntry, reminder: ReminderRecord) -> bool:
+    """Whether a later entry is within the reminder's turn and from the seat reminded: in a
+    goldfish game the same turn; in a contested game the same table turn and seat."""
+    if entry.contested is None:
+        return entry.turn == reminder.turn
+    return entry.contested.table_turn == reminder.turn and entry.contested.seat == reminder.seat
+
+
 def _answers(entry: LogEntry, issued_by: LogEntry, reminder: ReminderRecord) -> bool:
     source = _effect_source(entry)
     return (
         source is not None
         and entry.seq > issued_by.seq
-        and entry.turn == reminder.turn
+        and _in_its_turn(entry, reminder)
         and names_reminded_permanent(
             source,
             card_name=reminder.card_name,
@@ -52,12 +60,13 @@ def _answers(entry: LogEntry, issued_by: LogEntry, reminder: ReminderRecord) -> 
     )
 
 
-# @spec REC-009, REC-010
+# @spec REC-009, REC-010, REC-043
 def judge_reminders(entries: Sequence[LogEntry]) -> list[JudgedReminder]:
     """Every reminder recorded in the entries, in order, judged answered or unanswered.
 
     A reminder is answered when a later accepted `effect` in the same turn names the
-    reminded permanent as its source. One such effect answers every reminder it names.
+    reminded permanent as its source; in a contested game the effect is the reminded
+    seat's, in the same table turn. One such effect answers every reminder it names.
     """
     return [
         JudgedReminder(

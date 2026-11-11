@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
 from tests.support.builders import a_game
 from tests.support.service import ServiceHarness, a_service
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 
 
 def _surface() -> tuple[ToolSurface, ServiceHarness]:
@@ -18,7 +14,6 @@ def _surface() -> tuple[ToolSurface, ServiceHarness]:
 
 
 # @spec APP-072
-@NOT_BUILT
 def test_wait_takes_the_seat_s_id_first_and_an_optional_timeout() -> None:
     surface, _ = _surface()
     parameters = surface.definition("wait").parameters
@@ -26,7 +21,6 @@ def test_wait_takes_the_seat_s_id_first_and_an_optional_timeout() -> None:
 
 
 # @spec APP-090
-@NOT_BUILT
 def test_wait_declares_its_timeout_as_any_json_number() -> None:
     surface, _ = _surface()
     schema = surface.definition("wait").input_schema
@@ -34,7 +28,6 @@ def test_wait_declares_its_timeout_as_any_json_number() -> None:
 
 
 # @spec APP-090
-@NOT_BUILT
 def test_a_wait_whose_timeout_is_not_a_number_is_a_malformed_argument() -> None:
     surface, harness = _surface()
     game_id = harness.holding(a_game().build())
@@ -46,7 +39,6 @@ def test_a_wait_whose_timeout_is_not_a_number_is_a_malformed_argument() -> None:
 
 
 # @spec APP-090, APP-074
-@NOT_BUILT
 def test_a_goldfish_wait_with_a_fractional_timeout_answers_at_once() -> None:
     surface, harness = _surface()
     game_id = harness.holding(a_game().build())

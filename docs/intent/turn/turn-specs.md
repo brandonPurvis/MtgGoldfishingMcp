@@ -42,7 +42,7 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-010**: If `advance` is called with `to` naming an unknown step, in a goldfish game or a contested game, then `advance` shall return an error and the game shall not move.
 - [x] **TURN-043**: If a seat of a contested game that is not the active seat calls `advance`, then `advance` shall return an error and the game shall not move.
 - [x] **TURN-044**: If the active seat of a contested game calls `advance` while it is not the seat to act, because a pending choice or another seat's reminder is waiting on another seat, then `advance` shall return an error and the game shall not move.
-- [ ] **TURN-046**: When an `advance` stops short of its target, in a goldfish game or a contested game, the outcome shall be `OK`, say why it stopped, and say what to send next with the change number to pass as `after`.
+- [x] **TURN-046**: When an `advance` stops short of its target, in a goldfish game or a contested game, the outcome shall be `OK`, say why it stopped, and say what to send next with the change number to pass as `after`.
 
 ## Stopping for reminders
 

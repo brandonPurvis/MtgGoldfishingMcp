@@ -3,7 +3,9 @@
 A call about an existing game holds the game's lock, loads the game and every seat's deck,
 and hands them to the tool's own step, acting as the seat the call's id names. Whatever
 that step decides, the call ends in `Call.finish`: the call's saves, if any, and its call
-record go into one unit of work, holding the text `Renderer` produced for the outcome. A
+record go into one unit of work, holding the text `Renderer` produced for the outcome. In a
+contested game every answer but `get_log`'s carries the calling seat's digest, and no
+record keeps an opposing seat's seat id. An applied change is announced once committed. A
 call that fails unexpectedly is answered as a failure inside the service, still with its
 call record when that can be added.
 """
@@ -15,11 +17,12 @@ import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 
-from mtg_goldfishing.application.outcome import Answer, Outcome, Status
+from mtg_goldfishing.application.outcome import Answer, DigestElement, Outcome, Status
 from mtg_goldfishing.application.ports import (
     CardCatalog,
     Clock,
     DeckRepository,
+    GameChanges,
     GameLocks,
     GameRepository,
     IdSource,
@@ -45,7 +48,12 @@ from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.game.seeing import as_seen_by
 from mtg_goldfishing.domain.game.summary import GameSummary, summarize
 from mtg_goldfishing.domain.records.log import log_entry
-from mtg_goldfishing.domain.records.model import CallRecord
+from mtg_goldfishing.domain.records.model import CallRecord, ContestedEntry, LogEntry
+from mtg_goldfishing.domain.records.redaction import (
+    opposing_seat_ids,
+    redacted,
+    stored_arguments,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -63,6 +71,7 @@ class Ports:
     ids: IdSource
     clock: Clock
     renderer: Renderer
+    changes: GameChanges
 
 
 Write = Callable[[], Outcome | None]
@@ -116,13 +125,23 @@ class Call:
         """The game as loaded, for an answer that must be given without the call's result."""
         self.seat: SeatNumber | None = None
         """The calling seat, once its contested game is found; a goldfish game names none."""
+        self.seat_ids: tuple[str, ...] = ()
+        """The opposing seats' seat ids of the call's game, which its records may not keep."""
+        self.announcement: tuple[str, int] | None = None
+        """The game and change number an applied change saved, to announce once committed."""
 
-    # @spec APP-010, APP-019, APP-026, APP-034
+    def about(self, game: Game) -> None:
+        """The call concerns this game: its records keep none of its opposing seat ids."""
+        self.seat_ids = opposing_seat_ids(game) if game.contested else ()
+
+    # @spec APP-010, APP-019, APP-026, APP-034, APP-058, APP-059, APP-060, APP-084
     def finish(self, outcome: Outcome, write: Write | None = None) -> Answer:
         """Save the call's writes and its call record in one unit of work, and answer.
 
-        The outcome holds the calling seat of a contested game. When `write` cannot save,
-        its outcome is answered instead, in a unit of work of its own.
+        The outcome holds the calling seat of a contested game and, but for `get_log`, its
+        digest, assembled before rendering. When `write` cannot save, its outcome is
+        answered instead, in a unit of work of its own. A change `write` saved is announced
+        once the unit of work has committed, and never otherwise.
         """
         if self.seat is not None:
             outcome = replace(outcome, seat=self.seat)
@@ -131,29 +150,44 @@ class Call:
         try:
             instead = write() if write is not None else None
             if instead is None:
+                outcome = self._with_digest(outcome)
                 rendered = self.ports.renderer.render(self.tool, outcome)
                 self.ports.records.add_call(self._record(outcome, rendered.record))
         except BaseException:
+            self.announcement = None
             unit_of_work.rollback()
             raise
         if instead is not None:
+            self.announcement = None
             unit_of_work.rollback()
             return self.finish(instead)
         try:
             unit_of_work.commit()
         except BaseException:
+            self.announcement = None
             unit_of_work.rollback()
             raise
+        if self.announcement is not None:
+            self.ports.changes.announce(*self.announcement)
+            self.announcement = None
         return Answer(outcome, rendered.response)
 
+    # @spec APP-036, APP-037, APP-038, APP-039, APP-040, APP-079, APP-081
+    def _with_digest(self, outcome: Outcome) -> Outcome:
+        """The outcome with the calling seat's digest, in a contested game, but for `get_log`."""
+        if self.seat is None or self.game_id is None or self.tool == GET_LOG:
+            return outcome
+        return replace(outcome, digest=digest(self.ports.records, self.game_id, self.seat))
+
     # @spec APP-020
-    def guarded(self, answer: Callable[[], Answer]) -> Answer:
-        """The answer, or, if anything fails unexpectedly, an internal failure with its record.
+    def guarded[T](self, attempt: Callable[[], T]) -> T | Answer:
+        """The attempt's result, or, if anything fails unexpectedly, an internal failure with
+        its record.
 
         When even that record cannot be added, the internal failure is answered without it.
         """
         try:
-            return answer()
+            return attempt()
         except Exception:
             _log.exception("the %s call failed inside the service", self.tool)
         failure = an_error(Error(ErrorKind.INTERNAL_FAILURE), self.game)
@@ -163,19 +197,54 @@ class Call:
             _log.exception("the %s call's record of its failure could not be added", self.tool)
         return Answer(failure, self.ports.renderer.render(self.tool, failure).response)
 
-    # @spec REC-052
+    # @spec REC-052, REC-053, REC-057, REC-058, REC-059, REC-065
     def _record(self, outcome: Outcome, response: str) -> CallRecord:
+        """The call record, keeping no opposing seat id of the call's game: a `game_id` that
+        names one is kept as the game id, and any other occurrence is redacted."""
+        arguments = copy.deepcopy(dict(self.arguments))
         return CallRecord(
             time=self.time,
             game_id=self.game_id,
             tool=self.tool,
-            arguments=copy.deepcopy(dict(self.arguments)),
+            arguments=stored_arguments(arguments, self.game_id or "", self.seat_ids),
             status=outcome.status.value,
-            response=response,
+            response=redacted(response, self.seat_ids),
             is_override=carries_override(self.arguments),
             change=None if outcome.game is None else outcome.game.change,
             seat=self.seat,
         )
+
+
+# ---------------------------------------------------------------------------------- digests
+
+GET_LOG = "get_log"
+"""The one call given no digest: its JSON is for a program, and it does not move a baseline."""
+
+
+def _as_stored_for(made: ContestedEntry, seat: SeatNumber) -> tuple[Event, ...]:
+    """An entry's events as the seat may see them, taken as stored: its own list in
+    `private` when it has one, the `public` list otherwise."""
+    return next((shown.events for shown in made.private if shown.seat == seat), made.public)
+
+
+def _made_by_another(entry: LogEntry, seat: SeatNumber) -> ContestedEntry | None:
+    made = entry.contested
+    if made is None or made.seat is None or made.seat == seat:
+        return None
+    return made
+
+
+def digest(records: RecordStore, game_id: str, seat: SeatNumber) -> tuple[DigestElement, ...]:
+    """The changes other seats made since the seat's digest baseline, oldest first: every
+    change since the game began when it has none. The entry of `new_game`, made by no seat,
+    and the seat's own entries are in no digest."""
+    baseline = records.digest_baseline(game_id, seat)
+    elements: list[DigestElement] = []
+    for entry in records.read(game_id, since=baseline).entries:
+        made = _made_by_another(entry, seat)
+        if made is not None and made.seat is not None:
+            elements.append(DigestElement(made.seat, entry.seq, _as_stored_for(made, seat)))
+    return tuple(elements)
 
 
 # -------------------------------------------------------------------------- calls about a game
@@ -239,14 +308,21 @@ def answer_about_game(
 
 
 def _respond_about(call: Call, found: SeatOfGame, respond: Respond) -> Answer:
+    return respond(call, load(call, found))
+
+
+def load(call: Call, found: SeatOfGame) -> Loaded:
+    """Load the game a seat of which the call's id names, with every seat's deck, as the
+    call's game; in a contested game the call is that seat's."""
     stored = call.ports.games.get(found.game_id)
     if stored is None:
         raise LookupError(f"a seat of game {found.game_id} is known, but the game is not kept")
     if stored.game.contested:
         call.seat = found.seat
+    call.about(stored.game)
     decks = decks_of(call.ports.decks, stored.game)
     call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
-    return respond(call, Loaded(stored, decks, found.seat, call.game))
+    return Loaded(stored, decks, found.seat, call.game)
 
 
 def decks_of(repository: DeckRepository, game: Game) -> Decks:
@@ -321,6 +397,7 @@ def change_game(
     return answer_about_game(ports, tool, arguments, respond)
 
 
+# @spec APP-082, APP-083
 def _answer_resend(call: Call, loaded: Loaded, resent: Resent) -> Answer:
     """The original report again, as the calling seat may see it, with nothing saved but
     the call record."""
@@ -346,6 +423,7 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
         after=changed,
         summary=applied.summary,
         events=applied.events,
+        seat=loaded.seat,
     )
     summary, events = _seen(loaded.seat, applied.summary, applied.events)
     outcome = Outcome(
@@ -361,6 +439,7 @@ def _save_change(call: Call, loaded: Loaded, applied: Applied) -> Answer:
         call.ports.records.append_entry(changed.game_id, entry)
         for snapshot in applied.snapshots:
             call.ports.records.add_snapshot(changed.game_id, snapshot)
+        call.announcement = (changed.game_id, changed.change)
         return None
 
     return call.finish(outcome, write)

@@ -6,8 +6,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application import outcome as outcomes
 from mtg_goldfishing.application.outcome import Outcome, Status
@@ -31,7 +29,6 @@ from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.summary import summarize
 from tests.support.builders import a_game
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 RENDERER = TextRenderer()
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
 
@@ -69,7 +66,6 @@ def event(name: str, *fields: object) -> Any:
 
 
 # @spec TOOL-035
-@NOT_BUILT
 def test_a_contested_response_begins_with_a_digest_line_per_change_oldest_first() -> None:
     lines = response(
         element(S1, 4, EffectRecorded("Phyrexian Arena")),
@@ -80,7 +76,6 @@ def test_a_contested_response_begins_with_a_digest_line_per_change_oldest_first(
 
 
 # @spec TOOL-036
-@NOT_BUILT
 def test_everything_one_change_caused_is_on_its_one_line_separated_by_semicolons() -> None:
     lines = response(element(S1, 4, EffectRecorded("Phyrexian Arena"), LifeChanged(1, 41, S1)))
     digest = [line for line in lines if line.startswith("S1 #4: ")]
@@ -90,7 +85,6 @@ def test_everything_one_change_caused_is_on_its_one_line_separated_by_semicolons
 
 
 # @spec TOOL-057
-@NOT_BUILT
 def test_a_digest_line_names_the_reading_seat_by_its_number_and_never_as_you() -> None:
     lines = response(element(S2, 6, CardsDrawn(("Forest",), S3)), seat=S3)
     assert "S3 drew Forest" in lines[0]
@@ -98,14 +92,12 @@ def test_a_digest_line_names_the_reading_seat_by_its_number_and_never_as_you() -
 
 
 # @spec TOOL-037
-@NOT_BUILT
 def test_a_digest_line_shows_another_seat_s_draw_as_a_count_and_names_no_card() -> None:
     lines = response(element(S2, 6, HiddenCardsDrawn(S2, 2)))
     assert "S2 drew 2 cards" in lines[0]
 
 
 # @spec TOOL-064
-@NOT_BUILT
 def test_a_digest_line_shows_a_mulligan_taken_and_a_hand_kept_by_their_counts() -> None:
     lines = response(
         element(S2, 2, event("HiddenMulliganTaken", S2, 2)),
@@ -116,14 +108,12 @@ def test_a_digest_line_shows_a_mulligan_taken_and_a_hand_kept_by_their_counts() 
 
 
 # @spec TOOL-065
-@NOT_BUILT
 def test_a_digest_line_shows_a_look_at_a_hand_by_who_looks_and_whose_hand() -> None:
     lines = response(element(S3, 7, ChoiceRevealedTo("hand", S3, S1)))
     assert lines[0] == "S3 #7: S3 looks at S1's hand (CHOICE hand)"
 
 
 # @spec TOOL-038
-@NOT_BUILT
 def test_a_contested_response_with_an_empty_digest_has_no_digest_lines() -> None:
     assert response()[0].startswith("OK ")
 
@@ -152,7 +142,6 @@ def test_a_goldfish_response_has_no_digest_line_no_stack_and_no_act() -> None:
 
 
 # @spec TOOL-063, APP-066
-@NOT_BUILT
 def test_a_wait_that_timed_out_says_who_is_still_asked_and_what() -> None:
     timed_out = event("StillWaiting", Asked((S1,), AskedKind.TURN))
     lines = response(summary=timed_out, seat=S2)
@@ -160,7 +149,6 @@ def test_a_wait_that_timed_out_says_who_is_still_asked_and_what() -> None:
 
 
 # @spec TOOL-063, APP-066
-@NOT_BUILT
 def test_a_wait_that_timed_out_during_mulligans_names_every_seat_still_to_keep() -> None:
     timed_out = event("StillWaiting", Asked((S1, S3), AskedKind.KEEP))
     lines = response(summary=timed_out, seat=S2)
@@ -168,7 +156,6 @@ def test_a_wait_that_timed_out_during_mulligans_names_every_seat_still_to_keep()
 
 
 # @spec APP-063
-@NOT_BUILT
 def test_a_wait_answered_to_the_seat_to_act_says_once_what_it_is_asked() -> None:
     builder: Any = a_game().and_an_opposing_seat()
     situation = builder.build()
@@ -180,7 +167,6 @@ def test_a_wait_answered_to_the_seat_to_act_says_once_what_it_is_asked() -> None
 
 
 # @spec APP-074
-@NOT_BUILT
 def test_a_goldfish_wait_says_what_the_only_seat_is_asked() -> None:
     situation = a_game().in_mulligan().build()
     summary = summarize(situation.game, situation.deck, S1)
@@ -190,21 +176,18 @@ def test_a_goldfish_wait_says_what_the_only_seat_is_asked() -> None:
 
 
 # @spec APP-089
-@NOT_BUILT
 def test_a_wait_answered_to_an_eliminated_seat_says_it_is_out() -> None:
     lines = response(summary=event("SeatOut", S2), seat=S2)
     assert lines[0] == "OK S2 is out of the game; nothing more is asked of it."
 
 
 # @spec APP-088
-@NOT_BUILT
 def test_a_wait_answered_on_an_ended_game_says_the_game_has_ended() -> None:
     lines = response(summary=event("GameHasEnded"), seat=S2)
     assert lines[0] == "OK The game has ended."
 
 
 # @spec APP-073, APP-078
-@NOT_BUILT
 def test_a_timeout_out_of_range_is_an_error_giving_the_range() -> None:
     error: Any = Error(getattr(ErrorKind, "BAD_TIMEOUT"))  # noqa: B009
     outcome = Outcome(Status.ERROR, Refused((error,), ()), (), contested_summary(S2), seat=S2)
@@ -216,7 +199,6 @@ def test_a_timeout_out_of_range_is_an_error_giving_the_range() -> None:
 
 
 # @spec GAME-145, GAME-043
-@NOT_BUILT
 def test_each_seat_s_empty_library_notice_names_that_seat() -> None:
     builder: Any = a_game().and_an_opposing_seat()
     situation = builder.build()

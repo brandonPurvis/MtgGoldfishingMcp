@@ -30,6 +30,7 @@ USE_CASES: dict[str, UseCase] = {
     "choose": Service.choose,
     "attack": Service.attack,
     "advance": Service.advance,
+    "wait": Service.wait,
     "end_game": Service.end_game,
     "get_log": Service.get_log,
 }
@@ -47,7 +48,7 @@ ToolFunction = Callable[[Mapping[str, object]], ToolResponse]
 
 
 class ToolSurface:
-    """The eleven tools over one service."""
+    """The tools over one service."""
 
     def __init__(self, service: Service) -> None:
         self._service = service

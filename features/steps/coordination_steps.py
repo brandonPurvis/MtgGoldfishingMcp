@@ -4,18 +4,17 @@ each response begins with, resends against a seat's own change, and records nami
 # @spec APP-076
 
 import json
-import re
 import threading
 from collections import Counter
 from typing import Any
 
 from behave import given, then, when
+from tests.support.responses import digest_lines
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
 from mtg_goldfishing.domain.game.seats import SeatNumber
 
 SEAT = r"S{number:d}"
-HEADLINE = re.compile(r"^(OK|REJECTED|ERROR|CHOICE)\b")
 
 
 def _as_seat(context: Any, number: int, tool: str, **arguments: object) -> ToolResponse:
@@ -30,10 +29,8 @@ def _hand_of(context: Any, number: int) -> list[str]:
 
 
 def _digest(context: Any) -> list[str]:
-    """The digest lines the last response begins with: every line before its headline."""
-    lines = context.agent.text.splitlines()
-    first = next(i for i, line in enumerate(lines) if HEADLINE.match(line))
-    return lines[:first]
+    """The digest lines the last response begins with."""
+    return digest_lines(context.agent.text)
 
 
 @given(f"seat {SEAT}'s hand is noted")
@@ -119,7 +116,7 @@ def step_impl(context: Any, number: int) -> None:
 
 @then("the response has no digest lines")
 def step_impl(context: Any) -> None:
-    assert HEADLINE.match(context.agent.text.splitlines()[0]), context.agent.text
+    assert digest_lines(context.agent.text) == [], context.agent.text
 
 
 @then("the game's change number is {change:d}")

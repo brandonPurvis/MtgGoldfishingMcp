@@ -169,7 +169,7 @@ def _finish(
     if walk.entered:
         reported.append(walk.summary)
     reported.extend(walk.events)
-    return Applied(changed, summary, tuple(reported))
+    return Applied(changed, summary, tuple(reported), tuple(walk.snapshots))
 
 
 # ------------------------------------------------------------------------------------ play
