@@ -7,8 +7,6 @@ import ast
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game import seeing
 from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -19,7 +17,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted
 from tests.support.builders import Situation, a_game
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 SRC = Path(__file__).resolve().parents[2] / "src" / "mtg_goldfishing"
 PUBLIC_FORMS = ("HiddenCardsDrawn", "HiddenCardsMoved", "HiddenMulliganTaken", "HiddenHandKept")
 
@@ -86,7 +83,6 @@ def looked_at_and_put_on_top(situation: Situation) -> Any:
 
 
 # @spec GAME-091
-@NOT_BUILT
 def test_the_public_form_of_a_draw_gives_the_seat_and_a_count_and_no_names() -> None:
     situation = a_table()
     result = recorded(situation, {"draw": 2})
@@ -96,7 +92,6 @@ def test_the_public_form_of_a_draw_gives_the_seat_and_a_count_and_no_names() -> 
 
 
 # @spec GAME-091
-@NOT_BUILT
 def test_the_public_form_of_a_card_moved_from_hand_to_library_gives_a_count_and_no_name() -> None:
     situation = a_table()
     result = recorded(situation, {"move": {"library_top": ["Island"]}})
@@ -106,7 +101,6 @@ def test_the_public_form_of_a_card_moved_from_hand_to_library_gives_a_count_and_
 
 
 # @spec GAME-168
-@NOT_BUILT
 def test_the_public_form_of_a_permanent_returned_to_its_owner_s_hand_names_it() -> None:
     situation = a_table()
     result = recorded(situation, {"move": {"hand": ["Sol Ring"]}})
@@ -115,7 +109,6 @@ def test_the_public_form_of_a_permanent_returned_to_its_owner_s_hand_names_it() 
 
 
 # @spec GAME-092
-@NOT_BUILT
 def test_the_public_form_of_a_card_moved_from_hand_to_a_public_zone_names_it() -> None:
     situation = a_table()
     result = recorded(situation, {"move": {"graveyard": ["Island"]}})
@@ -124,7 +117,6 @@ def test_the_public_form_of_a_card_moved_from_hand_to_a_public_zone_names_it() -
 
 
 # @spec GAME-093
-@NOT_BUILT
 def test_the_public_form_of_a_kept_hand_gives_the_numbers_kept_and_bottomed() -> None:
     situation = in_mulligans()
     for _ in range(2):
@@ -138,7 +130,6 @@ def test_the_public_form_of_a_kept_hand_gives_the_numbers_kept_and_bottomed() ->
 
 
 # @spec GAME-153
-@NOT_BUILT
 def test_the_public_form_of_a_mulligan_gives_the_seat_and_the_mulligans_taken() -> None:
     situation = in_mulligans()
     acted(situation, mulligan(situation.game, situation.deck, S2, keep=False))
@@ -149,7 +140,6 @@ def test_the_public_form_of_a_mulligan_gives_the_seat_and_the_mulligans_taken() 
 
 
 # @spec GAME-094
-@NOT_BUILT
 def test_the_public_form_of_a_look_at_a_hand_shows_who_looks_at_whose_hand() -> None:
     situation = a_table()
     result = recorded(situation, {"look_at_hand": 2})
@@ -178,7 +168,6 @@ def test_a_seat_is_shown_by_name_its_card_another_seat_s_call_put_into_its_libra
 
 
 # @spec GAME-095
-@NOT_BUILT
 def test_a_third_seat_sees_a_card_put_into_another_seat_s_library_only_as_a_count() -> None:
     situation = a_table()
     result = looked_at_and_put_on_top(situation)
@@ -188,7 +177,6 @@ def test_a_third_seat_sees_a_card_put_into_another_seat_s_library_only_as_a_coun
 
 
 # @spec GAME-095
-@NOT_BUILT
 def test_the_seat_whose_call_moved_another_seat_s_hidden_card_sees_only_its_public_form() -> None:
     situation = a_table()
     result = looked_at_and_put_on_top(situation)
@@ -217,7 +205,6 @@ def _constructed_names(path: Path) -> set[str]:
 
 
 # @spec APP-033
-@NOT_BUILT
 def test_public_forms_are_made_by_the_domain_filter_and_nowhere_outside_the_domain() -> None:
     outside = [
         f"{path.relative_to(SRC)} builds {name}"

@@ -18,11 +18,23 @@ class Status(Enum):
 
 
 @dataclass(frozen=True)
+class DigestElement:
+    """One change another seat made: that seat, the change number and the change's events
+    as the calling seat may see them."""
+
+    seat: SeatNumber
+    change: int
+    events: tuple[Event, ...]
+
+
+@dataclass(frozen=True)
 class Outcome:
     """What a call did. Response text and the log entry are both built from this.
 
     `payload` carries `get_state`'s listing or `get_log`'s export. `seat` is the calling
-    seat in a contested game, and None in a goldfish game.
+    seat in a contested game, and None in a goldfish game. `digest` holds, oldest first, the
+    changes other seats made since the calling seat's digest baseline; it is None in a
+    goldfish game and for `get_log`.
     """
 
     status: Status
@@ -31,6 +43,7 @@ class Outcome:
     game: GameSummary | None = None
     payload: object | None = None
     seat: SeatNumber | None = None
+    digest: tuple[DigestElement, ...] | None = None
 
 
 @dataclass(frozen=True)

@@ -7,11 +7,9 @@ import inspect
 import tomllib
 from abc import ABC
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-from mtg_goldfishing.adapters import system
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.memory import (
     FixedClock,
@@ -32,7 +30,12 @@ from mtg_goldfishing.adapters.sqlite import (
     SqliteRecordStore,
     SqliteUnitOfWork,
 )
-from mtg_goldfishing.adapters.system import InProcessGameLocks, RandomIdSource, SystemClock
+from mtg_goldfishing.adapters.system import (
+    InProcessGameChanges,
+    InProcessGameLocks,
+    RandomIdSource,
+    SystemClock,
+)
 from mtg_goldfishing.application import ports
 from mtg_goldfishing.application.service import Service
 from tests.application.test_failures import (
@@ -45,6 +48,12 @@ from tests.application.test_game_order import (
     JournaledLocks,
     JournaledRecords,
     SlowToLoad,
+)
+from tests.application.test_wait import (
+    ImpatientChanges,
+    JournaledChanges,
+    JournaledUnitOfWork,
+    WatchedChanges,
 )
 from tests.support.rendering import PlainRenderer
 from tests.support.service import a_service
@@ -63,12 +72,13 @@ PORTS: tuple[type, ...] = (
     ports.IdSource,
     ports.Clock,
     ports.Renderer,
+    ports.GameChanges,
 )
 
 OPERATIONS: dict[type, set[str]] = {
     ports.GameRepository: {"get", "find_seat", "add", "save"},
     ports.DeckRepository: {"get", "add"},
-    ports.RecordStore: {"append_entry", "add_snapshot", "add_call", "read"},
+    ports.RecordStore: {"append_entry", "add_snapshot", "add_call", "read", "digest_baseline"},
     ports.CardCatalog: {"look_up"},
     ports.CardCache: {"get", "put"},
     ports.UnitOfWork: {"begin", "commit", "rollback"},
@@ -76,6 +86,7 @@ OPERATIONS: dict[type, set[str]] = {
     ports.IdSource: {"new_game_id", "new_seat_id", "new_seed"},
     ports.Clock: {"now"},
     ports.Renderer: {"render"},
+    ports.GameChanges: {"announce", "wait_for_change"},
 }
 
 IMPLEMENTATIONS: tuple[tuple[type, type], ...] = (
@@ -86,6 +97,7 @@ IMPLEMENTATIONS: tuple[tuple[type, type], ...] = (
     (SqliteCardCache, ports.CardCache),
     (ScryfallCatalog, ports.CardCatalog),
     (InProcessGameLocks, ports.GameLocks),
+    (InProcessGameChanges, ports.GameChanges),
     (RandomIdSource, ports.IdSource),
     (SystemClock, ports.Clock),
     (TextRenderer, ports.Renderer),
@@ -105,6 +117,10 @@ IMPLEMENTATIONS: tuple[tuple[type, type], ...] = (
     (CallRecordsCannotBeAdded, ports.RecordStore),
     (JournaledRecords, ports.RecordStore),
     (JournaledLocks, ports.GameLocks),
+    (ImpatientChanges, ports.GameChanges),
+    (WatchedChanges, ports.GameChanges),
+    (JournaledChanges, ports.GameChanges),
+    (JournaledUnitOfWork, ports.UnitOfWork),
 )
 IMPLEMENTATION_IDS = [implementation.__name__ for implementation, _ in IMPLEMENTATIONS]
 
@@ -286,15 +302,11 @@ def test_no_source_module_imports_a_dependency_injection_container() -> None:
 
 
 # @spec APP-041, APP-042
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_game_changes_is_a_port_with_an_announce_and_a_wait_operation() -> None:
-    port: Any = getattr(ports, "GameChanges")  # noqa: B009
-    assert ABC in port.__mro__
-    assert port.__abstractmethods__ == {"announce", "wait_for_change"}
+    assert ABC in ports.GameChanges.__mro__
+    assert ports.GameChanges.__abstractmethods__ == {"announce", "wait_for_change"}
 
 
 # @spec APP-048, APP-051
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_the_test_composition_root_wakes_waiting_seats_with_the_in_process_game_changes() -> None:
-    harness: Any = a_service()
-    assert isinstance(harness.changes, getattr(system, "InProcessGameChanges"))  # noqa: B009
+    assert isinstance(a_service().changes, InProcessGameChanges)

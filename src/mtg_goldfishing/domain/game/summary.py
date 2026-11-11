@@ -64,6 +64,14 @@ class GameSummary:
     result: str | None
     notices: tuple[NoticeKind, ...]
     table: TableSummary | None = None
+    seat_notices: tuple[tuple[NoticeKind, SeatNumber], ...] = ()
+    """The notices that are one seat's own, every seat's, in seat order."""
+
+
+# @spec GAME-145, GAME-043
+def seat_notices(game: Game) -> tuple[tuple[NoticeKind, SeatNumber], ...]:
+    """Every seat's own notices, seat by seat, shown to every seat."""
+    return tuple((notice, seat.number) for seat in game.seats for notice in seat.notices)
 
 
 # @spec GAME-089, APP-035
@@ -106,6 +114,7 @@ def summarize(
         mulligans=shown.mulligans,
         result=game.result.outcome.value if game.result else None,
         notices=tuple(game.notices),
+        seat_notices=seat_notices(game),
         table=None
         if imaginary
         else TableSummary(

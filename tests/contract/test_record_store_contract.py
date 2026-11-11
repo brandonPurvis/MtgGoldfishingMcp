@@ -133,7 +133,6 @@ def test_a_call_record_s_seat_number_is_read_back(records: RecordStore) -> None:
 
 
 # @spec APP-046, STOR-022
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_a_seat_with_no_call_record_has_no_digest_baseline(records: RecordStore) -> None:
     records.add_call(replace(a_call(GAME, 3), seat=SeatNumber(1)))
     store: Any = records
@@ -141,7 +140,6 @@ def test_a_seat_with_no_call_record_has_no_digest_baseline(records: RecordStore)
 
 
 # @spec APP-046, STOR-022
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_a_seat_s_digest_baseline_is_the_change_on_its_latest_call_record_other_than_get_log(
     records: RecordStore,
 ) -> None:
@@ -156,7 +154,6 @@ def test_a_seat_s_digest_baseline_is_the_change_on_its_latest_call_record_other_
 
 
 # @spec APP-046, STOR-022
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_a_seat_whose_only_call_records_are_get_log_has_no_digest_baseline(
     records: RecordStore,
 ) -> None:
@@ -169,8 +166,6 @@ def test_a_seat_whose_only_call_records_are_get_log_has_no_digest_baseline(
 def test_a_second_snapshot_for_a_table_turn_raises_and_the_first_stays(
     records: RecordStore, request: pytest.FixtureRequest
 ) -> None:
-    if "memory" in request.node.name:
-        request.node.add_marker(pytest.mark.xfail(strict=True, reason="M3c: not built"))
     records.add_snapshot(GAME, a_snapshot(1, written_by=3))
     with pytest.raises(Exception):  # noqa: B017, PT011
         records.add_snapshot(GAME, a_snapshot(1, written_by=4))
@@ -178,7 +173,6 @@ def test_a_second_snapshot_for_a_table_turn_raises_and_the_first_stays(
 
 
 # @spec STOR-028
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_snapshots_of_two_seats_turns_of_the_same_number_are_kept_by_table_turn(
     records: RecordStore,
 ) -> None:
@@ -190,7 +184,6 @@ def test_snapshots_of_two_seats_turns_of_the_same_number_are_kept_by_table_turn(
 
 
 # @spec REC-040, REC-067
-@pytest.mark.xfail(strict=True, reason="M3c: not built")
 def test_a_contested_log_entry_with_its_public_events_is_read_back_equal(
     records: RecordStore,
 ) -> None:

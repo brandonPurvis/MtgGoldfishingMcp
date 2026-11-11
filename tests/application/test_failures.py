@@ -13,7 +13,7 @@ from mtg_goldfishing.application.ports import (
 )
 from mtg_goldfishing.domain.events import ErrorKind, Refused
 from mtg_goldfishing.domain.game.model import Game
-from mtg_goldfishing.domain.game.seats import SeatId
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from mtg_goldfishing.domain.steps import Step
 from tests.support.builders import TESTED, a_game
@@ -60,6 +60,9 @@ class SnapshotsCannotBeWritten(RecordStore):
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
 
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
+
 
 class CallRecordsCannotBeAdded(RecordStore):
     """A record store whose disk fills up whenever a call record is added."""
@@ -78,6 +81,9 @@ class CallRecordsCannotBeAdded(RecordStore):
 
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         return self._inner.read(game_id, since=since)
+
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        return self._inner.digest_baseline(game_id, seat)
 
 
 def errors_of(summary: object) -> list[ErrorKind]:

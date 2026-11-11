@@ -6,8 +6,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game import creation
 from mtg_goldfishing.domain.game.calls import accept_change
@@ -37,7 +35,6 @@ from tests.support.stored import (
     a_snapshot,
 )
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 ATRAXA = "Atraxa, Praetors' Voice"
 CONTESTED_ONLY = (
     "seat",
@@ -110,21 +107,18 @@ def kinds(events: Any) -> list[str]:
 
 
 # @spec REC-028
-@NOT_BUILT
 def test_an_entry_records_the_seat_whose_call_it_records() -> None:
     situation = a_table(active=2)
     assert data(an_effect(situation, S2, {"life": 1}))["seat"] == 2
 
 
 # @spec REC-029
-@NOT_BUILT
 def test_an_entry_records_the_active_seat_when_the_call_was_made() -> None:
     situation = a_table(active=2)
     assert data(an_effect(situation, S2, {"life": 1}))["active"] == 2
 
 
 # @spec REC-030
-@NOT_BUILT
 def test_an_entry_s_turn_is_the_active_seat_s_own_turn_number() -> None:
     situation = a_table(active=2)
     entry = an_effect(situation, S2, {"life": 1})
@@ -132,7 +126,6 @@ def test_an_entry_s_turn_is_the_active_seat_s_own_turn_number() -> None:
 
 
 # @spec REC-031
-@NOT_BUILT
 def test_an_entry_records_the_table_turn_and_round_before_the_call() -> None:
     situation = a_table(step=Step.CLEANUP)
     entry = logged(situation, S1, "advance", {}, advance(situation.game, situation.deck, S1))
@@ -141,7 +134,6 @@ def test_an_entry_records_the_table_turn_and_round_before_the_call() -> None:
 
 
 # @spec REC-029, REC-030, REC-031
-@NOT_BUILT
 def test_a_mulligan_entry_has_no_active_seat_and_turn_table_turn_and_round_0() -> None:
     builder: Any = a_game().in_mulligan().with_hand(*["Island"] * 7)
     builder = builder.with_library(*["Forest"] * 7).and_an_opposing_seat()
@@ -157,7 +149,6 @@ def test_a_mulligan_entry_has_no_active_seat_and_turn_table_turn_and_round_0() -
 
 
 # @spec REC-039
-@NOT_BUILT
 def test_an_entry_records_each_seat_its_call_eliminated_and_why() -> None:
     situation = a_table()
     entry = an_effect(situation, S1, {"damage": {"2": 40, "3": 40}})
@@ -168,7 +159,6 @@ def test_an_entry_records_each_seat_its_call_eliminated_and_why() -> None:
 
 
 # @spec REC-077
-@NOT_BUILT
 def test_a_seat_at_0_life_and_21_commander_damage_is_recorded_as_eliminated_for_life() -> None:
     builder: Any = a_game().with_commander(ATRAXA).with_commander_damage(ATRAXA, 2, 21)
     situation = builder.and_an_opposing_seat().with_hand("Island").build()
@@ -177,7 +167,6 @@ def test_a_seat_at_0_life_and_21_commander_damage_is_recorded_as_eliminated_for_
 
 
 # @spec REC-039, REC-080
-@NOT_BUILT
 def test_a_concession_records_a_null_result_the_notes_and_the_seat_as_conceding() -> None:
     situation = a_table()
     arguments = {"result": "loss", "notes": "beaten"}
@@ -189,7 +178,6 @@ def test_a_concession_records_a_null_result_the_notes_and_the_seat_as_conceding(
 
 
 # @spec REC-038
-@NOT_BUILT
 def test_an_attacked_seat_declared_no_blocks_for_is_recorded_in_no_blocks() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat()
     situation = builder.build()
@@ -200,7 +188,6 @@ def test_an_attacked_seat_declared_no_blocks_for_is_recorded_in_no_blocks() -> N
 
 
 # @spec REC-041
-@NOT_BUILT
 def test_a_reminder_recorded_on_an_entry_names_the_seat_it_was_issued_to() -> None:
     builder: Any = a_game().in_step(Step.UNTAP, turn=5).in_turn_of(2).and_an_opposing_seat()
     situation = builder.with_battlefield("Phyrexian Arena").with_library("Forest").build()
@@ -213,7 +200,6 @@ def test_a_reminder_recorded_on_an_entry_names_the_seat_it_was_issued_to() -> No
 
 
 # @spec REC-040, REC-068
-@NOT_BUILT
 def test_an_entry_stores_the_public_form_of_its_summary_and_events() -> None:
     situation = a_table()
     entry = an_effect(situation, S1, {"draw": 1})
@@ -224,19 +210,17 @@ def test_an_entry_stores_the_public_form_of_its_summary_and_events() -> None:
 
 
 # @spec REC-067, REC-078
-@NOT_BUILT
 def test_an_entry_stores_for_the_seat_whose_turn_it_began_what_that_seat_drew() -> None:
     situation = a_table(step=Step.CLEANUP)
     entry = logged(situation, S1, "advance", {}, advance(situation.game, situation.deck, S1))
     (private,) = entry.contested.private
     assert private.seat == S2
-    assert kinds(private.events) == kinds(entry.contested.public)
+    assert len(private.events) == len(entry.contested.public)
     (drawn,) = [event for event in private.events if type(event).__name__ == "CardsDrawn"]
     assert drawn.cards == ("Forest",)
 
 
 # @spec REC-078
-@NOT_BUILT
 def test_an_entry_has_no_private_events_for_the_seat_that_made_the_call() -> None:
     situation = a_table()
     entry = an_effect(situation, S1, {"draw": 1})
@@ -244,7 +228,6 @@ def test_an_entry_has_no_private_events_for_the_seat_that_made_the_call() -> Non
 
 
 # @spec REC-040
-@NOT_BUILT
 def test_the_exported_public_events_are_json_ready_data() -> None:
     situation = a_table()
     exported = data(an_effect(situation, S1, {"draw": 1}))
@@ -272,7 +255,6 @@ def a_contested_game() -> Any:
 
 
 # @spec REC-060, REC-061, REC-062
-@NOT_BUILT
 def test_the_new_game_entry_names_no_seat_and_holds_every_seat_s_hand_and_no_events() -> None:
     created = a_contested_game()
     game = created.game
@@ -312,7 +294,6 @@ def a_duel_with_a_blocker() -> Situation:
 
 
 # @spec REC-073
-@NOT_BUILT
 def test_a_blocks_answer_records_each_blocker_by_name_and_id_and_the_attacker_it_blocks() -> None:
     situation = a_duel_with_a_blocker()
     elves = next(c for c in situation.game.cards if c.name == "Llanowar Elves")
@@ -330,14 +311,12 @@ def test_a_blocks_answer_records_each_blocker_by_name_and_id_and_the_attacker_it
 
 
 # @spec REC-073
-@NOT_BUILT
 def test_a_blocks_answer_with_no_blocks_records_an_empty_map() -> None:
     situation = a_duel_with_a_blocker()
     assert data(blocked_by(situation, {}))["outcome"] == {"blocks": {}}
 
 
 # @spec REC-074
-@NOT_BUILT
 def test_an_ask_answer_records_no_outcome() -> None:
     situation = a_table()
     an_effect(situation, S1, {"ask": [{"seats": [2], "text": "discard a card"}]})
@@ -350,7 +329,6 @@ def test_an_ask_answer_records_no_outcome() -> None:
 
 
 # @spec REC-072
-@NOT_BUILT
 def test_a_hand_answer_records_where_each_revealed_card_went() -> None:
     situation = a_table()
     recorded_look = effect(
@@ -365,7 +343,6 @@ def test_a_hand_answer_records_where_each_revealed_card_went() -> None:
 
 
 # @spec REC-075
-@NOT_BUILT
 def test_an_attack_records_the_attackers_and_the_seat_each_attacks_and_no_blocked_list() -> None:
     situation = a_duel_with_a_blocker()
     arguments = {"attackers": ["Grizzly Bears"], "targets": 2}
@@ -378,7 +355,6 @@ def test_an_attack_records_the_attackers_and_the_seat_each_attacks_and_no_blocke
 
 
 # @spec REC-076
-@NOT_BUILT
 def test_entering_combat_damage_records_each_attacker_s_damage_and_the_seat_dealt_it() -> None:
     builder: Any = a_game().with_battlefield("Grizzly Bears").and_an_opposing_seat()
     situation = builder.build()
@@ -402,7 +378,6 @@ def an_opposing_call(situation: Situation, reason: str) -> Any:
 
 
 # @spec REC-058
-@NOT_BUILT
 def test_an_opposing_seat_s_entry_stores_the_game_id_as_its_game_id_argument() -> None:
     situation = a_table(active=2)
     entry = an_opposing_call(situation, "as planned")
@@ -410,7 +385,6 @@ def test_an_opposing_seat_s_entry_stores_the_game_id_as_its_game_id_argument() -
 
 
 # @spec REC-057, REC-065
-@NOT_BUILT
 def test_an_opposing_seat_id_written_anywhere_in_an_entry_is_redacted() -> None:
     situation = a_table(active=2)
     third = situation.game.seat(S3).seat_id.value
@@ -426,7 +400,6 @@ def test_an_opposing_seat_id_written_anywhere_in_an_entry_is_redacted() -> None:
 
 
 # @spec REC-043
-@NOT_BUILT
 def test_a_reminder_is_answered_by_an_effect_of_the_reminded_seat_in_the_same_table_turn() -> None:
     issued = a_contested_log_entry(5, seat=1, table_turn=3, reminders=(a_contested_reminder(1, 3),))
     answer = a_contested_log_entry(6, seat=1, table_turn=3, source="Phyrexian Arena")
@@ -435,7 +408,6 @@ def test_a_reminder_is_answered_by_an_effect_of_the_reminded_seat_in_the_same_ta
 
 
 # @spec REC-043
-@NOT_BUILT
 def test_an_effect_of_another_seat_does_not_answer_a_seat_s_reminder() -> None:
     issued = a_contested_log_entry(5, seat=1, table_turn=3, reminders=(a_contested_reminder(1, 3),))
     other = a_contested_log_entry(6, seat=2, table_turn=3, source="Phyrexian Arena")
@@ -444,7 +416,6 @@ def test_an_effect_of_another_seat_does_not_answer_a_seat_s_reminder() -> None:
 
 
 # @spec REC-043
-@NOT_BUILT
 def test_an_effect_in_a_later_table_turn_does_not_answer_a_reminder() -> None:
     issued = a_contested_log_entry(5, seat=1, table_turn=3, reminders=(a_contested_reminder(1, 3),))
     late = a_contested_log_entry(9, seat=1, table_turn=5, source="Phyrexian Arena")

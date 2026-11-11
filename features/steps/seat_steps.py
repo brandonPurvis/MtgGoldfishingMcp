@@ -10,6 +10,7 @@ from typing import Any
 
 from behave import given, then, when
 from tests.support.decks import OMNATH, an_opposing_deck_list
+from tests.support.responses import headline
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
 from mtg_goldfishing.domain.game.model import Game
@@ -52,7 +53,7 @@ def _start(context: Any, opponents: list[str], seed: int, **arguments: object) -
     response = agent.call(
         "new_game", deck_id=agent.deck_id, opponents=opponents, seed=seed, **arguments
     )
-    if response.text.startswith("OK"):
+    if headline(response.text).startswith("OK"):
         table = Table(response)
         context.tables = [*getattr(context, "tables", []), table]
         context.table_of_seats = table
@@ -91,7 +92,7 @@ def step_impl(context: Any) -> None:
     response = context.agent.call(
         "load_deck", cards=an_opposing_deck_list().text(), commander=OMNATH
     )
-    assert response.text.startswith("OK Loaded deck "), response.text
+    assert headline(response.text).startswith("OK Loaded deck "), response.text
     context.opposing_deck_id = response.text.split()[3].rstrip(":")
 
 
@@ -135,16 +136,16 @@ def step_impl(context: Any, seed: int) -> None:
 )
 def step_impl(context: Any, count: int, seed: int, position: int) -> None:
     response = _start(context, _omnath(context, count), seed, position=position)
-    assert response.text.startswith("OK"), response.text
+    assert headline(response.text).startswith("OK"), response.text
 
 
 @given("a started contested game against {count:d} Omnath deck with the tested seat first")
 def step_impl(context: Any, count: int) -> None:
     response = _start(context, _omnath(context, count), 42, position=1)
-    assert response.text.startswith("OK"), response.text
+    assert headline(response.text).startswith("OK"), response.text
     for number in sorted(context.table_of_seats.seats):
         kept = _as_seat(context, number, "mulligan", keep=True)
-        assert kept.text.startswith("OK"), kept.text
+        assert headline(kept.text).startswith("OK"), kept.text
 
 
 @given(
@@ -153,10 +154,10 @@ def step_impl(context: Any, count: int) -> None:
 )
 def step_impl(context: Any, count: int, limit: int) -> None:
     response = _start(context, _omnath(context, count), 42, position=1, turn_limit=limit)
-    assert response.text.startswith("OK"), response.text
+    assert headline(response.text).startswith("OK"), response.text
     for number in sorted(context.table_of_seats.seats):
         kept = _as_seat(context, number, "mulligan", keep=True)
-        assert kept.text.startswith("OK"), kept.text
+        assert headline(kept.text).startswith("OK"), kept.text
 
 
 @when(f"seat {SEAT} takes a mulligan")

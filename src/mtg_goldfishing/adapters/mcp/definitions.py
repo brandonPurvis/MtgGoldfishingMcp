@@ -1,4 +1,4 @@
-"""The eleven tools as an agent sees them: names, parameters and descriptions.
+"""The tools as an agent sees them: names, parameters and descriptions.
 
 Each description states, in order: what the tool is for in one sentence; what the service
 does automatically as a result; each parameter's meaning with one example value; and what
@@ -629,6 +629,30 @@ ADVANCE = ToolDefinition(
     ),
 )
 
+# @spec APP-072, APP-090
+WAIT = ToolDefinition(
+    name="wait",
+    purpose="Wait until your seat has something to do, then say what it is (contested games).",
+    automatic=(
+        "Changes nothing. Returns at once when your seat is the seat to act, has been"
+        " eliminated, or the game has ended; otherwise holds the call until another seat's"
+        " change makes it so, or the timeout passes, and then says who the game is still"
+        " waiting on. Like every response to a seat, it begins with what the other seats did"
+        " since your last call. In a goldfish game your seat is always the seat to act, so it"
+        " returns at once."
+    ),
+    parameters=(
+        _game_id(),
+        Parameter(
+            "timeout",
+            Kind.NUMBER,
+            "Seconds to wait, from 1 to 60; 30 when omitted.",
+            30,
+        ),
+    ),
+    overridable="Nothing; it changes nothing. A timeout outside 1 to 60 is an error.",
+)
+
 END_GAME = ToolDefinition(
     name="end_game",
     purpose="End the game with a result and verdict.",
@@ -701,6 +725,7 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
     CHOOSE,
     ATTACK,
     ADVANCE,
+    WAIT,
     END_GAME,
     GET_LOG,
 )

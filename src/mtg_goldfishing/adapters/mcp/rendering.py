@@ -2,12 +2,15 @@
 
 A text response is
 
+    <digest lines, in a contested game>
     <STATUS> <one-line summary>
     <event lines, in a fixed order>
     <status line, for a response about an existing game>
 
-In a contested game the event lines begin by saying what the calling seat is asked to do
-when it is a seat to act, and the status line is the calling seat's.
+In a contested game the response begins with one digest line for each change other seats
+made since the calling seat's previous response, the event lines begin by saying what the
+calling seat is asked to do when it is a seat to act, and the status line is the calling
+seat's.
 
 Each event type has one rendering here, and each kind of error and rule check one
 wording in `refusal_lines`; no other code in the service builds response text.
@@ -19,8 +22,13 @@ import json
 from typing import assert_never
 
 from mtg_goldfishing.adapters.mcp.listing_lines import report_lines, state_lines
-from mtg_goldfishing.adapters.mcp.refusal_lines import asked_to, check_text, refusal_lines
-from mtg_goldfishing.application.outcome import Outcome, Status
+from mtg_goldfishing.adapters.mcp.refusal_lines import (
+    asked_to,
+    check_text,
+    refusal_lines,
+    seats_asked,
+)
+from mtg_goldfishing.application.outcome import DigestElement, Outcome, Status
 from mtg_goldfishing.application.ports import Rendered, Renderer
 from mtg_goldfishing.domain.events import (
     AdvanceStopped,
@@ -56,9 +64,13 @@ from mtg_goldfishing.domain.events import (
     Event,
     ExpectationMismatched,
     GameEnded,
+    GameHasEnded,
     GameStarted,
     HandKept,
     HiddenCardsDrawn,
+    HiddenCardsMoved,
+    HiddenHandKept,
+    HiddenMulliganTaken,
     InstanceChosen,
     LibraryShuffled,
     LifeChanged,
@@ -73,9 +85,12 @@ from mtg_goldfishing.domain.events import (
     ReminderIssued,
     SeatDamaged,
     SeatEliminated,
+    SeatOut,
+    SeatToAct,
     SnapshotWritten,
     StateListed,
     StepsEntered,
+    StillWaiting,
     StopReason,
     Tapped,
     TokensCreated,
@@ -102,7 +117,7 @@ class TextRenderer(Renderer):
     """Implements the `Renderer` port with the plain-text response format."""
 
     # @spec TOOL-014, TOOL-015, TOOL-016, TOOL-022, TOOL-024, TOOL-025, TOOL-026, REC-018, REC-024
-    # @spec TOOL-040, TOOL-051
+    # @spec TOOL-040, TOOL-051, TOOL-056
     def render(self, tool: str, outcome: Outcome) -> Rendered:
         summary = outcome.summary
         if tool == GET_LOG and outcome.status is Status.OK and isinstance(summary, LogExported):
@@ -116,24 +131,35 @@ class TextRenderer(Renderer):
         return Rendered(text, text)
 
 
+# @spec TOOL-035, TOOL-038, TOOL-039
 def response_lines(tool: str, outcome: Outcome) -> list[str]:
-    """Status and summary, the summary's own detail, event lines, then the status line."""
+    """Digest lines, status and summary, the summary's own detail, event lines, then the
+    status line."""
     headline, *detail = summary_lines(outcome.summary, tool)
-    lines = [f"{outcome.status.value} {headline}", *detail]
-    if outcome.game is not None and outcome.status is not Status.ERROR and tool != NEW_GAME:
+    lines = [digest_line(element) for element in outcome.digest or ()]
+    lines.extend([f"{outcome.status.value} {headline}", *detail])
+    if (
+        outcome.game is not None
+        and outcome.status is not Status.ERROR
+        and tool != NEW_GAME
+        and not isinstance(outcome.summary, SeatToAct)
+    ):
         lines.extend(asked_lines(outcome.game))
     if isinstance(outcome.payload, StateListing):
         lines.extend(state_lines(outcome.payload))
-    raised: list[NoticeKind] = []
+    raised: list[tuple[NoticeKind, SeatNumber | None]] = []
     after = outcome.game.change if outcome.game else None
     for event in sorted(outcome.events, key=_place_in_order):
         if isinstance(event, NoticeRaised):
-            raised.append(event.notice)
+            raised.append((event.notice, event.seat))
         else:
             lines.extend(event_lines(event, tool, after))
-    standing = outcome.game.notices if outcome.game else ()
+    standing: list[tuple[NoticeKind, SeatNumber | None]] = []
+    if outcome.game is not None:
+        standing.extend((notice, None) for notice in outcome.game.notices)
+        standing.extend(outcome.game.seat_notices)
     notices = list(dict.fromkeys((*raised, *standing)))
-    lines.extend(notice_line(notice) for notice in notices)
+    lines.extend(notice_line(notice, seat) for notice, seat in notices)
     if outcome.game is not None:
         lines.append(status_line(outcome.game))
     return lines
@@ -143,6 +169,32 @@ def summary_lines(summary: Event, tool: str | None = None) -> list[str]:
     """The headline (first) and any lines that belong with it, such as a deck report."""
     lines = event_lines(summary, tool)
     return lines or ["Done."]
+
+
+# ------------------------------------------------------------------------- the digest
+
+
+# @spec TOOL-036, TOOL-037, TOOL-057, TOOL-064, TOOL-065
+def digest_line(element: DigestElement) -> str:
+    """One change another seat made: `S<seat> #<change>: ` and everything the change caused,
+    as the outcome holds it, separated by `;`. Every seat is named by its number."""
+    texts = [text for event in element.events for text in digest_texts(event)]
+    return f"{element.seat} #{element.change}: " + "; ".join(texts)
+
+
+def digest_texts(event: Event) -> list[str]:
+    """An event as a digest line shows it: as its event line, without its closing stop,
+    with the seat it concerns named where an event line would leave it to the reader."""
+    match event:
+        case CardsDrawn(seat=seat) if seat is not None:
+            drawn = _listed(event.cards) if event.cards else "no cards"
+            return [f"{seat} drew {drawn}"]
+        case AdvanceStopped():
+            return [f"stopped at {event.step.value} ({event.reason.value})"]
+        case NoticeRaised():
+            return [notice_line(event.notice, event.seat).removeprefix("Notice: ")]
+        case _:
+            return [line.rstrip(".") for line in event_lines(event)]
 
 
 # ------------------------------------------------------------------------- the status line
@@ -283,14 +335,21 @@ def _place_in_order(event: Event) -> int:
             | GameStarted()
             | ContestedGameStarted()
             | HiddenCardsDrawn()
+            | HiddenCardsMoved()
             | MulliganTaken()
+            | HiddenMulliganTaken()
             | HandKept()
+            | HiddenHandKept()
             | CardPlayed()
             | EffectRecorded()
             | GameEnded()
             | StateListed()
             | LogExported()
             | Refused()
+            | SeatToAct()
+            | StillWaiting()
+            | SeatOut()
+            | GameHasEnded()
         ):
             return 4
         case (
@@ -556,6 +615,7 @@ def _contested_start(event: ContestedGameStarted) -> list[str]:
     ]
 
 
+# @spec TURN-046
 def _stopped(event: AdvanceStopped, after: int | None) -> str:
     """Why the advance stopped, and the call to send next, with the change number to pass."""
     to = f'to="{event.to.value}"' if event.to is not None else ""
@@ -580,10 +640,28 @@ def _stopped(event: AdvanceStopped, after: int | None) -> str:
             again = f"advance({to})" if to else "advance"
             return (
                 f"Stopped at {event.step.value}: the attacked seats declare blockers first."
-                f" Send {again} again once they have."
+                f" Once they have, send {again} again, with the change number then shown as"
+                " after."
             )
         case _:
             assert_never(event.reason)
+
+
+_INTO_HIDDEN = {
+    "hand": "into its hand",
+    "library": "into its library",
+    "library_top": "on top of its library",
+    "library_bottom": "on the bottom of its library",
+}
+
+
+# @spec TOOL-063
+def _still_waiting(event: StillWaiting) -> str:
+    """A wait that timed out: who the game is still waiting on, and what they are asked."""
+    asked = event.asked
+    if asked is None or not asked.seats:
+        return "Still waiting: the game is waiting on no seat."
+    return f"Still waiting: {seats_asked(asked)} asked to {asked_to(asked, yourself=False)}."
 
 
 def _number_word(number: int) -> str:
@@ -591,7 +669,11 @@ def _number_word(number: int) -> str:
     return words.get(number, str(number))
 
 
-def notice_line(notice: NoticeKind) -> str:
+# @spec GAME-145
+def notice_line(notice: NoticeKind, seat: SeatNumber | None = None) -> str:
+    """A notice; one that is a seat's own names the seat."""
+    if seat is not None and notice is NoticeKind.EMPTY_LIBRARY:
+        return f"Notice: {seat}'s library ran out: a draw found too few cards"
     match notice:
         case NoticeKind.DAMAGE:
             return f"Notice: {DAMAGE_TO_WIN} damage reached"
@@ -669,6 +751,21 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
         case HiddenCardsDrawn():
             drawn = "a card" if event.count == 1 else f"{event.count} cards"
             return [f"{event.seat} drew {drawn}."]
+        case HiddenCardsMoved():
+            moved = "a card" if event.count == 1 else f"{event.count} cards"
+            return [f"{event.seat} put {moved} {_INTO_HIDDEN.get(event.to, 'away')}."]
+        case HiddenMulliganTaken():
+            return [f"{event.seat} took a mulligan ({event.mulligans} taken)."]
+        case HiddenHandKept():
+            return [f"{event.seat} kept {event.kept}, bottomed {event.bottomed}."]
+        case SeatToAct():
+            return [f"You are asked to {asked_to(event.asked, yourself=True)}."]
+        case StillWaiting():
+            return [_still_waiting(event)]
+        case SeatOut():
+            return [f"{event.seat} is out of the game; nothing more is asked of it."]
+        case GameHasEnded():
+            return ["The game has ended."]
         case CardsDiscarded():
             return [f"Discarded {_listed(event.cards)}."]
         case Tapped():

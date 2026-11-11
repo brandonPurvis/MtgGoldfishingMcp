@@ -11,6 +11,7 @@ from collections import Counter
 from typing import Any
 
 from behave import given, then, when
+from tests.support.responses import headline
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
 from mtg_goldfishing.domain.game.model import Game, Zone
@@ -55,7 +56,7 @@ def _arrange(context: Any, number: int, names: list[str], zone: Zone) -> None:
         delta["fetch"] = {zone.value: fetch}
     if delta:
         response = _as_seat(context, number, "effect", source="arranging the scenario", delta=delta)
-        assert response.text.startswith("OK"), response.text
+        assert headline(response.text).startswith("OK"), response.text
 
 
 def _choice_id(context: Any) -> str:
@@ -87,10 +88,10 @@ def step_impl(context: Any, number: int) -> None:
     if len(hand) > 7:
         delta = {"discard": hand[7:]}
         response = _as_seat(context, number, "effect", source="arranging the scenario", delta=delta)
-        assert response.text.startswith("OK"), response.text
+        assert headline(response.text).startswith("OK"), response.text
     for _ in range(4):
         response = _as_seat(context, number, "advance", to="main1")
-        assert response.text.startswith("OK"), response.text
+        assert headline(response.text).startswith("OK"), response.text
         if _game(context).active != SeatNumber(number):
             return
     raise AssertionError(context.agent.text)
@@ -99,7 +100,7 @@ def step_impl(context: Any, number: int) -> None:
 @given(f"seat {SEAT} has recorded an effect with delta {{delta}}")
 def step_impl(context: Any, number: int, delta: str) -> None:
     response = _as_seat(context, number, "effect", source="a test effect", delta=json.loads(delta))
-    assert response.text.startswith("OK"), response.text
+    assert headline(response.text).startswith("OK"), response.text
 
 
 # ------------------------------------------------------------------ calls
@@ -243,7 +244,7 @@ def step_impl(context: Any, number: int) -> None:
 @then("the response says the card is in a hidden zone of S{number:d}")
 def step_impl(context: Any, number: int) -> None:
     expected = f"ERROR {context.hidden_card} is in a hidden zone of S{number}."
-    assert context.agent.text.startswith(expected), context.agent.text
+    assert headline(context.agent.text).startswith(expected), context.agent.text
 
 
 @then("the game has not ended")

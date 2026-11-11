@@ -6,14 +6,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Answer
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from tests.support.service import ServiceHarness, a_service
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 IDS = ("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd")
 GAME = "gaaaaaaaaaa"
 SECOND = "gbbbbbbbbbb"
@@ -48,7 +45,6 @@ def started(harness: ServiceHarness) -> None:
 
 
 # @spec REC-027, REC-028, REC-060
-@NOT_BUILT
 def test_one_log_holds_every_seat_s_changes_in_change_order_each_naming_its_seat() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -73,7 +69,6 @@ def test_the_log_keeps_what_each_seat_did_in_its_hidden_zones() -> None:
 
 
 # @spec REC-060
-@NOT_BUILT
 def test_the_new_game_call_record_names_no_seat() -> None:
     harness = contested()
     (new_game,) = [call for call in harness.calls() if call.tool == "new_game"]
@@ -85,7 +80,6 @@ def test_the_new_game_call_record_names_no_seat() -> None:
 
 
 # @spec REC-056
-@NOT_BUILT
 def test_the_get_log_header_lists_every_seat_with_its_deck_life_and_standing() -> None:
     harness = contested(opposing=2, starting_life=[40, 30, 20])
     started(harness)
@@ -122,14 +116,13 @@ def test_the_get_log_header_lists_every_seat_with_its_deck_life_and_standing() -
 
 
 # @spec REC-056, REC-063
-@NOT_BUILT
 def test_the_get_log_header_gives_the_tested_seat_s_turn_and_the_table_turn_and_round() -> None:
     harness = contested(position=2)
     started(harness)
     tested = harness.game(GAME).tested.number.value
     other = 3 - tested
-    call_as(harness, other, "advance", to="cleanup")
-    call_as(harness, other, "advance")
+    hand = [card.name for card in harness.game(GAME).hand_of(SeatNumber(other))]
+    call_as(harness, other, "advance", to="main1", discard=hand[7:])
     header = exported(harness)["game"]
     assert (header["turn"], header["table_turn"], header["round"]) == (1, 2, 1)
 
@@ -138,7 +131,6 @@ def test_the_get_log_header_gives_the_tested_seat_s_turn_and_the_table_turn_and_
 
 
 # @spec REC-058
-@NOT_BUILT
 def test_a_call_made_with_an_opposing_seat_id_is_kept_under_the_game_id() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -149,7 +141,6 @@ def test_a_call_made_with_an_opposing_seat_id_is_kept_under_the_game_id() -> Non
 
 
 # @spec REC-059
-@NOT_BUILT
 def test_the_new_game_call_record_keeps_its_response_with_opposing_seat_ids_redacted() -> None:
     harness = a_service(game_ids=IDS, seeds=(77,), renderer=TextRenderer())
     opposing = harness.loaded_opposing_deck_id()
@@ -163,7 +154,6 @@ def test_the_new_game_call_record_keeps_its_response_with_opposing_seat_ids_reda
 
 
 # @spec REC-057, REC-065
-@NOT_BUILT
 def test_an_opposing_seat_id_written_in_a_call_is_redacted_from_its_records() -> None:
     harness = contested(opposing=2)
     started(harness)
@@ -179,7 +169,6 @@ def test_an_opposing_seat_id_written_in_a_call_is_redacted_from_its_records() ->
 
 
 # @spec REC-057
-@NOT_BUILT
 def test_no_record_of_a_contested_game_holds_an_opposing_seat_s_seat_id() -> None:
     harness = contested(opposing=2)
     started(harness)

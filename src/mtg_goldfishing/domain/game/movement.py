@@ -50,6 +50,7 @@ def move(
     battlefield leaves and arrives again.
     """
     from_zone = card.zone
+    owner = card.owner if game.contested else None
     redirected = False
     if (
         card.is_commander
@@ -63,11 +64,13 @@ def move(
     if arriving_again and not game.contested:
         if destination is Destination.BATTLEFIELD_TAPPED:
             card.tapped = True
-        return [CardMoved(card.name, from_zone.value, destination.value)]
+        return [CardMoved(card.name, from_zone.value, destination.value, owner=owner)]
     _leave(game, card)
     if card.is_token and from_zone is Zone.BATTLEFIELD and not arriving_again:
         game.remove_token(card)
-        return [CardMoved(card.name, from_zone.value, destination.value, token_gone=True)]
+        return [
+            CardMoved(card.name, from_zone.value, destination.value, token_gone=True, owner=owner)
+        ]
     enters_tapped = False
     if destination.zone is Zone.BATTLEFIELD:
         reading = reading_of(deck, card).enters_tapped
@@ -79,7 +82,9 @@ def move(
     game.put(card, destination, tapped=enters_tapped)
     if card.zone is Zone.BATTLEFIELD:
         card.controller = arriving_under or card.owner
-    events.insert(0, CardMoved(card.name, from_zone.value, destination.value, redirected))
+    events.insert(
+        0, CardMoved(card.name, from_zone.value, destination.value, redirected, owner=owner)
+    )
     return events
 
 
@@ -100,7 +105,10 @@ def draw(game: Game, seat: SeatNumber, count: int) -> list[Event]:
         drawn.append(card.name)
     events.append(CardsDrawn(tuple(drawn), seat if game.contested else None))
     if len(drawn) < count:
-        events.extend(raise_notice(game, NoticeKind.EMPTY_LIBRARY))
+        if game.contested:
+            events.extend(raise_seat_notice(game, seat, NoticeKind.EMPTY_LIBRARY))
+        else:
+            events.extend(raise_notice(game, NoticeKind.EMPTY_LIBRARY))
     return events
 
 
@@ -109,3 +117,13 @@ def raise_notice(game: Game, notice: NoticeKind) -> list[Event]:
         return []
     game.notices.append(notice)
     return [NoticeRaised(notice)]
+
+
+# @spec GAME-145, GAME-165
+def raise_seat_notice(game: Game, seat: SeatNumber, notice: NoticeKind) -> list[Event]:
+    """Raise a notice of one seat's own, naming it, unless that seat's is already raised."""
+    notices = game.seat(seat).notices
+    if notice in notices:
+        return []
+    notices.append(notice)
+    return [NoticeRaised(notice, seat)]

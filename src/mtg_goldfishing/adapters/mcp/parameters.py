@@ -20,6 +20,7 @@ class Kind(Enum):
 
     TEXT = "text"
     WHOLE_NUMBER = "whole number"
+    NUMBER = "number"
     FLAG = "flag"
     OBJECT = "object"
     LIST = "list"
@@ -36,6 +37,7 @@ class Kind(Enum):
 _JSON_TYPES: dict[Kind, tuple[str, ...]] = {
     Kind.TEXT: ("string",),
     Kind.WHOLE_NUMBER: ("integer",),
+    Kind.NUMBER: ("number",),
     Kind.FLAG: ("boolean",),
     Kind.OBJECT: ("object", "string"),
     Kind.LIST: ("array", "string"),
@@ -123,6 +125,9 @@ def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
         return _Fitted(value) if isinstance(value, str) else None
     if kind is Kind.WHOLE_NUMBER:
         return _Fitted(value) if _is_whole_number(value) else None
+    if kind is Kind.NUMBER:
+        number = isinstance(value, int | float) and not isinstance(value, bool)
+        return _Fitted(value) if number else None
     if kind is Kind.FLAG:
         return _Fitted(value) if isinstance(value, bool) else None
     if kind is Kind.OBJECT:

@@ -9,7 +9,6 @@ Feature: Coordinating the seats of a contested game
     And the Omnath test deck is loaded
 
   # @spec APP-036, APP-037, GAME-091, REC-040, TOOL-035, TOOL-037
-  @wip
   Scenario: Every response to a seat begins with a digest of the other seats' public events
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 records an effect with delta {"draw": 1}
@@ -20,7 +19,6 @@ Feature: Coordinating the seats of a contested game
     And the digest names no card of seat S1's hand
 
   # @spec APP-081, GAME-154, TOOL-057
-  @wip
   Scenario: A seat's digest names the card it drew when another seat's call began its turn
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S2's hand is noted
@@ -37,7 +35,6 @@ Feature: Coordinating the seats of a contested game
     Then the response has no digest lines
 
   # @spec APP-063, APP-064
-  @wip
   Scenario: wait returns at once for the seat to act, with what it is asked
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S1 waits
@@ -45,7 +42,6 @@ Feature: Coordinating the seats of a contested game
     And the response says "You are asked to take your turn."
 
   # @spec APP-064, APP-068
-  @wip
   Scenario: wait returns when another seat's change makes the waiting seat the seat to act
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S2 starts waiting
@@ -53,7 +49,6 @@ Feature: Coordinating the seats of a contested game
     Then seat S2's wait returns "OK You are asked to take your turn."
 
   # @spec APP-066, TOOL-063
-  @wip
   Scenario: wait times out and names the seat the game is waiting on
     Given a started contested game against 1 Omnath deck with the tested seat first
     When seat S2 waits with a timeout of 1 second
@@ -61,7 +56,6 @@ Feature: Coordinating the seats of a contested game
     And the response says "Still waiting: S1 is asked to take its turn."
 
   # @spec GAME-036, GAME-126, APP-055
-  @wip
   Scenario: A resend is recognised against the sending seat's own change after another seat acted
     Given a contested game against 1 Omnath deck with seed 42 and the tested seat at position 1
     When seat S1 takes a mulligan after change 1
@@ -79,7 +73,6 @@ Feature: Coordinating the seats of a contested game
     And the game did not change
 
   # @spec REC-028, REC-052, REC-056
-  @wip
   Scenario: Every log entry and call record names its seat, and the record holds the opposing decks
     Given a started contested game against 2 Omnath decks with the tested seat first
     When seat S2 asks for the state

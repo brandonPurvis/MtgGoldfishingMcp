@@ -19,6 +19,7 @@ PURPOSES = {
     "choose": "Finish a look or search by saying where the revealed cards go.",
     "attack": "Declare attackers and which are blocked.",
     "advance": "Move to the next step, or forward to a named step.",
+    "wait": "Wait until your seat has something to do, then say what it is (contested games).",
     "end_game": "End the game with a result and verdict.",
     "get_log": "Return the game's records as JSON for analysis.",
 }

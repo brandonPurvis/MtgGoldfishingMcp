@@ -97,6 +97,8 @@ class ErrorKind(Enum):
     CARD_DATA_UNAVAILABLE = "card_data_unavailable"
     DEFINITION_NOT_IN_DECK = "definition_not_in_deck"
     DEFINITION_NEEDS_TYPE_LINE = "definition_needs_type_line"
+    # wait
+    BAD_TIMEOUT = "bad_timeout"
     # the service itself
     CHANGED_UNDERNEATH = "changed_underneath"
     INTERNAL_FAILURE = "internal_failure"
@@ -278,14 +280,38 @@ class ContestedGameStarted:
 
 @dataclass(frozen=True)
 class MulliganTaken:
+    """A mulligan taken: the seat's new hand. In a contested game `seat` names the seat."""
+
     mulligans: int
     hand: tuple[str, ...]
+    seat: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class HiddenMulliganTaken:
+    """The public form of a mulligan: which seat took it, and how many it has now taken."""
+
+    seat: SeatNumber
+    mulligans: int
 
 
 @dataclass(frozen=True)
 class HandKept:
+    """A hand kept. In a contested game `seat` names the seat that kept it."""
+
     bottomed: tuple[str, ...]
     hand: tuple[str, ...]
+    seat: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class HiddenHandKept:
+    """The public form of a kept hand: the seat, how many cards it kept and how many it put
+    on the bottom of its library."""
+
+    seat: SeatNumber
+    kept: int
+    bottomed: int
 
 
 @dataclass(frozen=True)
@@ -315,11 +341,26 @@ class CostPaid:
 
 @dataclass(frozen=True)
 class CardMoved:
+    """A card moved. In a contested game `owner` names the seat that owns it, whose hand or
+    library a move into or out of a hidden zone touches."""
+
     card: str
     from_zone: str
     to: str
     commander_redirected: bool = False
     token_gone: bool = False
+    owner: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class HiddenCardsMoved:
+    """The public form of cards moved from one hidden zone of a seat to another without
+    being revealed: whose zones, from where to where, and how many cards, not which."""
+
+    seat: SeatNumber
+    from_zone: str
+    to: str
+    count: int
 
 
 @dataclass(frozen=True)
@@ -479,8 +520,13 @@ class NothingRevealed:
 
 @dataclass(frozen=True)
 class Placement:
+    """Where a revealed card went. In a contested game `owner` names the seat that owns it,
+    and `from_zone` is the zone it came from."""
+
     card: str
     to: str
+    owner: SeatNumber | None = None
+    from_zone: str = ""
 
 
 @dataclass(frozen=True)
@@ -532,8 +578,12 @@ class NoBlocksDeclared:
 
 @dataclass(frozen=True)
 class BlockDeclared:
+    """One blocker and the attacker it blocks, by name and by instance id."""
+
     blocker: str
     attacker: str
+    blocker_id: str = ""
+    attacker_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -638,7 +688,10 @@ class ExpectationMismatched:
 
 @dataclass(frozen=True)
 class NoticeRaised:
+    """A notice first raised. A contested game's empty library notice names its seat."""
+
     notice: NoticeKind
+    seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -658,6 +711,33 @@ class AlreadyApplied:
     """The call was a resend of the most recent change and was not applied again."""
 
     change: int
+
+
+@dataclass(frozen=True)
+class SeatToAct:
+    """`wait`: the calling seat is a seat to act, and what it is asked."""
+
+    asked: Asked
+
+
+@dataclass(frozen=True)
+class StillWaiting:
+    """`wait` timed out: the seats the game is still waiting on and what they are asked, or
+    None when it waits on no seat."""
+
+    asked: Asked | None
+
+
+@dataclass(frozen=True)
+class SeatOut:
+    """`wait`: the calling seat has been eliminated; nothing more is asked of it."""
+
+    seat: SeatNumber
+
+
+@dataclass(frozen=True)
+class GameHasEnded:
+    """`wait`: the game has ended."""
 
 
 @dataclass(frozen=True)
@@ -695,11 +775,14 @@ Event = (
     | GameStarted
     | ContestedGameStarted
     | MulliganTaken
+    | HiddenMulliganTaken
     | HandKept
+    | HiddenHandKept
     | CardPlayed
     | EffectRecorded
     | CostPaid
     | CardMoved
+    | HiddenCardsMoved
     | TokensCreated
     | CardsDrawn
     | HiddenCardsDrawn
@@ -736,6 +819,10 @@ Event = (
     | ChecksOverridden
     | GameEnded
     | AlreadyApplied
+    | SeatToAct
+    | StillWaiting
+    | SeatOut
+    | GameHasEnded
     | SnapshotWritten
     | StateListed
     | LogExported

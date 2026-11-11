@@ -21,7 +21,7 @@ from mtg_goldfishing.application.ports import (
 )
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
-from mtg_goldfishing.domain.game.seats import SeatId
+from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 
 
@@ -107,7 +107,11 @@ def _after(number: int | None, since: int | None) -> bool:
     return since is None or (number is not None and number > since)
 
 
-# @spec APP-013
+class SnapshotAlreadyKept(Exception):
+    """A second snapshot for a table turn of a game: a defect, never a replacement."""
+
+
+# @spec APP-013, APP-046, APP-092
 class InMemoryRecordStore(RecordStore):
     """Log entries and turn snapshots per game, and every call record, numbered as added."""
 
@@ -118,7 +122,12 @@ class InMemoryRecordStore(RecordStore):
         self._records.entries.setdefault(game_id, []).append(copy.deepcopy(entry))
 
     def add_snapshot(self, game_id: str, snapshot: TurnSnapshot) -> None:
-        self._records.snapshots.setdefault(game_id, []).append(copy.deepcopy(snapshot))
+        kept = self._records.snapshots.setdefault(game_id, [])
+        if any(held.table_turn == snapshot.table_turn for held in kept):
+            raise SnapshotAlreadyKept(
+                f"game {game_id} has a snapshot of turn {snapshot.table_turn}"
+            )
+        kept.append(copy.deepcopy(snapshot))
 
     def add_call(self, record: CallRecord) -> None:
         self._records.calls.append(copy.deepcopy(replace(record, id=self._records.next_call_id)))
@@ -135,7 +144,7 @@ class InMemoryRecordStore(RecordStore):
                 snapshots=tuple(
                     sorted(
                         (s for s in snapshots if _after(s.written_by, since)),
-                        key=lambda s: s.turn,
+                        key=lambda s: s.table_turn,
                     )
                 ),
                 calls=tuple(
@@ -145,6 +154,14 @@ class InMemoryRecordStore(RecordStore):
                 ),
             )
         )
+
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        latest = [
+            call.change
+            for call in self._records.calls
+            if call.game_id == game_id and call.seat == seat and call.tool != "get_log"
+        ]
+        return latest[-1] if latest else None
 
     def calls(self) -> tuple[CallRecord, ...]:
         """Every call record in the order added, whatever game it names or none."""

@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game.ending import end_game
 from mtg_goldfishing.domain.game.model import Reminder
 from mtg_goldfishing.domain.play.playing import effect
@@ -17,7 +15,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted
 from tests.support.builders import Situation, a_game
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 ATRAXA = "Atraxa, Praetors' Voice"
 KENRITH = "Kenrith, the Returned King"
 
@@ -59,7 +56,6 @@ def into_cleanup(situation: Situation) -> Any:
 
 
 # @spec REC-045, REC-049
-@NOT_BUILT
 def test_entering_cleanup_of_another_seat_s_turn_writes_a_snapshot_of_that_seat() -> None:
     situation = seat_2_s_turn()
     exported = snapshot_to_data(into_cleanup(situation))
@@ -71,7 +67,6 @@ def test_entering_cleanup_of_another_seat_s_turn_writes_a_snapshot_of_that_seat(
 
 
 # @spec REC-046
-@NOT_BUILT
 def test_a_contested_snapshot_records_the_seat_the_table_turn_the_round_and_every_life() -> None:
     situation = seat_2_s_turn()
     exported = snapshot_to_data(into_cleanup(situation))
@@ -81,7 +76,6 @@ def test_a_contested_snapshot_records_the_seat_the_table_turn_the_round_and_ever
 
 
 # @spec REC-047, REC-079
-@NOT_BUILT
 def test_a_contested_snapshot_s_commander_damage_has_an_entry_for_every_other_seat() -> None:
     situation = seat_2_s_turn()
     exported = snapshot_to_data(into_cleanup(situation))
@@ -97,7 +91,6 @@ def test_a_contested_game_writes_at_most_one_snapshot_per_table_turn() -> None:
 
 
 # @spec REC-048
-@NOT_BUILT
 def test_two_seats_own_turns_of_the_same_number_each_get_their_snapshot() -> None:
     builder: Any = a_game().in_step(Step.END, turn=1).in_round(1).with_turns_taken(1)
     builder = builder.with_library("Forest", "Forest").and_an_opposing_seat().with_turns_taken(0)
@@ -110,7 +103,6 @@ def test_two_seats_own_turns_of_the_same_number_each_get_their_snapshot() -> Non
 
 
 # @spec REC-069
-@NOT_BUILT
 def test_a_contested_snapshot_lists_every_seat_s_unanswered_reminders_of_its_table_turn() -> None:
     situation = seat_2_s_turn(third_out=False)
     reminder: Any = Reminder
@@ -127,7 +119,6 @@ def test_a_contested_snapshot_lists_every_seat_s_unanswered_reminders_of_its_tab
 
 
 # @spec REC-050
-@NOT_BUILT
 def test_the_tested_seat_ending_the_game_in_another_seat_s_turn_snapshots_that_seat() -> None:
     situation = seat_2_s_turn(Step.MAIN1)
     result = acted(situation, end_game(situation.game, situation.deck, S1, result="win"))
@@ -136,7 +127,6 @@ def test_the_tested_seat_ending_the_game_in_another_seat_s_turn_snapshots_that_s
 
 
 # @spec REC-064, REC-071
-@NOT_BUILT
 def test_a_turn_ended_by_its_active_seat_s_elimination_snapshots_that_seat_as_it_left() -> None:
     situation = seat_2_s_turn(Step.MAIN1, third_out=False)
     result = acted(
@@ -152,7 +142,6 @@ def test_a_turn_ended_by_its_active_seat_s_elimination_snapshots_that_seat_as_it
 
 
 # @spec REC-064
-@NOT_BUILT
 def test_a_conceding_active_seat_s_turn_gets_its_snapshot_when_the_turn_ends() -> None:
     situation = seat_2_s_turn(Step.MAIN1, third_out=False)
     result = acted(situation, end_game(situation.game, situation.deck, S2, result="loss"))

@@ -102,6 +102,7 @@ def _keyword(reading: FaceReading, keyword: str) -> KeywordReading:
     return reading.haste if keyword == "haste" else reading.vigilance
 
 
+# @spec PAY-049
 def has_keyword(game: Game, deck: LoadedDeck, card: CardInstance, keyword: str) -> bool:
     """Haste or vigilance: the instance's own, or granted by a permanent its controller controls."""
     if _keyword(reading_of(deck, card), keyword).own:

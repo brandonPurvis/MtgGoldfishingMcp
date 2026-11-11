@@ -6,9 +6,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-import pytest
-
-from mtg_goldfishing.adapters import system
+from mtg_goldfishing.adapters.system import InProcessGameChanges
 from mtg_goldfishing.application import ports
 from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.application.service import Service
@@ -18,14 +16,12 @@ from tests.application.test_game_order import Journal
 from tests.support.rendering import PlainRenderer
 from tests.support.service import ServiceHarness, a_service
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 IDS = ("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd")
 GAME = "gaaaaaaaaaa"
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
-GameChanges: Any = getattr(ports, "GameChanges", object)
 
 
-class ImpatientChanges(GameChanges):  # type: ignore[misc]
+class ImpatientChanges(ports.GameChanges):
     """Game changes that never see a change in time: every wait times out at once. It keeps
     the waits it was asked for and the announcements it was given."""
 
@@ -41,11 +37,11 @@ class ImpatientChanges(GameChanges):  # type: ignore[misc]
         return False
 
 
-class WatchedChanges(GameChanges):  # type: ignore[misc]
+class WatchedChanges(ports.GameChanges):
     """The in-process game changes, telling the test when a wait has begun."""
 
     def __init__(self) -> None:
-        self._inner: Any = system.InProcessGameChanges()  # type: ignore[attr-defined]
+        self._inner = InProcessGameChanges()
         self.waiting = threading.Event()
 
     def announce(self, game_id: str, change: int) -> None:
@@ -53,8 +49,7 @@ class WatchedChanges(GameChanges):  # type: ignore[misc]
 
     def wait_for_change(self, game_id: str, after: int, timeout: float) -> bool:
         self.waiting.set()
-        changed: bool = self._inner.wait_for_change(game_id, after, timeout)
-        return changed
+        return self._inner.wait_for_change(game_id, after, timeout)
 
 
 class JournaledUnitOfWork(ports.UnitOfWork):
@@ -73,7 +68,7 @@ class JournaledUnitOfWork(ports.UnitOfWork):
         self._inner.rollback()
 
 
-class JournaledChanges(GameChanges):  # type: ignore[misc]
+class JournaledChanges(ports.GameChanges):
     def __init__(self, journal: list[str]) -> None:
         self._journal = journal
 
@@ -129,8 +124,10 @@ class Waiter:
 
 
 def ends_its_turn(harness: ServiceHarness, seat: int) -> None:
-    call_as(harness, seat, "advance", to="cleanup")
-    call_as(harness, seat, "advance")
+    """The seat advances through cleanup, discarding down to seven, into the next turn."""
+    hand = [card.name for card in harness.game(GAME).hand_of(SeatNumber(seat))]
+    answer = call_as(harness, seat, "advance", to="main1", discard=hand[7:])
+    assert answer.outcome.status is Status.OK, answer
 
 
 def watched_and_started() -> tuple[ServiceHarness, WatchedChanges]:
@@ -144,7 +141,6 @@ def watched_and_started() -> tuple[ServiceHarness, WatchedChanges]:
 
 
 # @spec APP-063
-@NOT_BUILT
 def test_a_seat_to_act_that_waits_is_told_at_once_what_it_is_asked() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -155,7 +151,6 @@ def test_a_seat_to_act_that_waits_is_told_at_once_what_it_is_asked() -> None:
 
 
 # @spec APP-064
-@NOT_BUILT
 def test_a_waiting_seat_is_answered_once_another_seat_s_change_makes_it_the_seat_to_act() -> None:
     harness, changes = watched_and_started()
     waiter = Waiter(harness, 2)
@@ -166,7 +161,6 @@ def test_a_waiting_seat_is_answered_once_another_seat_s_change_makes_it_the_seat
 
 
 # @spec APP-065
-@NOT_BUILT
 def test_a_change_that_leaves_the_waiting_seat_with_nothing_to_do_does_not_end_its_wait() -> None:
     harness, changes = watched_and_started()
     waiter = Waiter(harness, 2)
@@ -179,7 +173,6 @@ def test_a_change_that_leaves_the_waiting_seat_with_nothing_to_do_does_not_end_i
 
 
 # @spec APP-066
-@NOT_BUILT
 def test_a_wait_that_times_out_names_the_seat_to_act_and_what_it_is_asked() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -190,7 +183,6 @@ def test_a_wait_that_times_out_names_the_seat_to_act_and_what_it_is_asked() -> N
 
 
 # @spec APP-066
-@NOT_BUILT
 def test_a_wait_that_times_out_during_mulligans_names_every_seat_still_to_keep() -> None:
     harness = contested(opposing=2, changes=ImpatientChanges())
     call_as(harness, 2, "mulligan", keep=True)
@@ -199,7 +191,6 @@ def test_a_wait_that_times_out_during_mulligans_names_every_seat_still_to_keep()
 
 
 # @spec APP-067, APP-089, GAME-114
-@NOT_BUILT
 def test_an_eliminated_seat_s_wait_returns_at_once_saying_it_is_out() -> None:
     changes = ImpatientChanges()
     harness = contested(opposing=2, changes=changes)
@@ -212,7 +203,6 @@ def test_an_eliminated_seat_s_wait_returns_at_once_saying_it_is_out() -> None:
 
 
 # @spec APP-067, APP-089
-@NOT_BUILT
 def test_a_seat_eliminated_while_it_waits_is_answered_that_it_is_out() -> None:
     harness, changes = watched_and_started()
     waiter = Waiter(harness, 2)
@@ -222,7 +212,6 @@ def test_a_seat_eliminated_while_it_waits_is_answered_that_it_is_out() -> None:
 
 
 # @spec APP-067, APP-088
-@NOT_BUILT
 def test_a_game_ended_while_a_seat_waits_answers_it_that_the_game_has_ended() -> None:
     harness, changes = watched_and_started()
     waiter = Waiter(harness, 2)
@@ -233,7 +222,6 @@ def test_a_game_ended_while_a_seat_waits_answers_it_that_the_game_has_ended() ->
 
 
 # @spec APP-088
-@NOT_BUILT
 def test_an_eliminated_seat_waiting_on_an_ended_game_is_told_the_game_has_ended() -> None:
     harness = contested(opposing=2, changes=ImpatientChanges())
     started(harness)
@@ -243,14 +231,13 @@ def test_an_eliminated_seat_waiting_on_an_ended_game_is_told_the_game_has_ended(
 
 
 # @spec APP-074
-@NOT_BUILT
 def test_a_goldfish_wait_returns_at_once_saying_what_the_seat_is_asked() -> None:
     changes = ImpatientChanges()
-    harness = a_service(game_ids=IDS, changes=changes)  # type: ignore[call-arg]
+    harness = a_service(game_ids=IDS, changes=changes)
     harness.started_game()
-    keeping = harness.service.wait({"game_id": GAME})  # type: ignore[attr-defined]
+    keeping = harness.service.wait({"game_id": GAME})
     harness.service.mulligan({"game_id": GAME, "keep": True})
-    turn = harness.service.wait({"game_id": GAME})  # type: ignore[attr-defined]
+    turn = harness.service.wait({"game_id": GAME})
     assert [summary_of(a)[1].asked.kind for a in (keeping, turn)] == [
         AskedKind.KEEP,
         AskedKind.TURN,
@@ -259,17 +246,15 @@ def test_a_goldfish_wait_returns_at_once_saying_what_the_seat_is_asked() -> None
 
 
 # @spec APP-088
-@NOT_BUILT
 def test_a_goldfish_wait_on_an_ended_game_says_the_game_has_ended() -> None:
-    harness = a_service(game_ids=IDS, changes=ImpatientChanges())  # type: ignore[call-arg]
+    harness = a_service(game_ids=IDS, changes=ImpatientChanges())
     harness.started_game()
     harness.service.end_game({"game_id": GAME, "result": "stalled"})
-    answer = harness.service.wait({"game_id": GAME})  # type: ignore[attr-defined]
+    answer = harness.service.wait({"game_id": GAME})
     assert (answer.outcome.status, summary_of(answer)[0]) == (Status.OK, "GameHasEnded")
 
 
 # @spec APP-071
-@NOT_BUILT
 def test_a_wait_that_times_out_carries_the_seat_s_digest_and_game_summary() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -283,7 +268,6 @@ def test_a_wait_that_times_out_carries_the_seat_s_digest_and_game_summary() -> N
 
 
 # @spec APP-072
-@NOT_BUILT
 def test_a_wait_with_no_timeout_waits_30_seconds() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -293,7 +277,6 @@ def test_a_wait_with_no_timeout_waits_30_seconds() -> None:
 
 
 # @spec APP-090
-@NOT_BUILT
 def test_a_wait_accepts_a_fraction_of_a_second_in_its_timeout() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -304,7 +287,6 @@ def test_a_wait_accepts_a_fraction_of_a_second_in_its_timeout() -> None:
 
 
 # @spec APP-073
-@NOT_BUILT
 def test_a_timeout_over_60_seconds_is_an_error_and_nothing_is_waited_for() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -314,7 +296,6 @@ def test_a_timeout_over_60_seconds_is_an_error_and_nothing_is_waited_for() -> No
 
 
 # @spec APP-078
-@NOT_BUILT
 def test_a_timeout_under_1_second_is_an_error_and_nothing_is_waited_for() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -324,7 +305,6 @@ def test_a_timeout_under_1_second_is_an_error_and_nothing_is_waited_for() -> Non
 
 
 # @spec APP-091
-@NOT_BUILT
 def test_a_timeout_outside_the_range_is_an_error_about_the_found_game_and_seat() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -335,11 +315,10 @@ def test_a_timeout_outside_the_range_is_an_error_about_the_found_game_and_seat()
 
 
 # @spec APP-075
-@NOT_BUILT
 def test_a_wait_with_an_id_naming_no_seat_is_an_error_without_a_game() -> None:
     changes = ImpatientChanges()
-    harness = a_service(changes=changes)  # type: ignore[call-arg]
-    answer = harness.service.wait({"game_id": "gnosuchgame"})  # type: ignore[attr-defined]
+    harness = a_service(changes=changes)
+    answer = harness.service.wait({"game_id": "gnosuchgame"})
     assert (answer.outcome.status, answer.outcome.game) == (Status.ERROR, None)
     assert changes.waits == []
 
@@ -348,7 +327,6 @@ def test_a_wait_with_an_id_naming_no_seat_is_an_error_without_a_game() -> None:
 
 
 # @spec APP-068
-@NOT_BUILT
 def test_a_waiting_seat_holds_no_lock_so_other_seats_calls_are_answered_meanwhile() -> None:
     harness, changes = watched_and_started()
     waiter = Waiter(harness, 2, timeout=2)
@@ -359,7 +337,6 @@ def test_a_waiting_seat_holds_no_lock_so_other_seats_calls_are_answered_meanwhil
 
 
 # @spec APP-069
-@NOT_BUILT
 def test_a_wait_loads_the_game_and_adds_its_call_record_only_while_holding_the_lock() -> None:
     journal = Journal()
     harness = contested(
@@ -381,7 +358,6 @@ def test_a_wait_loads_the_game_and_adds_its_call_record_only_while_holding_the_l
 
 
 # @spec APP-070, REC-026, REC-053
-@NOT_BUILT
 def test_a_wait_changes_nothing_logs_nothing_announces_nothing_and_keeps_a_call_record() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -396,12 +372,11 @@ def test_a_wait_changes_nothing_logs_nothing_announces_nothing_and_keeps_a_call_
 
 
 # @spec APP-059
-@NOT_BUILT
 def test_an_applied_change_is_announced_once_its_unit_of_work_has_committed() -> None:
     journal: list[str] = []
     harness = contested()
     stores = harness.stores
-    harness.service = Service(  # type: ignore[call-arg]
+    harness.service = Service(
         games=stores.games,
         decks=stores.decks,
         records=stores.records,
@@ -418,7 +393,6 @@ def test_an_applied_change_is_announced_once_its_unit_of_work_has_committed() ->
 
 
 # @spec APP-060
-@NOT_BUILT
 def test_a_refused_or_read_only_call_announces_nothing() -> None:
     changes = ImpatientChanges()
     harness = contested(changes=changes)
@@ -431,7 +405,6 @@ def test_a_refused_or_read_only_call_announces_nothing() -> None:
 
 
 # @spec GAME-114
-@NOT_BUILT
 def test_a_seat_that_is_not_the_seat_to_act_may_read_the_state_and_log_and_wait() -> None:
     harness = contested(changes=ImpatientChanges())
     started(harness)
@@ -440,7 +413,6 @@ def test_a_seat_that_is_not_the_seat_to_act_may_read_the_state_and_log_and_wait(
 
 
 # @spec GAME-114
-@NOT_BUILT
 def test_an_eliminated_seat_may_read_the_state_and_log_and_wait() -> None:
     harness = contested(opposing=2, changes=ImpatientChanges())
     started(harness)

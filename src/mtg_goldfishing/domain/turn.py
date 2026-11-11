@@ -76,7 +76,9 @@ def _remind(game: Game, decks: Decks, step: Step) -> ReminderIssued | None:
         if step in reading_of(deck, card).step_triggers:
             name = face_name(deck, card)
             counts[name] = counts.get(name, 0) + 1
-            active.reminders.append(Reminder(card.id, name, step, card_name=card.name))
+            active.reminders.append(
+                Reminder(card.id, name, step, card_name=card.name, turn=game.turn)
+            )
     if not counts:
         return None
     seat = active.number if game.contested else None
@@ -260,12 +262,19 @@ def advance(
     return Applied(moved, walk.summary, tuple(walk.events), tuple(walk.snapshots))
 
 
-# @spec TURN-031, TURN-033, TURN-040, TURN-041
+# @spec TURN-031, TURN-033, TURN-040, TURN-041, REC-064, REC-071
 def pass_the_turn(game: Game, decks: Decks, walk: Walk) -> None:
     """End the active seat's turn: the next seat in turn order still in the game becomes the
     active seat and its turn proceeds to its first main step, stopping where a reminder
-    stops it. When no other seat is left in the game, the same seat takes the next turn."""
+    stops it. When no other seat is left in the game, the same seat takes the next turn.
+
+    A turn ended by its active seat's elimination never entered cleanup; its snapshot is
+    written now, describing that seat as its elimination left it."""
     previous = game.active_seat
+    if not previous.in_game:
+        snapshot = take_snapshot(game, decks.of(previous.number))
+        if snapshot is not None:
+            walk.snapshots.append(snapshot)
     following = next((seat for seat in game.others_from(previous.number) if seat.in_game), None)
     if following is None:
         if not previous.in_game:

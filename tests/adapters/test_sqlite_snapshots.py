@@ -10,12 +10,10 @@ import pytest
 from mtg_goldfishing.adapters.sqlite import SqliteStores
 from tests.support.stored import a_contested_snapshot, a_snapshot
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 GAME = "gtest000001"
 
 
 # @spec STOR-028
-@NOT_BUILT
 def test_a_snapshot_row_is_keyed_by_the_table_turn(tmp_path: Path) -> None:
     stores = SqliteStores.open(tmp_path / "games.sqlite3")
     try:

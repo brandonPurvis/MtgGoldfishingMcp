@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from behave import given, then, when
+from tests.support.responses import headline
 
 from mtg_goldfishing.domain.game.model import Zone
 
@@ -27,7 +28,7 @@ def step_impl(context: Any, card: str) -> None:
 @given('I have played "{card:Quoted}"')
 def step_impl(context: Any, card: str) -> None:
     response = context.agent.call("play", card=card)
-    assert response.text.startswith("OK"), response.text
+    assert headline(response.text).startswith("OK"), response.text
 
 
 @when('I play "{card:Quoted}"')

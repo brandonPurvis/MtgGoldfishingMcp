@@ -19,7 +19,7 @@ from mtg_goldfishing.domain.game.results import Refusal
 from mtg_goldfishing.domain.game.summary import summarize
 
 
-# @spec APP-027, REC-052
+# @spec APP-027, REC-052, APP-058
 def malformed_call(
     ports: Ports, tool: str, arguments: Mapping[str, object], problems: Sequence[str]
 ) -> Answer:
@@ -53,8 +53,9 @@ def malformed_call(
         if stored is not None:
             if stored.game.contested:
                 call.seat = found.seat
+            call.about(stored.game)
             decks = decks_of(ports.decks, stored.game)
-            call.game = summarize(stored.game, decks.of(found.seat), found.seat)
+            call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
         return call.finish(refused(refusal, call.game))
 
     return call.guarded(answer)

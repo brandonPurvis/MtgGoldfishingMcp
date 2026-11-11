@@ -88,7 +88,14 @@ def _among(
 
 
 def _placements(events: Sequence[Event]) -> tuple[Placement, ...]:
-    return tuple(Placement(e.card, e.to) for e in events if isinstance(e, CardMoved))
+    """Where each revealed card went; in a contested game also whose it is and where from."""
+    return tuple(
+        Placement(e.card, e.to)
+        if e.owner is None
+        else Placement(e.card, e.to, e.owner, e.from_zone)
+        for e in events
+        if isinstance(e, CardMoved)
+    )
 
 
 def _shown(events: Sequence[Event]) -> list[Event]:
@@ -294,6 +301,8 @@ def _answer_blocks(
             BlockDeclared(
                 face_name(decks.of(blocker.owner), blocker),
                 face_name(decks.of(attacker.owner), attacker),
+                blocker.id,
+                attacker.id,
             )
             for blocker, attacker in declared
         ),
@@ -374,4 +383,4 @@ def choose(
     if walk.entered:
         reported.append(walk.summary)
     reported.extend(walk.events)
-    return Applied(changed, answered.summary, tuple(reported))
+    return Applied(changed, answered.summary, tuple(reported), tuple(walk.snapshots))

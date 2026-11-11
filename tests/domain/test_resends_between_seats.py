@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.events import AlreadyApplied
 from mtg_goldfishing.domain.game.calls import accept_change, follow_change
 from mtg_goldfishing.domain.game.mulligan import mulligan
@@ -15,7 +13,6 @@ from mtg_goldfishing.domain.game.seats import SeatNumber
 from tests.support.acting import S1, S2, S3
 from tests.support.builders import Situation, a_game
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M3c: not built")
 TAKE_A_MULLIGAN = {"keep": False}
 
 
@@ -48,7 +45,6 @@ def test_a_seat_s_resend_is_recognised_after_other_seats_have_changed_the_game()
 
 
 # @spec GAME-126
-@NOT_BUILT
 def test_a_resend_says_the_change_number_the_seat_s_change_was_applied_as() -> None:
     situation = three_seats_in_mulligans()
     mulliganed(situation, S1)

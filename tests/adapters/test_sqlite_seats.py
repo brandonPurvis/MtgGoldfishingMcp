@@ -17,7 +17,7 @@ import pytest
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.memory import FixedClock, FixedIdSource, InMemoryCardCatalog
 from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase, SqliteStores
-from mtg_goldfishing.adapters.system import InProcessGameLocks
+from mtg_goldfishing.adapters.system import InProcessGameChanges, InProcessGameLocks
 from mtg_goldfishing.application.service import Service
 from mtg_goldfishing.domain.game import seats
 from tests.support.builders import a_game
@@ -112,6 +112,7 @@ def _service(stores: SqliteStores) -> Service:
         ids=FixedIdSource(),
         clock=FixedClock(),
         renderer=TextRenderer(),
+        changes=InProcessGameChanges(),
     )
 
 

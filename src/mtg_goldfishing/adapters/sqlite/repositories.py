@@ -139,11 +139,13 @@ class SqliteDeckRepository(DeckRepository):
         return loaded
 
 
-# @spec STOR-001, STOR-011, STOR-012
+# @spec STOR-001, STOR-011, STOR-012, STOR-028, STOR-029
 class SqliteRecordStore(RecordStore):
     """Log entries, turn snapshots and call records, each a row holding one JSON document.
 
-    Nothing here deletes or updates a row: records are kept indefinitely.
+    Nothing here deletes or updates a row: records are kept indefinitely. A snapshot row is
+    keyed by its game and table turn (a goldfish game's turn), so a second snapshot for a
+    table turn raises and writes nothing.
     """
 
     def __init__(self, database: SqliteDatabase) -> None:
@@ -160,7 +162,12 @@ class SqliteRecordStore(RecordStore):
         with self._database.writing() as connection:
             connection.execute(
                 "INSERT INTO snapshots (game_id, turn, written_by, snapshot) VALUES (?, ?, ?, ?)",
-                (game_id, snapshot.turn, snapshot.written_by, encode(snapshot, TurnSnapshot)),
+                (
+                    game_id,
+                    snapshot.table_turn,
+                    snapshot.written_by,
+                    encode(snapshot, TurnSnapshot),
+                ),
             )
 
     # @spec STOR-021
@@ -184,6 +191,20 @@ class SqliteRecordStore(RecordStore):
                     encode(record, CallRecord),
                 ),
             )
+
+    # @spec STOR-022
+    def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
+        """The change number on the seat's latest-stored call record other than `get_log`."""
+        row = (
+            self._database.connection()
+            .execute(
+                "SELECT change FROM calls WHERE game_id = ? AND seat = ? AND tool != 'get_log'"
+                " ORDER BY id DESC LIMIT 1",
+                (game_id, seat.value),
+            )
+            .fetchone()
+        )
+        return None if row is None or row[0] is None else int(row[0])
 
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         """Entries with seq > since, calls with change > since, snapshots written after since."""

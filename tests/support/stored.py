@@ -51,9 +51,10 @@ from mtg_goldfishing.domain.game.model import (
 from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.mana import Mana, ManaString, Restriction
 from mtg_goldfishing.domain.reading.reader import read_card
-from mtg_goldfishing.domain.records import model
 from mtg_goldfishing.domain.records.model import (
     CallRecord,
+    ContestedEntry,
+    ContestedSnapshot,
     HandCard,
     LogEntry,
     Payment,
@@ -252,15 +253,13 @@ def a_call(game_id: str | None, change: int | None, *, tool: str = "advance") ->
 
 
 # ---------------------------------------------------------------------------------------
-# Records of a contested game. The contested parts are reached by name, so that these
-# builders exist before the records hold them.
+# Records of a contested game.
 # ---------------------------------------------------------------------------------------
 
 
 def a_contested_reminder(seat: int, table_turn: int) -> ReminderRecord:
     """A reminder of Phyrexian Arena's upkeep trigger issued to a seat in a table turn."""
-    reminder: Any = ReminderRecord
-    return reminder(
+    return ReminderRecord(
         "Phyrexian Arena",
         Step.UPKEEP,
         "c4",
@@ -281,7 +280,6 @@ def a_contested_log_entry(
     public: tuple[Any, ...] = (),
 ) -> LogEntry:
     """A log entry of a seat of a contested game, made in a table turn."""
-    contested: Any = getattr(model, "ContestedEntry")  # noqa: B009
     arguments: dict[str, object] = {} if source is None else {"source": source}
     entry: Any = replace(
         a_log_entry(seq, tool=tool),
@@ -292,7 +290,7 @@ def a_contested_log_entry(
     )
     return replace(
         entry,
-        contested=contested(
+        contested=ContestedEntry(
             seat=SeatNumber(seat),
             active=SeatNumber(seat),
             table_turn=table_turn,
@@ -304,12 +302,11 @@ def a_contested_log_entry(
 
 def a_contested_snapshot(turn: int, *, table_turn: int, written_by: int) -> TurnSnapshot:
     """A snapshot of seat 2's own turn `turn`, in a contested game's table turn `table_turn`."""
-    contested: Any = getattr(model, "ContestedSnapshot")  # noqa: B009
     snapshot: Any = replace(a_snapshot(turn, written_by=written_by), damage_dealt=0)
     return replace(
         snapshot,
         commander_damage=(),
-        contested=contested(
+        contested=ContestedSnapshot(
             seat=SeatNumber(2),
             table_turn=table_turn,
             round=1,
