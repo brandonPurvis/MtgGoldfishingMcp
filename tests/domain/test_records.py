@@ -38,7 +38,7 @@ from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.results import Applied, Result
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.play.playing import effect
-from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
+from mtg_goldfishing.domain.reading.model import CardReading, FaceReading, StepTrigger
 from mtg_goldfishing.domain.records.export import export, log_entry_to_data
 from mtg_goldfishing.domain.records.log import log_entry
 from mtg_goldfishing.domain.records.model import (
@@ -116,7 +116,7 @@ VALKI = LIBRARY["Valki, God of Lies // Tibalt, Cosmic Impostor"][0]
 
 
 def with_upkeep_trigger(card: Card) -> CardReading:
-    return CardReading((FaceReading(step_triggers=(Step.UPKEEP,)), FaceReading()))
+    return CardReading((FaceReading(step_triggers=(StepTrigger(Step.UPKEEP),)), FaceReading()))
 
 
 # ---------------------------------------------------------------------------------------
@@ -651,7 +651,9 @@ TIBALT = "Tibalt, Cosmic Impostor"
 def test_the_game_and_the_log_agree_on_answering_a_reminder_issued_on_a_back_face(
     source: str, answered: bool
 ) -> None:
-    back_face_trigger = CardReading((FaceReading(), FaceReading(step_triggers=(Step.UPKEEP,))))
+    back_face_trigger = CardReading(
+        (FaceReading(), FaceReading(step_triggers=(StepTrigger(Step.UPKEEP),)))
+    )
     situation = (
         a_game()
         .in_step(Step.UNTAP)

@@ -10,10 +10,25 @@ active seat, ends once nothing is left waiting (see `turn`).
 
 from __future__ import annotations
 
-from mtg_goldfishing.domain.events import EliminationCause, Event, NoticeKind, SeatEliminated
-from mtg_goldfishing.domain.game.model import COMMANDER_DAMAGE_TO_WIN, Game, GameStatus
+from dataclasses import replace
+
+from mtg_goldfishing.domain.events import (
+    CardMoved,
+    EliminationCause,
+    Event,
+    ItemRemoved,
+    NoticeKind,
+    SeatEliminated,
+)
+from mtg_goldfishing.domain.game.model import (
+    COMMANDER_DAMAGE_TO_WIN,
+    Destination,
+    Game,
+    GameStatus,
+)
 from mtg_goldfishing.domain.game.movement import raise_notice
 from mtg_goldfishing.domain.game.seats import SeatNumber
+from mtg_goldfishing.domain.stack.items import begin_asking_again
 
 
 def _commander_damage_to(game: Game, seat: SeatNumber) -> int:
@@ -61,6 +76,44 @@ def check_eliminations(game: Game) -> list[Event]:
     return events
 
 
+# @spec STACK-058, STACK-059, STACK-060, STACK-061, STACK-063, STACK-073
+def _leave_the_stack(game: Game, seat: SeatNumber) -> list[Event]:
+    """Take off the stack, unresolved and bottom first, every item the leaving seat controls
+    and every item whose card it owns. A spell it controlled whose card another seat owns
+    goes to its owner's graveyard, a commander to its owner's command zone. The items left
+    keep their places and none is disturbed; when the top item left, the window's asking
+    begins again for the new top item."""
+    newest = game.stack[-1].id if game.stack else None
+    events: list[Event] = []
+    kept = []
+    for item in game.stack:
+        card = game.find(item.card) if item.card is not None else None
+        if item.controller != seat and (card is None or card.owner != seat):
+            kept.append(item)
+            continue
+        events.append(ItemRemoved(item.id, item.controller, item.source))
+        if card is not None and card.owner != seat:
+            destination = Destination.COMMAND if card.is_commander else Destination.GRAVEYARD
+            game.put(card, destination)
+            card.face = 0
+            events.append(
+                CardMoved(
+                    card.name,
+                    "stack",
+                    destination.value,
+                    commander_redirected=card.is_commander,
+                    owner=card.owner,
+                )
+            )
+    game.stack = kept
+    window = game.window
+    if window is not None and (game.stack[-1].id if game.stack else None) != newest:
+        begin_asking_again(game)
+    elif window is not None and window.asking == seat:
+        game.window = replace(window, asking=None)
+    return events
+
+
 # @spec GAME-132, GAME-133, GAME-135, GAME-138, GAME-162, GAME-163, GAME-142, GAME-143
 # @spec TURN-036
 def eliminate(
@@ -76,23 +129,26 @@ def eliminate(
     leaving = game.seat(seat)
     leaving.eliminated = True
     leaving.library = []
+    removed = _leave_the_stack(game, seat)
     game.cards = [card for card in game.cards if card.owner != seat]
     for card in game.cards:
         if card.controller == seat:
             card.controller = card.owner
     active_out = game.active == seat
+    held = {item.id for item in game.stack}
     game.pending = [
         choice
         for choice in game.pending
         if seat not in (choice.seat, choice.hand_of)
         and not (active_out and choice.kind == "blocks")
+        and not (choice.kind == "resolve" and choice.item not in held)
     ]
     game.hand_looks = [look for look in game.hand_looks if seat not in (look.seat, look.hand_of)]
     if active_out:
         game.declared_attack = None
     if game.status is GameStatus.PENDING_CHOICE and not game.pending:
         game.status = GameStatus.ACTIVE
-    events: list[Event] = [SeatEliminated(seat, cause, notes)]
+    events: list[Event] = [SeatEliminated(seat, cause, notes), *removed]
     if leaving.tested:
         events.extend(raise_notice(game, NoticeKind.TESTED_SEAT_ELIMINATED))
     if all(not other.in_game for other in game.seats if not other.tested):

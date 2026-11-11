@@ -31,7 +31,7 @@ def call_as(harness: ServiceHarness, seat: int, tool: str, **arguments: object) 
 
 
 def asking(harness: ServiceHarness, delta: object) -> Answer:
-    return call_as(harness, 1, "effect", source="Mind Rot", delta=delta)
+    return call_as(harness, 1, "effect", source="Mind Rot", delta=delta, immediate=True)
 
 
 def waiting_choice(harness: ServiceHarness) -> str:

@@ -24,6 +24,7 @@ from mtg_goldfishing.domain.events import (
     Error,
     ErrorKind,
     Event,
+    ItemCountered,
     LifeChanged,
     ManaAdded,
     NothingRevealed,
@@ -46,7 +47,7 @@ from mtg_goldfishing.domain.game.model import (
     Zone,
 )
 from mtg_goldfishing.domain.game.movement import draw, move
-from mtg_goldfishing.domain.game.naming import Purpose, resolve
+from mtg_goldfishing.domain.game.naming import Purpose, matches, resolve
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.shuffling import shuffle_library
 from mtg_goldfishing.domain.play.arguments import (
@@ -57,6 +58,7 @@ from mtg_goldfishing.domain.play.arguments import (
     Look,
     Search,
 )
+from mtg_goldfishing.domain.stack.items import begin_asking_again, find_item, top
 
 # Where `move` finds cards: the hand, then the public zones. Never the library.
 MOVE_ZONES = (Zone.HAND, Zone.BATTLEFIELD, Zone.GRAVEYARD, Zone.EXILE, Zone.COMMAND)
@@ -246,12 +248,77 @@ def _control(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[E
     return events
 
 
-def _move(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Event] | Error:
-    resolved = _resolved(game, decks, seat, delta.move, MOVE_ZONES)
-    if isinstance(resolved, Error):
-        return resolved
+# @spec STACK-030, STACK-033, STACK-065, STACK-081
+def _counter(
+    game: Game, decks: Decks, delta: Delta, countered: list[CardInstance]
+) -> list[Event] | Error:
+    """Remove each item the delta counters from the stack without applying its delta,
+    keeping each countered spell's card for the delta's `move` and then its owner's
+    graveyard. An entry naming nothing on the stack is an error."""
     events: list[Event] = []
-    for destination, cards in resolved:
+    newest = top(game)
+    for entry in delta.counter:
+        item = find_item(game, decks, entry)
+        if item is None:
+            return Error(ErrorKind.NOT_ON_STACK, subject=entry)
+        game.stack.remove(item)
+        events.append(ItemCountered(item.id, item.controller, item.source))
+        card = game.find(item.card) if item.card is not None else None
+        if card is not None:
+            countered.append(card)
+    if top(game) != newest:
+        begin_asking_again(game)
+    return events
+
+
+def _on_the_stack(game: Game, decks: Decks, error: Error) -> Error:
+    """A name that `move` found nowhere it looks, but that names a spell's card on the
+    stack, is an error saying the card is on the stack."""
+    if error.kind not in (ErrorKind.CARD_NOT_IN_ZONE, ErrorKind.TOO_FEW_MATCHING):
+        return error
+    name = error.subject or ""
+    on_stack = any(
+        card.zone is Zone.STACK and matches(decks.of(card.owner), card, name) for card in game.cards
+    )
+    return Error(ErrorKind.CARD_ON_STACK, subject=name) if on_stack else error
+
+
+# @spec PLAY-090, PLAY-123, PLAY-130, STACK-031, STACK-032
+def _move(
+    game: Game, decks: Decks, seat: SeatNumber, delta: Delta, countered: list[CardInstance]
+) -> list[Event] | Error:
+    """Move each named card; a name takes a spell the same delta countered before any card
+    in the acting seat's hand or a public zone, and never another card on the stack. A
+    countered spell's card the delta does not move goes to its owner's graveyard."""
+    taken: list[str] = []
+    first: list[tuple[Destination, list[CardInstance]]] = []
+    rest: list[tuple[Destination, tuple[str, ...]]] = []
+    for destination, names in delta.move:
+        chosen: list[CardInstance] = []
+        others: list[str] = []
+        for name in names:
+            card = next(
+                (c for c in countered if c.id not in taken and matches(decks.of(c.owner), c, name)),
+                None,
+            )
+            if card is None:
+                others.append(name)
+            else:
+                taken.append(card.id)
+                chosen.append(card)
+        first.append((destination, chosen))
+        if others:
+            rest.append((destination, tuple(others)))
+    resolved: list[tuple[Destination, list[CardInstance]]] = []
+    if rest:
+        found = _resolved(game, decks, seat, tuple(rest), MOVE_ZONES)
+        if isinstance(found, Error):
+            return _on_the_stack(game, decks, found)
+        resolved = found
+    events: list[Event] = []
+    for destination, cards in (*first, *resolved):
+        if not cards:
+            continue
         events.extend(
             place_all(
                 game,
@@ -263,6 +330,19 @@ def _move(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[Even
                 arriving_under=seat,
             )
         )
+    for card in countered:
+        if card.id not in taken:
+            events.extend(
+                move(
+                    game,
+                    decks.of(card.owner),
+                    card,
+                    Destination.GRAVEYARD,
+                    commander_stays=delta.commander_stays,
+                )
+            )
+        if card.zone is not Zone.BATTLEFIELD:
+            card.face = 0
     return events
 
 
@@ -468,7 +548,7 @@ def _look_at_hand(game: Game, seat: SeatNumber, hand_of: SeatNumber, source: str
 
 
 # @spec PLAY-077, PLAY-128
-def _check_seats(game: Game, seat: SeatNumber, delta: Delta) -> Error | None:
+def check_seats(game: Game, seat: SeatNumber, delta: Delta) -> Error | None:
     """Every seat the delta names must be in the game and still in it; a look at a hand
     names another seat."""
     numbers = {other.number for other in game.seats}
@@ -485,7 +565,7 @@ def _check_seats(game: Game, seat: SeatNumber, delta: Delta) -> Error | None:
 # @spec PLAY-033, PLAY-034, PLAY-035, PLAY-036, PLAY-037, PLAY-038, PLAY-039, PLAY-040
 # @spec PLAY-041, PLAY-042, PLAY-043, PLAY-044, PLAY-045, PLAY-050, PLAY-056, PLAY-058
 # @spec PLAY-059, PLAY-060, PLAY-006, GAME-019, GAME-061, PAY-044, PLAY-085, PLAY-087
-# @spec PLAY-091, PLAY-095, PLAY-079, PLAY-114, PLAY-115
+# @spec PLAY-091, PLAY-095, PLAY-079, PLAY-114, PLAY-115, PLAY-085
 def apply_delta(
     game: Game,
     deck: LoadedDeck,
@@ -505,18 +585,24 @@ def apply_delta(
     `look_at_hand`, `look` and `search` come last and leave pending choices.
     """
     every = decks or Decks.everyone_playing(game, deck)
-    named = _check_seats(game, seat, delta)
+    named = check_seats(game, seat, delta)
     if named is not None:
         return named
     events: list[Event] = []
+    countered: list[CardInstance] = []
     steps: tuple[Callable[[], object], ...] = (
+        lambda: _counter(game, every, delta, countered) if delta.counter else [],
         lambda: _untap(game, every, seat, delta.untap) if delta.untap else [],
         lambda: _through_ask(game, _tap(game, every, seat, delta.tap)) if delta.tap else [],
         lambda: _mana(game, seat, delta),
         lambda: _tokens(game, seat, delta.tokens),
         lambda: _counters(game, every, seat, delta.counters),
         lambda: _control(game, every, seat, delta) if delta.control else [],
-        lambda: _through_ask(game, _move(game, every, seat, delta)) if delta.move else [],
+        lambda: (
+            _through_ask(game, _move(game, every, seat, delta, countered))
+            if delta.move or countered
+            else []
+        ),
         lambda: _through_ask(game, _discard(game, every, seat, delta)) if delta.discard else [],
         lambda: _through_ask(game, _fetch(game, every, seat, delta)) if delta.fetch else [],
         lambda: draw(game, seat, delta.draw) if delta.draw else [],

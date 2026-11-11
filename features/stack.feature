@@ -10,7 +10,6 @@ Feature: The stack and response windows
     And the Omnath test deck is loaded
 
   # @spec STACK-003, STACK-014, STACK-016, STACK-024, STACK-034, TOOL-046, TOOL-060
-  @wip
   Scenario: A spell with no responses resolves with the delta it was cast with
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 has ended its turn
@@ -30,7 +29,6 @@ Feature: The stack and response windows
     And the stack is empty
 
   # @spec STACK-030, STACK-031, STACK-039, TOOL-061
-  @wip
   Scenario: A counterspell cast in response resolves first and counters the held spell
     Given a started contested game against the Atraxa deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -53,7 +51,6 @@ Feature: The stack and response windows
     And the stack is empty
 
   # @spec STACK-039, STACK-035, STACK-050, STACK-023
-  @wip
   Scenario: A response restarts the asking from the seat after the responder, and items resolve newest first
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -72,7 +69,6 @@ Feature: The stack and response windows
     And the status line shows "Act S2 respond"
 
   # @spec STACK-023, STACK-024, STACK-025, STACK-026
-  @wip
   Scenario: A spell that waited under a resolved item is confirmed by its controller
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -92,7 +88,6 @@ Feature: The stack and response windows
     And the stack is empty
 
   # @spec STACK-025, STACK-027
-  @wip
   Scenario: A spell that waited under a resolved item is restated by its controller
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -111,7 +106,6 @@ Feature: The stack and response windows
     And the stack is empty
 
   # @spec STACK-046, STACK-047, STACK-048, STACK-049
-  @wip
   Scenario: A seat with no untapped permanents is passed automatically, and the automatic pass is reported
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 holds "Grizzly Bears"
@@ -125,7 +119,6 @@ Feature: The stack and response windows
     Then the digest says "S2 passed automatically on s1"
 
   # @spec STACK-036, STACK-040, STACK-041, STACK-044, CMBT-034
-  @wip
   Scenario: After attackers are declared, another seat removes an attacker in the attack window
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Grizzly Bears" onto the battlefield
@@ -144,7 +137,6 @@ Feature: The stack and response windows
     Then seat S2's life is 40
 
   # @spec STACK-037, STACK-045, TURN-056, TURN-057
-  @wip
   Scenario: In the end step a window opens in which another seat acts at the end of the turn
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 has ended its turn
@@ -162,7 +154,6 @@ Feature: The stack and response windows
     Then the status line shows "Act S1 turn"
 
   # @spec STACK-007, STACK-020
-  @wip
   Scenario: A triggered ability recorded with effect goes on the stack and can be responded to
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Sol Ring" onto the battlefield
@@ -180,12 +171,12 @@ Feature: The stack and response windows
     Then seat S1's life is 39
 
   # @spec STACK-056, STACK-057
-  @wip
   Scenario: An event trigger of a seat not taking its turn is recorded at that seat's next window
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 puts "Grizzly Bears" onto the battlefield
     And seat S1 has ended its turn
     And seat S2 puts "Llanowar Elves" onto the battlefield
+    And seat S2 puts "Birds of Paradise" onto the battlefield
     And seat S2 has ended its turn
     When seat S1 attacks with ["Grizzly Bears"]
     And seat S2 passes
@@ -193,7 +184,7 @@ Feature: The stack and response windows
     And seat S2 answers its blocks choice with blocks {"Llanowar Elves": "Grizzly Bears"}
     And seat S1 advances to "combat_damage"
     And seat S1 records an immediate effect with delta {"move": {"graveyard": ["Llanowar Elves"]}}
-    Then the status line shows "Act S1 turn"
+    Then the status line shows "Act you turn"
     When seat S1 advances to "end"
     Then the status line shows "Act S2 respond"
     When seat S2 records an effect from "Llanowar Elves" with delta {"life": {"2": 1}}
@@ -201,7 +192,6 @@ Feature: The stack and response windows
     And the response says "Put s1 on the stack: Llanowar Elves from S2."
 
   # @spec TURN-048, TURN-051, TURN-052, TURN-063, GAME-111, READ-034
-  @wip
   Scenario: A step trigger of another seat's permanent becomes a reminder for that seat, and the game waits on it
     Given the Omnath test deck is loaded with "Sylvan Library" defined as "At the beginning of each opponent's upkeep, you gain 1 life."
     And a started contested game against 1 Omnath deck with the tested seat first
@@ -209,7 +199,7 @@ Feature: The stack and response windows
     And seat S2 puts "Sylvan Library" onto the battlefield
     When seat S2 ends its turn
     Then the response says "Reminder (upkeep) for S2: Sylvan Library"
-    And the status line shows "Act S2 trigger"
+    And the status line shows "Act you trigger"
     When seat S1 advances
     Then the response is ERROR
     When seat S2 records an effect from "Sylvan Library" with delta {"life": 1}
@@ -217,7 +207,6 @@ Feature: The stack and response windows
     And seat S2's life is 41
 
   # @spec GAME-118, STACK-052, TOOL-050
-  @wip
   Scenario: A seat that is not asked may not pass
     Given a started contested game against 1 Omnath deck with the tested seat first
     And seat S1 has ended its turn
@@ -231,7 +220,6 @@ Feature: The stack and response windows
     And the response says "Not your seat's call: S2 is asked to respond to s1. Call wait to be told when it is yours."
 
   # @spec STACK-062, GAME-129
-  @wip
   Scenario: An eliminated seat is skipped by response windows
     Given a started contested game against 2 Omnath decks with the tested seat first
     And seat S1 holds "Grizzly Bears"

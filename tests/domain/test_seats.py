@@ -68,7 +68,7 @@ def applied(situation: Any, tool: str, seat: Any, **arguments: object) -> Applie
 
 
 def recorded(situation: Any, seat: Any, delta: object) -> Applied:
-    return applied(situation, "effect", seat, source="test", delta=delta)
+    return applied(situation, "effect", seat, source="test", delta=delta, immediate=True)
 
 
 def a_game_of_two_seats() -> Any:
@@ -177,6 +177,7 @@ def test_a_life_change_reaches_only_the_acting_seat() -> None:
 # @spec GAME-061
 def test_a_land_played_uses_only_the_acting_seat_s_land_drop() -> None:
     situation = a_game_of_two_seats()
+    situation.game.active = the_opposing_seat()
     applied(situation, "play", the_opposing_seat(), card="Island")
     assert [seat.land_drops_used for seat in situation.game.seats] == [0, 1]
 
@@ -232,6 +233,7 @@ def test_a_seat_cannot_pay_with_another_seat_s_pool() -> None:
 def test_a_seat_pays_from_its_own_pool() -> None:
     builder: Any = a_game().with_pool("{G}")
     situation = builder.and_an_opposing_seat().with_hand("Llanowar Elves").with_pool("{G}").build()
+    situation.game.active = the_opposing_seat()
     applied(situation, "play", the_opposing_seat(), card="Llanowar Elves")
     assert [str(seat.mana_pool) for seat in situation.game.seats] == ["{G}", str(ManaPool())]
 

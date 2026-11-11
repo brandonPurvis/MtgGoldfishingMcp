@@ -40,6 +40,15 @@ def asked_to(asked: Asked, *, yourself: bool) -> str:
             return "keep or mulligan"
         case AskedKind.CHOICE:
             return f"answer the {asked.choice} choice"
+        case AskedKind.RESPOND:
+            if asked.item is not None:
+                return f"respond to {asked.item}"
+            if asked.window == "end":
+                return "respond in the end step"
+            return "respond to the attack"
+        case AskedKind.TRIGGER:
+            step = asked.step.value if asked.step is not None else "step"
+            return f"record or pass the {step} trigger of {', '.join(asked.cards)}"
         case AskedKind.TURN:
             return "take your turn" if yourself else "take its turn"
         case _:
@@ -185,6 +194,26 @@ def _error_text(error: Error) -> str:
             asked = error.asked
             doing = f": you are asked to {asked_to(asked, yourself=True)}" if asked else ""
             return f"{subject} is not accepted now{doing}."
+        case ErrorKind.NOTHING_TO_PASS:
+            return (
+                f"{subject} is not accepted now: no response window is asking your seat and no"
+                " reminder of yours waits; move on with advance."
+            )
+        case ErrorKind.ANSWER_WITH_CHOOSE:
+            asked = error.asked
+            kind = f"the {asked.choice} choice" if asked is not None else "a pending choice"
+            return f"{subject} is not accepted now: your seat owes {kind}; answer it with choose."
+        case ErrorKind.WINDOW_OPEN:
+            return (
+                f"{subject} is not accepted while a response window is open or the stack is not"
+                " empty; the seats asked respond or pass first."
+            )
+        case ErrorKind.NOT_ON_STACK:
+            return f"{subject} names nothing on the stack."
+        case ErrorKind.CARD_ON_STACK:
+            return f"{subject} is on the stack: only a delta that counters its spell can move it."
+        case ErrorKind.ABILITY_HAS_NO_CARD:
+            return f"{subject} is an ability, which has no card: restate it without to."
         case ErrorKind.SEAT_ELIMINATED:
             return (
                 f"Your seat has been eliminated, so it may not call {subject};"

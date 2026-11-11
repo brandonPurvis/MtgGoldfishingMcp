@@ -26,7 +26,6 @@ from tests.support.acting import S1, S2, S3, acted, cast
 from tests.support.builders import Situation, a_game
 from tests.support.tables import bolt_at, three_seats, two_seats
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 RENDERER = TextRenderer()
 
 
@@ -67,7 +66,6 @@ def bears_asked_of_s2() -> Situation:
 
 
 # @spec TOOL-046
-@NOT_BUILT
 def test_the_status_line_shows_the_number_of_items_on_the_stack() -> None:
     situation = bears_asked_of_s2()
 
@@ -80,7 +78,6 @@ def test_the_status_line_shows_no_stack_while_the_stack_is_empty() -> None:
 
 
 # @spec TOOL-060, TOOL-047
-@NOT_BUILT
 def test_act_says_respond_for_the_seat_a_window_asks() -> None:
     situation = bears_asked_of_s2()
 
@@ -89,7 +86,6 @@ def test_act_says_respond_for_the_seat_a_window_asks() -> None:
 
 
 # @spec TOOL-060
-@NOT_BUILT
 def test_act_says_trigger_for_a_seat_reminded_out_of_its_turn() -> None:
     situation = two_seats(
         second=lambda b: b.with_battlefield("Black Vise").with_reminder("Black Vise", Step.UPKEEP),
@@ -116,7 +112,6 @@ def test_act_says_turn_for_the_active_seat_when_nothing_else_waits() -> None:
 
 
 # @spec TOOL-061, TOOL-040
-@NOT_BUILT
 def test_the_seat_asked_about_an_item_is_told_its_id_source_and_controller() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     result = cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -132,7 +127,6 @@ def test_the_seat_asked_about_an_item_is_told_its_id_source_and_controller() -> 
 
 
 # @spec TOOL-061
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("kind", "words"),
     [("attack", "respond to the attack"), ("end", "respond in the end step")],
@@ -149,13 +143,11 @@ def test_a_window_with_no_item_asks_a_seat_to_respond_to_the_attack_or_in_the_en
 
 
 # @spec TOOL-061
-@NOT_BUILT
 def test_an_item_asked_about_is_named_by_its_id_in_an_error() -> None:
     assert "S2 is asked to respond to s1." in not_your_call(bears_asked_of_s2(), S3)
 
 
 # @spec TOOL-061
-@NOT_BUILT
 def test_a_reminded_seat_is_asked_to_record_or_pass_its_trigger() -> None:
     situation = two_seats(
         second=lambda b: b.with_battlefield("Black Vise").with_reminder("Black Vise", Step.UPKEEP),
@@ -171,7 +163,6 @@ def test_a_reminded_seat_is_asked_to_record_or_pass_its_trigger() -> None:
 
 
 # @spec TOOL-040, STACK-047
-@NOT_BUILT
 def test_stack_lines_follow_the_other_event_lines_in_their_order() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Lightning Bolt"),
@@ -194,7 +185,6 @@ def test_stack_lines_follow_the_other_event_lines_in_their_order() -> None:
 
 
 # @spec TOOL-040
-@NOT_BUILT
 def test_a_countered_item_is_said_to_be_countered() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -211,7 +201,6 @@ def test_a_countered_item_is_said_to_be_countered() -> None:
 
 
 # @spec TOOL-036, TOOL-037
-@NOT_BUILT
 def test_a_digest_line_tells_of_a_pass_and_the_resolution_it_caused() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -223,7 +212,6 @@ def test_a_digest_line_tells_of_a_pass_and_the_resolution_it_caused() -> None:
 
 
 # @spec TOOL-036
-@NOT_BUILT
 def test_a_digest_line_tells_of_a_cast_put_on_the_stack() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     result = cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -237,7 +225,6 @@ def test_a_digest_line_tells_of_a_cast_put_on_the_stack() -> None:
 
 
 # @spec GAME-122
-@NOT_BUILT
 def test_the_state_lists_the_stack_top_first_and_the_window_with_the_seat_asked() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -261,7 +248,6 @@ def test_the_state_lists_each_seats_life_hand_library_and_whether_it_is_out() ->
 
 
 # @spec GAME-123
-@NOT_BUILT
 def test_a_contested_listing_marks_a_trigger_on_opponents_turns_only() -> None:
     situation = two_seats(second=lambda b: b.with_battlefield("Black Vise", "Sulfuric Vortex"))
 
@@ -272,7 +258,6 @@ def test_a_contested_listing_marks_a_trigger_on_opponents_turns_only() -> None:
 
 
 # @spec GAME-030
-@NOT_BUILT
 def test_a_goldfish_listing_leaves_out_a_trigger_on_opponents_turns_only() -> None:
     situation = a_game().with_battlefield("Black Vise", "Mystic Remora").build()
 
@@ -286,7 +271,6 @@ def test_a_goldfish_listing_leaves_out_a_trigger_on_opponents_turns_only() -> No
 
 
 # @spec TURN-057
-@NOT_BUILT
 def test_an_advance_stopped_for_the_end_window_says_who_is_asked() -> None:
     situation = two_seats(step=Step.MAIN2)
     result = acted(situation, advance(situation.game, situation.deck, S1, to="cleanup"))
@@ -301,7 +285,6 @@ def test_an_advance_stopped_for_the_end_window_says_who_is_asked() -> None:
 
 
 # @spec CMBT-078
-@NOT_BUILT
 def test_an_attack_stopped_for_another_seats_reminder_says_it_was_not_declared() -> None:
     situation = two_seats(
         lambda b: b.with_battlefield("Grizzly Bears"),

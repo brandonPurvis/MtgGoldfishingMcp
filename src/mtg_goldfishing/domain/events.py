@@ -39,6 +39,13 @@ class ErrorKind(Enum):
     NOT_YOUR_CALL = "not_your_call"
     NOT_ACCEPTED_NOW = "not_accepted_now"
     SEAT_ELIMINATED = "seat_eliminated"
+    NOTHING_TO_PASS = "nothing_to_pass"
+    ANSWER_WITH_CHOOSE = "answer_with_choose"
+    WINDOW_OPEN = "window_open"
+    # the stack
+    NOT_ON_STACK = "not_on_stack"
+    CARD_ON_STACK = "card_on_stack"
+    ABILITY_HAS_NO_CARD = "ability_has_no_card"
     # seats named in a call
     NO_SUCH_SEAT = "no_such_seat"
     SEAT_OUT = "seat_out"
@@ -136,6 +143,8 @@ class AskedKind(Enum):
 
     KEEP = "keep"
     CHOICE = "choice"
+    TRIGGER = "trigger"
+    RESPOND = "respond"
     TURN = "turn"
 
 
@@ -144,12 +153,21 @@ class Asked:
     """The seats a game is waiting on, in ascending seat number, and what they are asked.
 
     `choice` is the kind of the pending choice the seat must answer (`look`, `search`,
-    `hand`, `ask`, `blocks`).
+    `hand`, `ask`, `resolve`, `blocks`). A seat asked to respond is asked in a `window` of
+    kind `stack`, `attack` or `end`, about the stack item `item` (its `source` and
+    `controller`) when the stack is not empty. A seat asked for a trigger is reminded of
+    `cards` in `step`.
     """
 
     seats: tuple[SeatNumber, ...]
     kind: AskedKind
     choice: str | None = None
+    window: str | None = None
+    item: str | None = None
+    source: str | None = None
+    controller: SeatNumber | None = None
+    step: Step | None = None
+    cards: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -669,14 +687,103 @@ class StopReason(Enum):
     REMINDER = "reminder"
     DISCARD = "discard"
     BLOCKS = "blocks"
+    END_WINDOW = "end_window"
 
 
 @dataclass(frozen=True)
 class AdvanceStopped:
+    """Why an advance stopped short of its target; for the end-step window, `seat` is the
+    seat being asked."""
+
     reason: StopReason
     step: Step
     to: Step | None
     discard_count: int = 0
+    seat: SeatNumber | None = None
+
+
+@dataclass(frozen=True)
+class AttackNotDeclared:
+    """An attack that stopped before declaring, in `step`, for another seat's reminder."""
+
+    step: Step
+
+
+@dataclass(frozen=True)
+class ItemStacked:
+    """A play or effect put on the stack as item `item`, of kind `spell` or `ability`."""
+
+    item: str
+    controller: SeatNumber
+    source: str
+    kind: str
+
+
+@dataclass(frozen=True)
+class Passed:
+    """A seat's `pass`: on the stack item `item`, or in an `attack` or `end` window with an
+    empty stack; or, with `reminder`, declining the reminders of `step`."""
+
+    seat: SeatNumber
+    item: str | None = None
+    window: str | None = None
+    reminder: bool = False
+    step: Step | None = None
+
+
+@dataclass(frozen=True)
+class AutomaticPass:
+    """A pass the service made for a seat with no untapped permanents, on the stack item
+    `item`, or in the `attack` or `end` window when the stack is empty."""
+
+    seat: SeatNumber
+    item: str | None
+    window: str
+
+
+@dataclass(frozen=True)
+class ItemResolved:
+    """A stack item resolved: the delta applied (with what the service added under `added`)
+    and where its card went (`to`), None for an ability."""
+
+    item: str
+    controller: SeatNumber
+    source: str
+    delta: dict[str, object]
+    to: str | None
+
+
+@dataclass(frozen=True)
+class ItemCountered:
+    """A stack item a delta's `counter` removed without applying its delta."""
+
+    item: str
+    controller: SeatNumber
+    source: str
+
+
+@dataclass(frozen=True)
+class ItemRemoved:
+    """A stack item that left the stack unresolved because a seat was eliminated or the
+    game was ended."""
+
+    item: str
+    controller: SeatNumber
+    source: str
+
+
+@dataclass(frozen=True)
+class ResolveAsked:
+    """A `resolve` pending choice for the controller of stack item `item`: its held delta
+    and destination, and the error that stops it resolving as held, if any."""
+
+    choice_id: str
+    seat: SeatNumber
+    item: str
+    source: str
+    delta: dict[str, object]
+    to: str | None
+    error: Error | None = None
 
 
 @dataclass(frozen=True)
@@ -814,6 +921,14 @@ Event = (
     | AssumptionMade
     | ReminderIssued
     | AdvanceStopped
+    | AttackNotDeclared
+    | ItemStacked
+    | Passed
+    | AutomaticPass
+    | ItemResolved
+    | ItemCountered
+    | ItemRemoved
+    | ResolveAsked
     | ExpectationMismatched
     | NoticeRaised
     | ChecksOverridden

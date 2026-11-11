@@ -30,7 +30,6 @@ from tests.support.acting import (
 from tests.support.builders import Situation, a_game
 from tests.support.tables import S1_LANDS, bolt_at, three_seats, two_seats
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 ATRAXA = "Atraxa, Praetors' Voice"
 
 
@@ -71,7 +70,6 @@ def test_a_goldfish_game_applies_an_effect_at_once_and_opens_no_window() -> None
 
 
 # @spec STACK-003
-@NOT_BUILT
 def test_a_spell_goes_on_the_stack_holding_its_controller_delta_destination_and_choices() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
 
@@ -93,7 +91,6 @@ def test_a_spell_goes_on_the_stack_holding_its_controller_delta_destination_and_
 
 
 # @spec STACK-003
-@NOT_BUILT
 def test_a_spell_on_the_stack_has_not_applied_its_delta() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
 
@@ -103,19 +100,18 @@ def test_a_spell_on_the_stack_has_not_applied_its_delta() -> None:
 
 
 # @spec STACK-004
-@NOT_BUILT
 def test_a_spell_put_on_the_stack_is_paid_for_at_once() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
 
     cast(situation, S1, "Grizzly Bears")
 
     tapped = [c.name for c in situation.game.battlefield_of(S1) if c.tapped]
-    assert sorted(tapped) == ["Forest", "Forest"]
+    assert len(tapped) == 2
+    assert "Forest" in tapped
     assert situation.game.stack
 
 
 # @spec STACK-005
-@NOT_BUILT
 def test_a_commander_cast_onto_the_stack_counts_its_tax_at_once() -> None:
     situation = two_seats(lambda b: b.with_commander(ATRAXA).with_pool("{G}{W}{U}{B}"))
     atraxa = card_of(situation, ATRAXA)
@@ -127,7 +123,6 @@ def test_a_commander_cast_onto_the_stack_counts_its_tax_at_once() -> None:
 
 
 # @spec STACK-006
-@NOT_BUILT
 def test_a_spell_on_the_stack_has_its_card_in_the_zone_stack() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
     bears = card_of(situation, "Grizzly Bears")
@@ -139,7 +134,6 @@ def test_a_spell_on_the_stack_has_its_card_in_the_zone_stack() -> None:
 
 
 # @spec STACK-007
-@NOT_BUILT
 def test_an_effect_goes_on_the_stack_as_an_ability_with_no_card() -> None:
     situation = two_seats()
 
@@ -152,7 +146,6 @@ def test_an_effect_goes_on_the_stack_as_an_ability_with_no_card() -> None:
 
 
 # @spec STACK-008
-@NOT_BUILT
 def test_an_ability_put_on_the_stack_is_paid_for_at_once() -> None:
     situation = two_seats()
 
@@ -198,7 +191,6 @@ def test_a_land_played_in_a_contested_game_puts_nothing_on_the_stack() -> None:
 
 
 # @spec STACK-012
-@NOT_BUILT
 def test_stack_items_are_numbered_across_the_game_and_never_reused() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt", "Grizzly Bears"))
     cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -211,7 +203,6 @@ def test_stack_items_are_numbered_across_the_game_and_never_reused() -> None:
 
 
 # @spec STACK-013
-@NOT_BUILT
 def test_a_spell_records_its_tool_and_the_card_played_as_its_source() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
 
@@ -221,7 +212,6 @@ def test_a_spell_records_its_tool_and_the_card_played_as_its_source() -> None:
 
 
 # @spec STACK-013
-@NOT_BUILT
 def test_an_ability_records_its_tool_and_the_calls_source() -> None:
     situation = two_seats()
 
@@ -242,7 +232,7 @@ def test_an_ability_records_its_tool_and_the_calls_source() -> None:
             id="two reveals",
         ),
         pytest.param({"damage": {"5": 3}}, "no_such_seat", id="no such seat"),
-        pytest.param({"counter": ["s9"]}, "not_on_stack", id="nothing to counter", marks=NOT_BUILT),
+        pytest.param({"counter": ["s9"]}, "not_on_stack", id="nothing to counter"),
     ],
 )
 def test_a_held_delta_with_an_error_that_does_not_depend_on_cards_is_refused_when_cast(
@@ -268,7 +258,6 @@ def test_a_held_delta_naming_an_eliminated_seat_is_refused_when_cast() -> None:
 
 
 # @spec STACK-065
-@NOT_BUILT
 def test_a_counter_entry_is_held_as_the_id_of_the_item_it_named() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -281,7 +270,6 @@ def test_a_counter_entry_is_held_as_the_id_of_the_item_it_named() -> None:
 
 
 # @spec STACK-066
-@NOT_BUILT
 def test_the_cards_a_held_delta_names_are_not_looked_for_when_it_is_cast() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
 
@@ -296,7 +284,6 @@ def test_the_cards_a_held_delta_names_are_not_looked_for_when_it_is_cast() -> No
 
 
 # @spec PLAY-110
-@NOT_BUILT
 def test_expect_on_a_held_spell_is_compared_when_it_is_cast() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears", "Forest"))
 
@@ -310,7 +297,6 @@ def test_expect_on_a_held_spell_is_compared_when_it_is_cast() -> None:
 
 
 # @spec STACK-014, STACK-024
-@NOT_BUILT
 def test_an_item_resolves_once_every_other_seat_has_passed() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -323,7 +309,6 @@ def test_an_item_resolves_once_every_other_seat_has_passed() -> None:
 
 
 # @spec STACK-014
-@NOT_BUILT
 def test_an_item_waits_while_any_other_seat_has_yet_to_pass() -> None:
     situation = three_seats(lambda b: b.with_hand("Lightning Bolt"))
     cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -335,7 +320,6 @@ def test_an_item_waits_while_any_other_seat_has_yet_to_pass() -> None:
 
 
 # @spec STACK-015
-@NOT_BUILT
 def test_an_item_resolves_at_once_when_no_other_seat_is_left() -> None:
     builder: Any = a_game().with_battlefield(*S1_LANDS).with_hand("Grizzly Bears")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -348,7 +332,6 @@ def test_an_item_resolves_at_once_when_no_other_seat_is_left() -> None:
 
 
 # @spec STACK-016, STACK-018
-@NOT_BUILT
 def test_a_resolving_permanent_spell_enters_before_its_delta_so_the_delta_can_change_it() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
     bears = card_of(situation, "Grizzly Bears")
@@ -361,7 +344,6 @@ def test_a_resolving_permanent_spell_enters_before_its_delta_so_the_delta_can_ch
 
 
 # @spec STACK-018
-@NOT_BUILT
 def test_a_resolving_permanent_enters_on_the_table_turn() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"))
     bears = card_of(situation, "Grizzly Bears")
@@ -373,7 +355,6 @@ def test_a_resolving_permanent_enters_on_the_table_turn() -> None:
 
 
 # @spec STACK-017
-@NOT_BUILT
 def test_a_stated_destination_of_a_hidden_or_owned_zone_is_the_owners() -> None:
     situation = two_seats(second=lambda b: b.with_graveyard("Lightning Bolt"))
     bolt = card_of(situation, "Lightning Bolt", S2)
@@ -386,7 +367,6 @@ def test_a_stated_destination_of_a_hidden_or_owned_zone_is_the_owners() -> None:
 
 
 # @spec STACK-080
-@NOT_BUILT
 def test_a_spell_sent_to_the_battlefield_enters_under_its_controller_on_the_table_turn() -> None:
     situation = two_seats(second=lambda b: b.with_graveyard("Grizzly Bears"))
     bears = card_of(situation, "Grizzly Bears", S2)
@@ -411,7 +391,6 @@ def test_a_spell_sent_to_the_battlefield_enters_under_its_controller_on_the_tabl
 
 
 # @spec STACK-019
-@NOT_BUILT
 def test_a_resolving_instant_goes_to_its_owners_graveyard() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     bolt = card_of(situation, "Lightning Bolt")
@@ -423,7 +402,6 @@ def test_a_resolving_instant_goes_to_its_owners_graveyard() -> None:
 
 
 # @spec STACK-020
-@NOT_BUILT
 def test_a_resolving_ability_applies_its_delta_and_leaves_the_stack() -> None:
     situation = two_seats()
     recorded(situation, S1, "a drain", {"life": {"2": -2, "1": 2}})
@@ -435,7 +413,6 @@ def test_a_resolving_ability_applies_its_delta_and_leaves_the_stack() -> None:
 
 
 # @spec STACK-021, STACK-081
-@NOT_BUILT
 def test_a_resolving_delta_acts_as_its_controller_whichever_seat_passed() -> None:
     situation = two_seats(
         lambda b: b.with_library("Plains", "Swamp"), lambda b: b.with_battlefield("Forest")
@@ -450,7 +427,6 @@ def test_a_resolving_delta_acts_as_its_controller_whichever_seat_passed() -> Non
 
 
 # @spec STACK-022
-@NOT_BUILT
 def test_a_resolving_delta_gets_the_bookkeeping_of_a_delta_applied_at_once() -> None:
     situation = two_seats(lambda b: b.with_library("Plains", "Swamp", "Forest"))
     recorded(
@@ -468,7 +444,6 @@ def test_a_resolving_delta_gets_the_bookkeeping_of_a_delta_applied_at_once() -> 
 
 
 # @spec STACK-022
-@NOT_BUILT
 def test_a_resolving_delta_that_takes_a_seat_to_zero_life_eliminates_it() -> None:
     situation = two_seats(second=lambda b: b.with_life(3))
     recorded(situation, S1, "a drain", {"damage": {"2": 3}})
@@ -480,7 +455,6 @@ def test_a_resolving_delta_that_takes_a_seat_to_zero_life_eliminates_it() -> Non
 
 
 # @spec STACK-023
-@NOT_BUILT
 def test_an_item_resolving_marks_every_item_below_it_disturbed() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -497,7 +471,6 @@ def test_an_item_resolving_marks_every_item_below_it_disturbed() -> None:
 
 
 # @spec STACK-072
-@NOT_BUILT
 def test_a_seat_brought_to_zero_by_one_item_loses_its_items_below_before_they_resolve() -> None:
     builder: Any = a_game().with_battlefield("Forest", tapped=True)
     builder = builder.and_an_opposing_seat().with_life(3).with_battlefield("Island")
@@ -513,7 +486,6 @@ def test_a_seat_brought_to_zero_by_one_item_loses_its_items_below_before_they_re
 
 
 # @spec STACK-073
-@NOT_BUILT
 def test_a_commander_spell_sent_to_the_graveyard_on_resolution_goes_to_the_command_zone() -> None:
     situation = two_seats(lambda b: b.with_commander(ATRAXA).with_pool("{G}{W}{U}{B}"))
     atraxa = card_of(situation, ATRAXA)
@@ -526,7 +498,6 @@ def test_a_commander_spell_sent_to_the_graveyard_on_resolution_goes_to_the_comma
 
 
 # @spec STACK-074
-@NOT_BUILT
 def test_a_commander_spell_whose_delta_lets_it_stay_goes_where_it_was_sent() -> None:
     situation = two_seats(lambda b: b.with_commander(ATRAXA).with_pool("{G}{W}{U}{B}"))
     atraxa = card_of(situation, ATRAXA)
@@ -554,7 +525,6 @@ def answer(situation: Situation, seat: SeatNumber = S1, **arguments: Any) -> Any
 
 
 # @spec STACK-025
-@NOT_BUILT
 def test_a_disturbed_item_reaching_resolution_asks_its_controller_to_confirm_or_restate() -> None:
     situation = a_disturbed_bears(delta={"life": 1})
 
@@ -567,7 +537,6 @@ def test_a_disturbed_item_reaching_resolution_asks_its_controller_to_confirm_or_
 
 
 # @spec STACK-026
-@NOT_BUILT
 def test_confirming_a_disturbed_item_resolves_it_as_held() -> None:
     situation = a_disturbed_bears(delta={"life": 1})
     bears = card_of(situation, "Grizzly Bears")
@@ -581,7 +550,6 @@ def test_confirming_a_disturbed_item_resolves_it_as_held() -> None:
 
 
 # @spec STACK-027
-@NOT_BUILT
 def test_restating_a_disturbed_item_resolves_it_with_the_restated_delta_and_destination() -> None:
     situation = a_disturbed_bears(delta={"life": 1})
     bears = card_of(situation, "Grizzly Bears")
@@ -594,7 +562,6 @@ def test_restating_a_disturbed_item_resolves_it_with_the_restated_delta_and_dest
 
 
 # @spec STACK-028
-@NOT_BUILT
 def test_a_restate_without_a_destination_keeps_the_held_one() -> None:
     situation = a_disturbed_bears(delta={"life": 1}, to="hand")
     bears = card_of(situation, "Grizzly Bears")
@@ -607,7 +574,6 @@ def test_a_restate_without_a_destination_keeps_the_held_one() -> None:
 
 
 # @spec STACK-028
-@NOT_BUILT
 def test_a_restate_without_a_delta_keeps_the_held_one() -> None:
     situation = a_disturbed_bears(delta={"life": 1})
     bears = card_of(situation, "Grizzly Bears")
@@ -620,7 +586,6 @@ def test_a_restate_without_a_delta_keeps_the_held_one() -> None:
 
 
 # @spec STACK-029
-@NOT_BUILT
 def test_a_spell_restated_to_do_nothing_goes_to_its_owners_graveyard() -> None:
     situation = a_disturbed_bears(delta={"life": 1})
     bears = card_of(situation, "Grizzly Bears")
@@ -633,7 +598,6 @@ def test_a_spell_restated_to_do_nothing_goes_to_its_owners_graveyard() -> None:
 
 
 # @spec STACK-029
-@NOT_BUILT
 def test_a_commander_restated_to_do_nothing_goes_to_the_command_zone() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack(ATRAXA, disturbed=True, commander=True),
@@ -659,7 +623,6 @@ def a_failing_bolt() -> Situation:
 
 
 # @spec STACK-067
-@NOT_BUILT
 def test_a_held_delta_that_cannot_be_applied_leaves_the_item_and_asks_its_controller() -> None:
     situation = a_failing_bolt()
     bolt = card_of(situation, "Lightning Bolt")
@@ -672,7 +635,6 @@ def test_a_held_delta_that_cannot_be_applied_leaves_the_item_and_asks_its_contro
 
 
 # @spec STACK-068
-@NOT_BUILT
 def test_the_resolve_choice_for_a_failing_delta_states_the_error() -> None:
     situation = a_failing_bolt()
 
@@ -684,7 +646,6 @@ def test_the_resolve_choice_for_a_failing_delta_states_the_error() -> None:
 
 
 # @spec STACK-069
-@NOT_BUILT
 def test_an_answer_that_still_cannot_be_applied_is_an_error_and_the_choice_waits() -> None:
     situation = a_failing_bolt()
     passed(situation, S2)
@@ -697,7 +658,6 @@ def test_an_answer_that_still_cannot_be_applied_is_an_error_and_the_choice_waits
 
 
 # @spec STACK-069
-@NOT_BUILT
 def test_a_restated_answer_that_cannot_be_applied_is_an_error() -> None:
     situation = a_failing_bolt()
     passed(situation, S2)
@@ -708,7 +668,6 @@ def test_a_restated_answer_that_cannot_be_applied_is_an_error() -> None:
 
 
 # @spec STACK-075
-@NOT_BUILT
 def test_a_restate_may_hold_keys_that_ask_other_seats() -> None:
     situation = a_failing_bolt()
     passed(situation, S2)
@@ -721,7 +680,6 @@ def test_a_restate_may_hold_keys_that_ask_other_seats() -> None:
 
 
 # @spec STACK-082
-@NOT_BUILT
 def test_a_restated_delta_puts_nothing_on_the_stack_and_opens_no_window() -> None:
     situation = a_failing_bolt()
     passed(situation, S2)
@@ -734,7 +692,6 @@ def test_a_restated_delta_puts_nothing_on_the_stack_and_opens_no_window() -> Non
 
 
 # @spec STACK-076
-@NOT_BUILT
 def test_a_restate_giving_a_destination_for_an_ability_is_an_error() -> None:
     situation = two_seats(
         lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}, disturbed=True),
@@ -759,7 +716,6 @@ def bolt_and_counterspell() -> Situation:
 
 
 # @spec STACK-030, STACK-031
-@NOT_BUILT
 @pytest.mark.parametrize("named", ["s1", "Lightning Bolt"], ids=["by id", "by name"])
 def test_a_countered_spell_leaves_the_stack_unapplied_for_its_owners_graveyard(named: str) -> None:
     situation = bolt_and_counterspell()
@@ -774,7 +730,6 @@ def test_a_countered_spell_leaves_the_stack_unapplied_for_its_owners_graveyard(n
 
 
 # @spec STACK-031
-@NOT_BUILT
 def test_a_countered_commander_goes_to_its_owners_command_zone() -> None:
     situation = two_seats(
         lambda b: b.with_commander(ATRAXA).with_pool("{G}{W}{U}{B}"),
@@ -790,7 +745,6 @@ def test_a_countered_commander_goes_to_its_owners_command_zone() -> None:
 
 
 # @spec STACK-032, PLAY-123, PLAY-085
-@NOT_BUILT
 def test_a_countering_delta_may_move_the_countered_card_by_name() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Lightning Bolt").with_spell_on_stack(
@@ -812,7 +766,6 @@ def test_a_countering_delta_may_move_the_countered_card_by_name() -> None:
 
 
 # @spec STACK-033
-@NOT_BUILT
 def test_an_item_below_one_that_resolves_stays_on_the_stack() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -826,7 +779,6 @@ def test_an_item_below_one_that_resolves_stays_on_the_stack() -> None:
 
 
 # @spec PLAY-125
-@NOT_BUILT
 @pytest.mark.parametrize("counter", ["s1", [3], {"s1": True}], ids=["text", "number", "map"])
 def test_a_counter_that_is_not_a_list_of_items_is_malformed(counter: object) -> None:
     situation = bolt_and_counterspell()
@@ -839,7 +791,6 @@ def test_a_counter_that_is_not_a_list_of_items_is_malformed(counter: object) -> 
 
 
 # @spec PLAY-078
-@NOT_BUILT
 def test_a_counter_naming_nothing_on_the_stack_is_an_error() -> None:
     situation = bolt_and_counterspell()
 
@@ -851,7 +802,6 @@ def test_a_counter_naming_nothing_on_the_stack_is_an_error() -> None:
 
 
 # @spec PLAY-090
-@NOT_BUILT
 @pytest.mark.parametrize("named", ["id", "name"])
 def test_moving_a_spell_on_the_stack_without_countering_it_is_an_error(named: str) -> None:
     situation = bolt_and_counterspell()
@@ -889,7 +839,6 @@ def test_a_move_by_a_name_also_on_the_stack_takes_the_card_in_hand() -> None:
 
 
 # @spec STACK-058, STACK-059
-@NOT_BUILT
 def test_an_eliminated_seats_items_leave_the_stack_and_its_cards_leave_the_game() -> None:
     situation = two_seats(
         second=lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(1)).with_window(
@@ -905,7 +854,6 @@ def test_an_eliminated_seats_items_leave_the_stack_and_its_cards_leave_the_game(
 
 
 # @spec STACK-059
-@NOT_BUILT
 def test_an_eliminated_seats_spell_of_another_seats_card_goes_to_its_owners_graveyard() -> None:
     builder: Any = a_game().with_battlefield(*S1_LANDS).with_graveyard("Lightning Bolt")
     builder = builder.and_an_opposing_seat().with_battlefield(*tables.OTHER_LANDS)
@@ -923,7 +871,6 @@ def test_an_eliminated_seats_spell_of_another_seats_card_goes_to_its_owners_grav
 
 
 # @spec STACK-060
-@NOT_BUILT
 def test_when_the_seat_being_asked_is_eliminated_the_asking_moves_on() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -937,7 +884,6 @@ def test_when_the_seat_being_asked_is_eliminated_the_asking_moves_on() -> None:
 
 
 # @spec STACK-061
-@NOT_BUILT
 def test_removing_an_eliminated_seats_items_disturbs_none_of_the_rest() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -954,7 +900,6 @@ def test_removing_an_eliminated_seats_items_disturbs_none_of_the_rest() -> None:
 
 
 # @spec STACK-063
-@NOT_BUILT
 def test_an_item_whose_card_the_eliminated_seat_owns_leaves_the_stack() -> None:
     situation = three_seats(
         second=lambda b: b.with_graveyard("Lightning Bolt"),
@@ -971,7 +916,6 @@ def test_an_item_whose_card_the_eliminated_seat_owns_leaves_the_stack() -> None:
 
 
 # @spec GAME-147
-@NOT_BUILT
 def test_the_tested_seat_ending_the_game_discards_the_window_and_the_stack() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),

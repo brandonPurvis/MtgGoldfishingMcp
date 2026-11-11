@@ -19,8 +19,6 @@ from mtg_goldfishing.domain.game.model import (
 from tests.support.acting import S1, S2
 from tests.support.tables import bolt_at, two_seats
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
-
 
 def a_spell(**changes: Any) -> StackItem:
     fields: dict[str, Any] = {
@@ -49,7 +47,6 @@ def test_stack_items_with_the_same_values_are_equal() -> None:
 
 
 # @spec APP-032
-@NOT_BUILT
 @pytest.mark.parametrize(
     "changes",
     [

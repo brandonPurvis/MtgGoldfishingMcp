@@ -6,16 +6,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game import acting
 from mtg_goldfishing.domain.game.model import Zone
 from mtg_goldfishing.domain.steps import Step
 from tests.support.acting import S1, S2, acted, events_named, passed, recorded
 from tests.support.tables import two_seats
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 
 
 def attacked(situation: Any, attackers: list[str], **arguments: Any) -> Any:
@@ -24,7 +20,6 @@ def attacked(situation: Any, attackers: list[str], **arguments: Any) -> Any:
 
 
 # @spec CMBT-073
-@NOT_BUILT
 def test_an_attack_stops_undeclared_where_another_seat_is_reminded_on_the_way() -> None:
     situation = two_seats(
         lambda b: b.with_battlefield("Grizzly Bears"),
@@ -41,7 +36,6 @@ def test_an_attack_stops_undeclared_where_another_seat_is_reminded_on_the_way() 
 
 
 # @spec CMBT-078
-@NOT_BUILT
 def test_an_attack_that_stops_undeclared_says_so() -> None:
     situation = two_seats(
         lambda b: b.with_battlefield("Grizzly Bears"),
@@ -55,7 +49,6 @@ def test_an_attack_that_stops_undeclared_says_so() -> None:
 
 
 # @spec CMBT-073
-@NOT_BUILT
 def test_once_the_reminded_seat_has_passed_the_attack_may_be_sent_again() -> None:
     situation = two_seats(
         lambda b: b.with_battlefield("Grizzly Bears"),
@@ -71,7 +64,6 @@ def test_once_the_reminded_seat_has_passed_the_attack_may_be_sent_again() -> Non
 
 
 # @spec CMBT-070
-@NOT_BUILT
 def test_an_empty_attack_opens_no_window_and_leaves_the_combats_declaration_to_come() -> None:
     situation = two_seats(lambda b: b.with_battlefield("Grizzly Bears"))
 

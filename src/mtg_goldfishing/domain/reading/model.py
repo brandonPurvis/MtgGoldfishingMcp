@@ -173,6 +173,12 @@ class StepTrigger:
     step: Step
     whose: Whose = Whose.CONTROLLER
 
+    def on_turn_of(self, *, controller: bool) -> bool:
+        """Whether the trigger happens on a turn that is, or is not, its controller's own."""
+        if self.whose is Whose.EACH:
+            return True
+        return (self.whose is Whose.CONTROLLER) == controller
+
 
 @dataclass(frozen=True)
 class FaceReading:
@@ -180,7 +186,7 @@ class FaceReading:
 
     mana_abilities: tuple[ManaAbility, ...] = ()
     unread_mana_abilities: tuple[str, ...] = ()
-    step_triggers: tuple[Step, ...] = ()
+    step_triggers: tuple[StepTrigger, ...] = ()
     haste: KeywordReading = NO_KEYWORD
     vigilance: KeywordReading = NO_KEYWORD
     flash: KeywordReading = NO_KEYWORD

@@ -91,7 +91,7 @@ def logged(
 
 def an_effect(situation: Situation, seat: SeatNumber, delta: object, **more: object) -> Any:
     arguments = {"game_id": situation.game.seat(seat).seat_id.value, "source": "x", **more}
-    result = effect(situation.game, situation.deck, seat, source="x", delta=delta)
+    result = effect(situation.game, situation.deck, seat, source="x", delta=delta, immediate=True)
     return logged(situation, seat, "effect", {**arguments, "delta": delta}, result)
 
 
@@ -332,7 +332,7 @@ def test_an_ask_answer_records_no_outcome() -> None:
 def test_a_hand_answer_records_where_each_revealed_card_went() -> None:
     situation = a_table()
     recorded_look = effect(
-        situation.game, situation.deck, S1, source="x", delta={"look_at_hand": 2}
+        situation.game, situation.deck, S1, source="x", delta={"look_at_hand": 2}, immediate=True
     )
     acted(situation, recorded_look)
     choice = situation.game.pending[0].choice_id

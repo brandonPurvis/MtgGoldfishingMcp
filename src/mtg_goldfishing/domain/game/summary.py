@@ -74,7 +74,7 @@ def seat_notices(game: Game) -> tuple[tuple[NoticeKind, SeatNumber], ...]:
     return tuple((notice, seat.number) for seat in game.seats for notice in seat.notices)
 
 
-# @spec GAME-089, APP-035
+# @spec GAME-089, APP-035, TOOL-046, TOOL-060
 def summarize(
     game: Game, deck: LoadedDeck, seat: SeatNumber, *, decks: Decks | None = None
 ) -> GameSummary:
@@ -121,7 +121,7 @@ def summarize(
             seat=seat,
             active=game.active,
             others=tuple(SeatStanding(o.number, o.life, o.eliminated) for o in others),
-            stack=0,
+            stack=len(game.stack),
             asked=seats_to_act(game),
             eliminated=shown.eliminated,
         ),

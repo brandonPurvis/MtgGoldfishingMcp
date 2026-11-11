@@ -461,7 +461,9 @@ CHOOSE = ToolDefinition(
         " on top. Contested games: a choice addressed to your seat is answered by its kind —"
         " a look at another seat's hand with selections (the cards go to their owner's"
         " zones, the rest stay in that hand), an ask with your own delta, applied at once,"
-        " blocks with blocks."
+        " blocks with blocks, and a resolve choice (a spell or ability that waited while"
+        " something resolved above it, or whose stated delta can no longer be applied) with"
+        " nothing to let it resolve as held, or with restate to say what it does now."
     ),
     parameters=(
         _game_id(),
@@ -501,6 +503,13 @@ CHOOSE = ToolDefinition(
             " blocks; {} declares no blocks.",
             {"Llanowar Elves": "Grizzly Bears"},
         ),
+        Parameter(
+            "restate",
+            Kind.OBJECT,
+            "Contested games: for a resolve choice, the delta and destination the item"
+            " resolves with in place of the held ones; one left out keeps the held value.",
+            {"delta": {}, "to": "graveyard"},
+        ),
         _override("the blocker untapped in response"),
     ),
     overridable=(
@@ -510,7 +519,7 @@ CHOOSE = ToolDefinition(
     ),
 )
 
-# @spec TOOL-070
+# @spec TOOL-070, TOOL-071
 ATTACK = ToolDefinition(
     name="attack",
     purpose="Declare attackers and which are blocked.",
@@ -521,7 +530,10 @@ ATTACK = ToolDefinition(
         " combat damage step, each unblocked attacker deals its power adjusted by its +1/+1"
         " and -1/-1 counters (or its `damage` entry) to the opponents, and an attacking"
         " commander's damage also counts as commander damage to its target opponent. An"
-        " empty `attackers` clears the declared attack."
+        " empty `attackers` clears the declared attack. Contested games: declaring attackers"
+        " opens a window in which the other seats may respond; an attack may stop before"
+        " attackers are declared, at a step where another seat has a reminder, and then"
+        " nothing is declared or tapped: send attack again once your seat is the seat to act."
     ),
     parameters=(
         _game_id(),
@@ -629,6 +641,23 @@ ADVANCE = ToolDefinition(
     ),
 )
 
+# @spec TOOL-032
+PASS = ToolDefinition(
+    name="pass",
+    purpose="Decline to respond when your seat is asked (contested games).",
+    automatic=(
+        "Counts your seat as having passed and asks the next seat in turn order; once every"
+        " other seat has passed in succession, the top item on the stack resolves, or an"
+        " attack or end-step window closes. When the game waits on your seat for a reminder"
+        " of a step trigger on another seat's turn, declines to record those triggers now."
+    ),
+    parameters=(_game_id(), _after()),
+    overridable=(
+        "Nothing. A pass in a goldfish game, from a seat that is not asked, from a seat that"
+        " owes a pending choice, or from the active seat with no window open, is an error."
+    ),
+)
+
 # @spec APP-072, APP-090
 WAIT = ToolDefinition(
     name="wait",
@@ -725,6 +754,7 @@ TOOL_DEFINITIONS: tuple[ToolDefinition, ...] = (
     CHOOSE,
     ATTACK,
     ADVANCE,
+    PASS,
     WAIT,
     END_GAME,
     GET_LOG,

@@ -187,11 +187,11 @@ _add(
 )
 _add(
     _card("Phyrexian Arena", "{1}{B}{B}", "Enchantment", identity="B"),
-    _reading(step_triggers=(Step.UPKEEP,)),
+    _reading(step_triggers=(StepTrigger(Step.UPKEEP),)),
 )
 _add(
     _card("Rhystic Study", "{2}{U}", "Enchantment", identity="U"),
-    _reading(step_triggers=(Step.UPKEEP,)),
+    _reading(step_triggers=(StepTrigger(Step.UPKEEP),)),
 )
 _add(
     _card("Black Vise", "{1}", "Artifact"),

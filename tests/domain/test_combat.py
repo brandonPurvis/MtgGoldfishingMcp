@@ -15,7 +15,7 @@ from mtg_goldfishing.domain.events import (
     ReminderIssued,
 )
 from mtg_goldfishing.domain.game.results import Applied, Refusal
-from mtg_goldfishing.domain.reading.model import CardReading, FaceReading
+from mtg_goldfishing.domain.reading.model import CardReading, FaceReading, StepTrigger
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import TESTED, GameBuilder, Situation, a_game
@@ -59,7 +59,7 @@ def test_attacking_from_the_first_main_step_moves_to_declare_attackers() -> None
 
 # @spec CMBT-002
 def test_a_beginning_of_combat_reminder_is_listed_and_the_attack_still_declared() -> None:
-    trigger = CardReading((FaceReading(step_triggers=(Step.BEGIN_COMBAT,)),))
+    trigger = CardReading((FaceReading(step_triggers=(StepTrigger(Step.BEGIN_COMBAT),)),))
     situation = (
         bears().with_card(card("Shivan Dragon"), trigger).with_battlefield("Shivan Dragon").build()
     )

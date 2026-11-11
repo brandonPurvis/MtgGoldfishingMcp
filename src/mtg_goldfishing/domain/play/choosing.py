@@ -8,7 +8,7 @@ is answered with its own arguments only.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import fields
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
@@ -20,6 +20,7 @@ from mtg_goldfishing.domain.events import (
     CheckKind,
     ChecksOverridden,
     ChoiceResolved,
+    EffectRecorded,
     Error,
     ErrorKind,
     Event,
@@ -45,17 +46,21 @@ from mtg_goldfishing.domain.play.arguments import (
     Delta,
     read_blocks,
     read_delta,
+    read_destination,
     read_rest_order,
     read_selections,
 )
 from mtg_goldfishing.domain.play.delta import apply_delta, place_all, take_shuffle_place
 from mtg_goldfishing.domain.play.settling import settle
+from mtg_goldfishing.domain.stack.items import item_named
+from mtg_goldfishing.domain.stack.resolution import resolve_item
 
 ANSWERED_WITH: dict[str, tuple[str, ...]] = {
     "look": ("selections", "rest_order"),
     "search": ("selections",),
     "hand": ("selections", "delta"),
     "ask": ("delta",),
+    "resolve": ("restate",),
     "blocks": ("blocks",),
 }
 """The arguments each kind of pending choice is answered with."""
@@ -311,6 +316,44 @@ def _answer_blocks(
     return Applied(changed, summary, events)
 
 
+_RESTATE_KEYS = ("delta", "to")
+
+
+# @spec STACK-026, STACK-027, STACK-028, STACK-029, STACK-069, STACK-075, STACK-076
+# @spec STACK-082
+def _answer_resolve(
+    changed: Game, decks: Decks, pending: PendingChoice, restate: object
+) -> Applied | Error:
+    """Resolve the item the choice is about, as held when nothing is restated, or with the
+    restated `delta` and `to` in place of the held ones (the held value for one left out).
+    The restated delta is not compared with the held one, and nothing new goes on the
+    stack. An answer that cannot be applied is an error and the choice goes on waiting."""
+    item = item_named(changed, pending.item or "")
+    if item is None:
+        return Applied(changed, EffectRecorded(pending.source), ())
+    delta: Mapping[str, object] = item.delta
+    to = item.to
+    if restate is not None:
+        if not isinstance(restate, Mapping) or any(key not in _RESTATE_KEYS for key in restate):
+            return Error(ErrorKind.MALFORMED_ARGUMENT, subject="restate", names=_RESTATE_KEYS)
+        if restate.get("delta") is not None:
+            given = restate["delta"]
+            if not isinstance(given, Mapping):
+                return Error(ErrorKind.MALFORMED_ARGUMENT, subject="restate.delta")
+            delta = {str(key): value for key, value in given.items()}
+        if restate.get("to") is not None:
+            if item.card is None:
+                return Error(ErrorKind.ABILITY_HAS_NO_CARD, subject=item.id)
+            destination = read_destination(restate["to"])
+            if isinstance(destination, Error):
+                return destination
+            to = destination
+    resolved = resolve_item(changed, decks, item, delta, to)
+    if isinstance(resolved, Error):
+        return resolved
+    return Applied(changed, resolved[0], tuple(resolved[1:]))
+
+
 # @spec PLAY-001, PLAY-051, PLAY-052, PLAY-066, PLAY-105, PLAY-106, PLAY-107, APP-031
 # @spec CMBT-048, GAME-128
 def choose(
@@ -325,6 +368,7 @@ def choose(
     blocks: object = None,
     override: str | None = None,
     decks: Decks | None = None,
+    restate: object = None,
 ) -> Result:
     """Answer the oldest waiting pending choice, as the seat it is addressed to.
 
@@ -349,6 +393,7 @@ def choose(
         "rest_order": rest_order,
         "delta": delta,
         "blocks": blocks,
+        "restate": restate,
     }
     allowed = ANSWERED_WITH[pending.kind]
     wrong = next(
@@ -368,13 +413,15 @@ def choose(
             answered = _answer_hand(changed, every, pending, selections, delta)
         case "ask":
             answered = _answer_ask(changed, every, seat, pending, delta)
+        case "resolve":
+            answered = _answer_resolve(changed, every, pending, restate)
         case _:
             answered = _answer_blocks(changed, every, seat, pending, blocks, override=override)
     if isinstance(answered, Error):
         return Refusal.error(answered)
     if isinstance(answered, Refusal):
         return answered
-    changed.pending.pop(0)
+    changed.pending = [c for c in changed.pending if c.choice_id != pending.choice_id]
     changed.status = GameStatus.PENDING_CHOICE if changed.pending else GameStatus.ACTIVE
     reported = list(answered.events)
     reported.extend(examine_end_conditions(changed))

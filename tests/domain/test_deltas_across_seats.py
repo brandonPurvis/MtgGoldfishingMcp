@@ -35,7 +35,9 @@ def three_seats(*, first: Any = None, second: Any = None, third: Any = None) -> 
 
 
 def recorded(situation: Situation, delta: object, seat: SeatNumber = S1) -> Any:
-    return effect(situation.game, situation.deck, seat, source="a test effect", delta=delta)
+    return effect(
+        situation.game, situation.deck, seat, source="a test effect", delta=delta, immediate=True
+    )
 
 
 def card_of(situation: Situation, name: str, owner: SeatNumber) -> Any:

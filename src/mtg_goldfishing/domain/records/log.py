@@ -9,6 +9,7 @@ from collections.abc import Mapping, Sequence
 from mtg_goldfishing.domain.events import (
     AssumptionMade,
     AttackDeclared,
+    AutomaticPass,
     BlocksDeclared,
     CardMoved,
     CardPlayed,
@@ -27,6 +28,11 @@ from mtg_goldfishing.domain.events import (
     GameEnded,
     GameStarted,
     HandKept,
+    ItemCountered,
+    ItemRemoved,
+    ItemResolved,
+    ItemStacked,
+    LibraryShuffled,
     MulliganTaken,
     NoBlocksDeclared,
     NoticeRaised,
@@ -37,11 +43,13 @@ from mtg_goldfishing.domain.game.model import Game, Reminder
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.seeing import as_seen_by, public_form
 from mtg_goldfishing.domain.records.model import (
+    AutoPassRecord,
     ContestedEntry,
     EliminationRecord,
     LogEntry,
     Payment,
     ReminderRecord,
+    ResolvedRecord,
     SeatEvents,
 )
 from mtg_goldfishing.domain.records.redaction import (
@@ -144,7 +152,7 @@ def _shown_to_others(
 
 
 # @spec REC-028, REC-029, REC-031, REC-038, REC-039, REC-040, REC-060, REC-062, REC-067
-# @spec REC-068, REC-077, REC-078
+# @spec REC-068, REC-077, REC-078, REC-032, REC-034, REC-036, REC-037, REC-066, REC-035
 def _contested(
     tool: str,
     before: Game | None,
@@ -173,6 +181,17 @@ def _contested(
         no_blocks=tuple(e.seat for e in reported if isinstance(e, NoBlocksDeclared)),
         public=public,
         private=private,
+        stacked=next((e.item for e in reported if isinstance(e, ItemStacked)), None),
+        resolved=tuple(
+            ResolvedRecord(e.item, e.controller, e.source, copy.deepcopy(e.delta), e.to)
+            for e in reported
+            if isinstance(e, ItemResolved)
+        ),
+        countered=tuple(e.item for e in reported if isinstance(e, ItemCountered)),
+        removed=tuple(e.item for e in reported if isinstance(e, ItemRemoved)),
+        auto_passes=tuple(
+            AutoPassRecord(e.seat, e.item) for e in reported if isinstance(e, AutomaticPass)
+        ),
     )
 
 
@@ -190,6 +209,7 @@ def _mapping(value: object) -> dict[str, object] | None:
     return {str(key): copy.deepcopy(item) for key, item in value.items()}
 
 
+# @spec REC-033
 def _delta(
     tool: str,
     arguments: Mapping[str, object],
@@ -197,7 +217,8 @@ def _delta(
     after: Game,
     reported: Sequence[Event],
 ) -> dict[str, object] | None:
-    """The delta as received, with the bookkeeping the service added under `added`.
+    """The delta as received, with the bookkeeping the service added under `added`; for a
+    call whose item went on the stack, only what was added when it was cast (REC-033).
 
     `added` is `{"shuffles": int, "commander_redirected": [name], "tokens_gone": [name]}`:
     the library shuffles the call performed, the commanders sent to the command zone
@@ -207,9 +228,15 @@ def _delta(
     if tool not in DELTA_TOOLS:
         return None
     received = _mapping(arguments.get("delta"))
+    stacked = next((i for i, e in enumerate(reported) if isinstance(e, ItemStacked)), None)
+    if stacked is not None:
+        reported = reported[:stacked]
     moves = [e for e in reported if isinstance(e, CardMoved)]
+    shuffles = _shuffles(after) - _shuffles(before) if before else 0
+    if stacked is not None:
+        shuffles = sum(1 for e in reported if isinstance(e, LibraryShuffled))
     added: dict[str, object] = {
-        "shuffles": _shuffles(after) - _shuffles(before) if before else 0,
+        "shuffles": shuffles,
         "commander_redirected": [m.card for m in moves if m.commander_redirected],
         "tokens_gone": [m.card for m in moves if m.token_gone],
     }
@@ -284,6 +311,7 @@ def _card_name(before: Game | None, after: Game, instance_id: str) -> str | None
     return None
 
 
+# @spec REC-074
 def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, object] | None:
     """What the tool produced that no other field of the entry carries.
 

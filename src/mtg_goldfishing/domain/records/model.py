@@ -105,13 +105,36 @@ class EliminationRecord:
 
 
 @dataclass(frozen=True)
+class ResolvedRecord:
+    """A stack item a call resolved: its id, its controller, its source, the delta applied
+    (with what the service added) and where its card went (None for an ability)."""
+
+    item: str
+    controller: SeatNumber
+    source: str
+    delta: dict[str, object]
+    to: str | None
+
+
+@dataclass(frozen=True)
+class AutoPassRecord:
+    """An automatic pass a call caused: the seat, and the item passed on (None in an
+    `attack` or `end` window with an empty stack)."""
+
+    seat: SeatNumber
+    item: str | None
+
+
+@dataclass(frozen=True)
 class ContestedEntry:
     """What a contested game's log entry adds.
 
     `seat` made the call (None for `new_game`); `active`, `table_turn` and `round` place
     it in the game as it stood before the call. `public` is the public form of the call's
     summary and events; `private` holds, for each other seat that may see more of them,
-    the same events in the form that seat may see.
+    the same events in the form that seat may see. `stacked` names the item the call put on
+    the stack; `resolved`, `countered`, `removed` and `auto_passes` the items it resolved,
+    countered or took off the stack and the automatic passes it caused.
     """
 
     seat: SeatNumber | None
@@ -122,6 +145,11 @@ class ContestedEntry:
     no_blocks: tuple[SeatNumber, ...] = ()
     public: tuple[Event, ...] = ()
     private: tuple[SeatEvents, ...] = ()
+    stacked: str | None = None
+    resolved: tuple[ResolvedRecord, ...] = ()
+    countered: tuple[str, ...] = ()
+    removed: tuple[str, ...] = ()
+    auto_passes: tuple[AutoPassRecord, ...] = ()
 
 
 @dataclass(frozen=True)

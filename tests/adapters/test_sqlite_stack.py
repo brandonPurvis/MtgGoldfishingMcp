@@ -9,8 +9,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase, SqliteStores
 from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.domain.deck.model import DeckCard, DeckEntry, LoadedDeck
@@ -20,8 +18,6 @@ from mtg_goldfishing.domain.stack.passing import pass_
 from tests.support.acting import S2, acted
 from tests.support.library import card
 from tests.support.tables import bolt_at, three_seats, two_seats
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 
 
 def round_trip(game: Game) -> Game:
@@ -41,7 +37,6 @@ def test_the_stack_and_an_open_window_are_stored_whole() -> None:
 
 
 # @spec STOR-015
-@NOT_BUILT
 def test_a_resolve_choice_stating_an_error_is_stored_whole() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack(
@@ -55,7 +50,6 @@ def test_a_resolve_choice_stating_an_error_is_stored_whole() -> None:
     assert round_trip(situation.game) == situation.game
 
 
-@NOT_BUILT
 def test_a_deck_stored_before_whose_turns_were_read_reads_its_triggers_as_its_controllers(
     tmp_path: Path,
 ) -> None:

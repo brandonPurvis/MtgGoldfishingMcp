@@ -1,7 +1,5 @@
 """The card reader's reading of step triggers."""
 
-from typing import Any
-
 import pytest
 
 from mtg_goldfishing.domain.cards import Card
@@ -9,18 +7,15 @@ from mtg_goldfishing.domain.reading.reader import read_card
 from mtg_goldfishing.domain.steps import Step
 from tests.support.cards import a_card
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
-
 
 def step_triggers_of(card: Card) -> tuple[Step, ...]:
     """The steps a face's step triggers belong to, in the order read."""
-    triggers: tuple[Any, ...] = read_card(card).faces[0].step_triggers
-    return tuple(getattr(trigger, "step", trigger) for trigger in triggers)
+    return tuple(trigger.step for trigger in read_card(card).faces[0].step_triggers)
 
 
 def whose_of(card: Card) -> list[tuple[str, str]]:
     """Each step trigger read from a face, as its step and whose turns it happens on."""
-    triggers: tuple[Any, ...] = read_card(card).faces[0].step_triggers
+    triggers = read_card(card).faces[0].step_triggers
     return [(trigger.step.value, trigger.whose.value) for trigger in triggers]
 
 
@@ -101,7 +96,6 @@ def test_a_beginning_of_end_step_phrase_that_applies_to_you_is_an_end_trigger(te
 
 
 # @spec READ-034
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -129,7 +123,6 @@ def test_any_other_phrase_naming_opponents_or_other_players_is_no_trigger(text: 
 
 
 # @spec READ-035
-@NOT_BUILT
 def test_several_triggers_in_one_step_of_the_same_whose_are_read_once() -> None:
     card = a_card(
         "Twice at Upkeep",
@@ -140,7 +133,6 @@ def test_several_triggers_in_one_step_of_the_same_whose_are_read_once() -> None:
 
 
 # @spec READ-035
-@NOT_BUILT
 def test_triggers_in_one_step_that_differ_in_whose_are_read_separately() -> None:
     card = a_card(
         "Upkeep Both Ways",
@@ -151,7 +143,6 @@ def test_triggers_in_one_step_that_differ_in_whose_are_read_separately() -> None
 
 
 # @spec READ-046, READ-047
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -172,7 +163,6 @@ def test_a_phrase_naming_the_controllers_own_step_is_a_trigger_on_its_turn(
 
 
 # @spec READ-046, READ-048
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -190,7 +180,6 @@ def test_a_phrase_naming_every_turn_is_a_trigger_on_each_turn(text: str, step: s
 
 
 # @spec READ-053
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "step"),
     [
@@ -205,7 +194,6 @@ def test_a_delayed_phrase_naming_the_next_step_is_a_trigger_on_each_turn(
 
 
 # @spec READ-054
-@NOT_BUILT
 @pytest.mark.parametrize(
     ("text", "step"),
     [

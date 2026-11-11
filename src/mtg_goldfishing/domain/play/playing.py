@@ -51,6 +51,7 @@ from mtg_goldfishing.domain.play.expectations import compare
 from mtg_goldfishing.domain.play.settling import settle
 from mtg_goldfishing.domain.reading.reader import read_card
 from mtg_goldfishing.domain.records.reminders import names_reminded_permanent
+from mtg_goldfishing.domain.stack.holding import held_delta, hold_ability, hold_spell
 
 OUTSIDE = "outside"
 _FROM_ZONES = {
@@ -239,10 +240,16 @@ def _spell_cost(
     return cost, events + assumed
 
 
+# @spec PLAY-081, PLAY-083
 def _check_timing(
-    game: Game, deck: LoadedDeck, instance: CardInstance, face: Face
+    game: Game, deck: LoadedDeck, instance: CardInstance, face: Face, seat: SeatNumber
 ) -> FailedCheck | None:
-    if game.step is not None and game.step.is_main:
+    """Lands, and spells that are not instants and lack flash, are played in a main step: in
+    a contested game only in the acting seat's own main step with the stack empty."""
+    own_main = game.step is not None and game.step.is_main
+    if game.contested:
+        own_main = own_main and seat == game.active and not game.stack
+    if own_main:
         return None
     if face.is_land:
         return FailedCheck(CheckKind.LAND_TIMING, subject=face.name, step=game.step)
@@ -255,6 +262,8 @@ def _check_timing(
 # @spec PLAY-011, PLAY-012, PLAY-013, PLAY-014, PLAY-015, PLAY-016, PLAY-017, PLAY-018
 # @spec PLAY-019, PLAY-020, PLAY-021, PLAY-022, PLAY-023, PLAY-024, PLAY-025, PLAY-026
 # @spec PLAY-027, PLAY-028, PLAY-051, PAY-037, GAME-061, APP-031, PLAY-080, PLAY-129
+# @spec STACK-001, STACK-003, STACK-004, STACK-005, STACK-006, STACK-011, STACK-077, PLAY-082
+# @spec PLAY-110
 def play(
     game: Game,
     deck: LoadedDeck,
@@ -322,7 +331,7 @@ def play(
 
     acting = changed.seat(seat)
     problems = Problems()
-    problems.add(_check_timing(changed, owners_deck, instance, face))
+    problems.add(_check_timing(changed, owners_deck, instance, face, seat))
     if face.is_land:
         if acting.land_drops_used >= 1:
             problems.add(
@@ -362,6 +371,24 @@ def play(
             casts = changed.seat(instance.owner).commander_casts
             casts[instance.id] = casts.get(instance.id, 0) + 1
 
+    if changed.contested and not face.is_land:
+        held = held_delta(changed, every, seat, delta, arguments.delta)
+        if isinstance(held, Error):
+            problems.add(held)
+        else:
+            events.append(
+                hold_spell(changed, instance, seat, delta=held, to=destination, choices=choices)
+            )
+        return _finish(
+            changed,
+            every,
+            seat,
+            problems,
+            override=override,
+            summary=CardPlayed(instance.name, face.name, origin, Zone.STACK.value, False),
+            events=events,
+            expectations=arguments.expect,
+        )
     if destination is None:
         destination = Destination.BATTLEFIELD if face.is_permanent else Destination.GRAVEYARD
     moved = move(changed, owners_deck, instance, destination, arriving_under=seat)
@@ -407,6 +434,8 @@ def _answer_reminders(changed: Game, seat: SeatNumber, source: str) -> None:
 
 # @spec PLAY-001, PLAY-002, PLAY-003, PLAY-004, PLAY-021, PLAY-022, PLAY-029, PLAY-030
 # @spec PLAY-031, PLAY-032, PLAY-051, PAY-040, GAME-061, APP-031, PLAY-084, CMBT-051
+# @spec STACK-007, STACK-008, STACK-009, STACK-010, STACK-057, STACK-079, TURN-063, TURN-065
+# @spec STACK-001
 def effect(
     game: Game,
     deck: LoadedDeck,
@@ -425,9 +454,11 @@ def effect(
     """The acting seat records a change not caused by playing a card, paying `pay` first
     when it is given.
 
-    Every effect is applied at once, so `immediate` — which in a contested game keeps an
-    effect off the stack, as for the result of combat — changes nothing about how it is
-    applied. `decks` gives each seat's deck; omitted, every seat plays `deck`.
+    In a contested game the effect goes on the stack as an ability holding its delta, unless
+    `immediate` is true: then, as in a goldfish game, it is applied at once. An effect that
+    goes on the stack answers its seat's reminders of the permanent its source names; an
+    immediate one answers only the active seat's. `decks` gives each seat's deck; omitted,
+    every seat plays `deck`.
     """
     del reason  # recorded with the call by the application; never judged
     every = decks or Decks.everyone_playing(game, deck)
@@ -460,12 +491,21 @@ def effect(
             )
         )
         events.extend(assumed)
-    applied = apply_delta(changed, deck, seat, arguments.delta, source=source, decks=every)
-    if isinstance(applied, Error):
-        problems.add(applied)
+    held_by_stack = changed.contested and not immediate
+    if held_by_stack:
+        held = held_delta(changed, every, seat, delta, arguments.delta)
+        if isinstance(held, Error):
+            problems.add(held)
+        else:
+            events.append(hold_ability(changed, seat, source=source, delta=held, choices=choices))
     else:
-        events.extend(applied)
-    _answer_reminders(changed, seat, source)
+        applied = apply_delta(changed, deck, seat, arguments.delta, source=source, decks=every)
+        if isinstance(applied, Error):
+            problems.add(applied)
+        else:
+            events.extend(applied)
+    if held_by_stack or not changed.contested or seat == changed.active:
+        _answer_reminders(changed, seat, source)
     return _finish(
         changed,
         every,

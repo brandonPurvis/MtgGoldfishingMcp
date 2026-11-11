@@ -10,6 +10,7 @@ from mtg_goldfishing.domain.combat.damage import numeric_power
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import (
     AttackDeclared,
+    AttackNotDeclared,
     CheckKind,
     Error,
     ErrorKind,
@@ -23,10 +24,18 @@ from mtg_goldfishing.domain.game.cards_in_play import (
     is_creature,
 )
 from mtg_goldfishing.domain.game.decks import Decks
-from mtg_goldfishing.domain.game.model import OPPONENTS, Attack, CardInstance, Game, Zone
+from mtg_goldfishing.domain.game.model import (
+    OPPONENTS,
+    Attack,
+    CardInstance,
+    Game,
+    WindowKind,
+    Zone,
+)
 from mtg_goldfishing.domain.game.naming import Purpose, matches, resolve
 from mtg_goldfishing.domain.game.results import Applied, Problems, Refusal, Result
 from mtg_goldfishing.domain.game.seats import SeatNumber
+from mtg_goldfishing.domain.stack.windows import go_on, open_window
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import Walk, return_to_declare_attackers, walk_to
 
@@ -181,10 +190,28 @@ def _targets(
     return {c.id: int(value) for c in commanders}  # type: ignore[call-overload]
 
 
+# @spec CMBT-073, CMBT-078
+def _not_declared(
+    changed: Game, walk: Walk, problems: Problems, override: str | None
+) -> Applied | Refusal:
+    """An attack that stopped on its way to declare attackers, where a seat other than the
+    active seat is reminded: nothing is declared or tapped, unless the move itself fails a
+    timing check that is not overridden."""
+    judged = problems.judge(override)
+    if isinstance(judged, Refusal):
+        return judged
+    events: list[Event] = [walk.summary]
+    if judged is not None:
+        events.append(judged)
+    events.extend(walk.events)
+    assert changed.step is not None
+    return Applied(changed, AttackNotDeclared(changed.step), tuple(events), tuple(walk.snapshots))
+
+
 # @spec CMBT-001, CMBT-002, CMBT-003, CMBT-004, CMBT-005, CMBT-006, CMBT-007, CMBT-008, CMBT-009
 # @spec CMBT-010, CMBT-011, CMBT-012, CMBT-013, CMBT-014, CMBT-015, CMBT-016, CMBT-017
 # @spec CMBT-018, CMBT-019, CMBT-020, CMBT-021, GAME-015, GAME-016, GAME-018, APP-031
-# @spec CMBT-053, CMBT-060, CMBT-068, CMBT-070, CMBT-071
+# @spec CMBT-053, CMBT-060, CMBT-068, CMBT-070, CMBT-071, STACK-036
 def attack(
     game: Game,
     deck: LoadedDeck,
@@ -230,9 +257,11 @@ def attack(
     changed = game.copy()
     walk = Walk()
     if step in _EARLY or step in _BEFORE_COMBAT:
-        walk_to(changed, deck, Step.DECLARE_ATTACKERS, walk)
+        reached = walk_to(changed, every, Step.DECLARE_ATTACKERS, walk)
+        if not reached:
+            return _not_declared(changed, walk, problems, override)
     elif step not in _DECLARING:
-        return_to_declare_attackers(changed, deck, walk)
+        return_to_declare_attackers(changed, deck, walk, every)
     tapped_before = set(changed.tapped_by_attacks)
     found = resolve(
         changed,
@@ -330,6 +359,9 @@ def attack(
         events.append(judged)
     events.extend(walk.events)
     events.extend(instances_chosen)
+    if changed.contested and chosen:
+        open_window(changed, WindowKind.ATTACK)
+        events.extend(go_on(changed, every))
     summary = AttackDeclared(
         attackers=tuple(face_name(deck_of(c), c) for c in chosen),
         blocked=tuple(face_name(deck_of(c), c) for c in sub["blocked"]),

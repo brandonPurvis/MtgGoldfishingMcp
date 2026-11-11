@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from mtg_goldfishing.domain.deck.model import LoadedDeck
-from mtg_goldfishing.domain.events import EliminationCause, Error, ErrorKind, Event, GameEnded
+from mtg_goldfishing.domain.events import (
+    EliminationCause,
+    Error,
+    ErrorKind,
+    Event,
+    GameEnded,
+    ItemRemoved,
+)
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.elimination import eliminate
 from mtg_goldfishing.domain.game.model import Game, GameResult, GameStatus, Result
@@ -40,6 +47,7 @@ def _concede(game: Game, decks: Decks, seat: SeatNumber, notes: str) -> Applied:
 
 
 # @spec GAME-045, GAME-046, GAME-047, REC-012, REC-070, APP-031, GAME-148, GAME-149, REC-050
+# @spec GAME-147, STACK-033
 def end_game(
     game: Game,
     deck: LoadedDeck,
@@ -69,9 +77,12 @@ def end_game(
     if not game.seat(seat).tested:
         return _concede(game, every, seat, notes or "")
     ended = game.copy()
+    removed = tuple(ItemRemoved(item.id, item.controller, item.source) for item in ended.stack)
     ended.pending = []
     ended.hand_looks = []
     ended.declared_attack = None
+    ended.stack = []
+    ended.window = None
     active_deck = deck
     if ended.active is not None:
         active_deck = every.of(ended.active)
@@ -81,5 +92,6 @@ def end_game(
     return Applied(
         ended,
         GameEnded(outcome.value, notes or ""),
+        removed,
         snapshots=(snapshot,) if snapshot else (),
     )

@@ -15,10 +15,10 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-006**: Every domain operation on a game, goldfish or contested, shall return either an applied result holding the changed game and its events, or a refusal holding errors or failed rule checks, and shall not raise an exception to signal a refusal.
 - [x] **APP-007**: When a domain operation returns a refusal, in a goldfish game or a contested game, the game passed to the operation shall be unchanged.
 - [x] **APP-008**: The domain shall perform no input or output, read no clock, and draw no randomness other than from a seed passed to it.
-- [ ] **APP-029**: `Game` shall be the one aggregate that changes: the seats of a game, their card instances, zones and mana pools, the stack, the response window, the declared attack, the pending choices and the notices shall be reached and changed only through the `Game` they belong to.
+- [x] **APP-029**: `Game` shall be the one aggregate that changes: the seats of a game, their card instances, zones and mana pools, the stack, the response window, the declared attack, the pending choices and the notices shall be reached and changed only through the `Game` they belong to.
 - [x] **APP-030**: A seat shall be an entity inside its `Game`, identified by its seat number, and no port shall save or load a seat on its own.
 - [x] **APP-031**: Every domain operation on a `Game` that a tool causes, in a goldfish game or a contested game, shall take the acting seat's seat number as an argument.
-- [ ] **APP-032**: `SeatId`, `SeatNumber` and `StackItem` shall be domain value objects (immutable, compared by value, rejecting invalid values on construction).
+- [x] **APP-032**: `SeatId`, `SeatNumber` and `StackItem` shall be domain value objects (immutable, compared by value, rejecting invalid values on construction).
 - [x] **APP-033**: The filter that turns an event into its public form (what any seat may see of it) shall be a stateless domain service; no application or adapter code shall decide what is public.
 
 ## Outcomes

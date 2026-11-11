@@ -32,8 +32,6 @@ from tests.support.acting import (
 from tests.support.builders import a_game
 from tests.support.tables import bolt_at, same, three_seats, two_seats
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
-
 
 def window_kind(situation: Any) -> str | None:
     window = situation.game.window
@@ -73,7 +71,6 @@ def a_pending_look(situation: Any, seat: Any) -> None:
 
 
 # @spec STACK-034
-@NOT_BUILT
 def test_an_item_put_on_the_stack_opens_a_window_asking_the_seat_after_its_controller() -> None:
     situation = three_seats(lambda b: b.with_hand("Lightning Bolt"))
 
@@ -83,7 +80,6 @@ def test_an_item_put_on_the_stack_opens_a_window_asking_the_seat_after_its_contr
 
 
 # @spec STACK-034
-@NOT_BUILT
 def test_an_item_of_another_seat_is_asked_about_from_the_seat_after_it() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -96,7 +92,6 @@ def test_an_item_of_another_seat_is_asked_about_from_the_seat_after_it() -> None
 
 
 # @spec STACK-035
-@NOT_BUILT
 def test_after_the_top_item_resolves_the_window_asks_about_the_new_top_item() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -115,7 +110,6 @@ def test_after_the_top_item_resolves_the_window_asks_about_the_new_top_item() ->
 
 
 # @spec STACK-036
-@NOT_BUILT
 def test_declaring_attackers_opens_a_window_asking_the_seat_after_the_active_seat() -> None:
     situation = three_seats(lambda b: b.with_battlefield("Grizzly Bears"))
 
@@ -128,7 +122,6 @@ def test_declaring_attackers_opens_a_window_asking_the_seat_after_the_active_sea
 
 
 # @spec STACK-037
-@NOT_BUILT
 def test_entering_the_end_step_opens_a_window_asking_the_seat_after_the_active_seat() -> None:
     situation = three_seats(step=Step.MAIN2)
 
@@ -151,7 +144,6 @@ def test_no_other_step_opens_a_window() -> None:
 
 
 # @spec STACK-039
-@NOT_BUILT
 def test_a_response_begins_the_asking_again_from_the_seat_after_the_responder() -> None:
     situation = three_seats(
         lambda b: b.with_hand("Grizzly Bears"), third=lambda b: b.with_hand("Lightning Bolt")
@@ -165,7 +157,6 @@ def test_a_response_begins_the_asking_again_from_the_seat_after_the_responder() 
 
 
 # @spec STACK-040
-@NOT_BUILT
 def test_when_the_stack_empties_inside_an_attack_window_the_asking_begins_again() -> None:
     situation = three_seats(
         second=lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}),
@@ -183,7 +174,6 @@ def test_when_the_stack_empties_inside_an_attack_window_the_asking_begins_again(
 
 
 # @spec STACK-041, STACK-044
-@NOT_BUILT
 def test_an_attack_window_closes_once_every_other_seat_has_passed_and_the_active_seat_acts() -> (
     None
 ):
@@ -202,7 +192,6 @@ def test_an_attack_window_closes_once_every_other_seat_has_passed_and_the_active
 
 
 # @spec STACK-045
-@NOT_BUILT
 def test_when_the_end_window_closes_the_active_seat_continues_with_advance() -> None:
     situation = two_seats(second=lambda b: b.with_window("end", asking=2), step=Step.END)
 
@@ -214,7 +203,6 @@ def test_when_the_end_window_closes_the_active_seat_continues_with_advance() -> 
 
 
 # @spec STACK-084, TURN-061
-@NOT_BUILT
 def test_an_end_window_of_an_eliminated_active_seat_closes_once_the_stack_is_empty() -> None:
     situation = three_seats(
         third=lambda b: b.with_window("end", asking=3),
@@ -229,7 +217,6 @@ def test_an_end_window_of_an_eliminated_active_seat_closes_once_the_stack_is_emp
 
 
 # @spec STACK-084, TURN-061, TURN-037
-@NOT_BUILT
 def test_an_eliminated_active_seats_window_asks_about_items_but_does_not_begin_again() -> None:
     situation = three_seats(
         third=lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}).with_window(
@@ -248,7 +235,6 @@ def test_an_eliminated_active_seats_window_asks_about_items_but_does_not_begin_a
 
 
 # @spec STACK-085, TURN-068, TURN-069
-@NOT_BUILT
 def test_an_end_window_every_other_seat_is_passed_on_automatically_closes_in_the_advance() -> None:
     situation = two_seats(step=Step.MAIN2, lands=False)
 
@@ -259,7 +245,6 @@ def test_an_end_window_every_other_seat_is_passed_on_automatically_closes_in_the
 
 
 # @spec TURN-056
-@NOT_BUILT
 def test_an_advance_stops_in_the_end_step_while_its_window_waits_on_a_seat() -> None:
     situation = two_seats(step=Step.MAIN2)
 
@@ -309,7 +294,6 @@ def bolt_that_asks_over_a_trick() -> Any:
 
 
 # @spec STACK-070
-@NOT_BUILT
 def test_while_a_pending_choice_waits_no_seat_is_asked_and_nothing_resolves() -> None:
     situation = bolt_that_asks_over_a_trick()
 
@@ -322,7 +306,6 @@ def test_while_a_pending_choice_waits_no_seat_is_asked_and_nothing_resolves() ->
 
 
 # @spec STACK-071
-@NOT_BUILT
 def test_once_the_choice_is_answered_the_asking_goes_on_judging_the_board_as_it_is_then() -> None:
     situation = bolt_that_asks_over_a_trick()
     passed(situation, S2)
@@ -343,7 +326,6 @@ def test_once_the_choice_is_answered_the_asking_goes_on_judging_the_board_as_it_
 
 
 # @spec STACK-083
-@NOT_BUILT
 def test_the_end_window_opens_on_entering_the_step_but_asks_only_after_reminders() -> None:
     situation = two_seats(
         second=lambda b: b.with_battlefield("Bloodchief Ascension"), step=Step.MAIN2
@@ -356,7 +338,6 @@ def test_the_end_window_opens_on_entering_the_step_but_asks_only_after_reminders
 
 
 # @spec STACK-083, TURN-054
-@NOT_BUILT
 def test_the_end_window_asks_once_the_reminded_seat_has_answered_and_the_stack_is_empty() -> None:
     situation = two_seats(
         second=lambda b: b.with_battlefield("Bloodchief Ascension"), step=Step.MAIN2
@@ -373,7 +354,6 @@ def test_the_end_window_asks_once_the_reminded_seat_has_answered_and_the_stack_i
 
 
 # @spec STACK-046, STACK-047
-@NOT_BUILT
 def test_a_seat_with_no_untapped_permanents_is_passed_automatically() -> None:
     situation = three_seats(
         lambda b: b.with_hand("Grizzly Bears"),
@@ -388,7 +368,6 @@ def test_a_seat_with_no_untapped_permanents_is_passed_automatically() -> None:
 
 
 # @spec STACK-046
-@NOT_BUILT
 def test_the_seat_after_an_automatic_pass_is_asked() -> None:
     situation = three_seats(
         lambda b: b.with_hand("Grizzly Bears"),
@@ -403,7 +382,6 @@ def test_the_seat_after_an_automatic_pass_is_asked() -> None:
 
 
 # @spec STACK-048
-@NOT_BUILT
 def test_an_automatic_pass_is_shown_to_the_other_seats() -> None:
     situation = three_seats(
         lambda b: b.with_hand("Grizzly Bears"),
@@ -419,7 +397,6 @@ def test_an_automatic_pass_is_shown_to_the_other_seats() -> None:
 
 
 # @spec STACK-049
-@NOT_BUILT
 def test_an_item_every_other_seat_is_passed_on_automatically_resolves_within_its_call() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"), lands=False)
 
@@ -440,7 +417,6 @@ def test_pass_in_a_goldfish_game_is_an_error() -> None:
 
 
 # @spec STACK-050
-@NOT_BUILT
 def test_a_pass_records_the_seat_and_asks_the_next_seat() -> None:
     situation = three_seats(lambda b: b.with_hand("Grizzly Bears"))
     cast(situation, S1, "Grizzly Bears")
@@ -462,7 +438,6 @@ def test_a_seat_not_asked_may_not_pass_play_or_record_an_effect(tool: str) -> No
 
 
 # @spec STACK-042, GAME-112, GAME-116
-@NOT_BUILT
 @pytest.mark.parametrize("tool", ["pass", "play", "effect"])
 def test_the_seat_being_asked_is_the_seat_to_act_and_may_respond_or_pass(tool: str) -> None:
     situation = three_seats(
@@ -475,7 +450,6 @@ def test_the_seat_being_asked_is_the_seat_to_act_and_may_respond_or_pass(tool: s
 
 
 # @spec STACK-042, GAME-117
-@NOT_BUILT
 @pytest.mark.parametrize("tool", ["play", "effect"])
 def test_the_active_seat_may_not_play_while_another_seat_is_asked(tool: str) -> None:
     situation = two_seats(
@@ -487,7 +461,6 @@ def test_the_active_seat_may_not_play_while_another_seat_is_asked(tool: str) -> 
 
 
 # @spec STACK-043, GAME-117
-@NOT_BUILT
 @pytest.mark.parametrize("tool", ["advance", "attack"])
 def test_advance_and_attack_are_errors_while_the_stack_is_not_empty(tool: str) -> None:
     situation = two_seats(
@@ -500,7 +473,6 @@ def test_advance_and_attack_are_errors_while_the_stack_is_not_empty(tool: str) -
 
 
 # @spec STACK-043
-@NOT_BUILT
 @pytest.mark.parametrize("tool", ["advance", "attack"])
 def test_advance_and_attack_are_errors_while_a_window_is_open_whichever_seat_calls(
     tool: str,
@@ -512,7 +484,6 @@ def test_advance_and_attack_are_errors_while_a_window_is_open_whichever_seat_cal
 
 
 # @spec STACK-053
-@NOT_BUILT
 def test_a_seat_owing_a_pending_choice_may_not_pass() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -524,7 +495,6 @@ def test_a_seat_owing_a_pending_choice_may_not_pass() -> None:
 
 
 # @spec STACK-054, TURN-067
-@NOT_BUILT
 @pytest.mark.parametrize("reminded", [False, True], ids=["no reminder", "reminded"])
 def test_the_active_seat_with_no_window_open_has_nothing_to_pass(reminded: bool) -> None:
     situation = two_seats(
@@ -539,7 +509,6 @@ def test_the_active_seat_with_no_window_open_has_nothing_to_pass(reminded: bool)
 
 
 # @spec STACK-057
-@NOT_BUILT
 def test_a_seat_asked_in_a_window_may_record_an_earlier_trigger() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -552,7 +521,6 @@ def test_a_seat_asked_in_a_window_may_record_an_earlier_trigger() -> None:
 
 
 # @spec STACK-056
-@NOT_BUILT
 def test_combat_damage_opens_no_window_and_leaves_the_active_seat_to_act() -> None:
     situation = two_seats(lambda b: b.with_battlefield("Grizzly Bears"))
     acted(situation, attack(situation.game, situation.deck, S1, attackers=["Grizzly Bears"]))
@@ -569,7 +537,6 @@ def test_combat_damage_opens_no_window_and_leaves_the_active_seat_to_act() -> No
 
 
 # @spec GAME-111
-@NOT_BUILT
 def test_a_seat_reminded_out_of_its_turn_acts_ahead_of_an_open_window() -> None:
     situation = three_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -593,7 +560,6 @@ def test_a_pending_choice_comes_before_a_reminder_and_an_open_window() -> None:
 
 
 # @spec TURN-044, CMBT-029
-@NOT_BUILT
 @pytest.mark.parametrize("tool", ["advance", "attack"])
 def test_the_active_seat_may_not_move_on_while_another_seats_reminder_waits(tool: str) -> None:
     situation = two_seats(
@@ -604,7 +570,6 @@ def test_the_active_seat_may_not_move_on_while_another_seats_reminder_waits(tool
 
 
 # @spec GAME-148
-@NOT_BUILT
 @pytest.mark.parametrize("waiting", ["window", "reminder"])
 def test_the_tested_seat_may_end_the_game_whatever_waits(waiting: str) -> None:
     situation = two_seats(
@@ -619,7 +584,6 @@ def test_the_tested_seat_may_end_the_game_whatever_waits(waiting: str) -> None:
 
 
 # @spec GAME-161
-@NOT_BUILT
 @pytest.mark.parametrize("waiting", ["window", "reminder"])
 def test_a_seat_may_concede_while_the_game_waits_on_it(waiting: str) -> None:
     situation = two_seats(
@@ -637,7 +601,6 @@ def test_a_seat_may_concede_while_the_game_waits_on_it(waiting: str) -> None:
 
 
 # @spec PLAY-081
-@NOT_BUILT
 def test_a_land_played_by_a_seat_asked_out_of_its_turn_fails_the_timing_check() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears"),
@@ -650,7 +613,6 @@ def test_a_land_played_by_a_seat_asked_out_of_its_turn_fails_the_timing_check() 
 
 
 # @spec PLAY-081
-@NOT_BUILT
 def test_a_land_played_by_the_active_seat_with_the_stack_not_empty_fails_the_timing_check() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Forest"),
@@ -677,7 +639,6 @@ def test_a_land_is_played_at_once_entering_on_the_table_turn() -> None:
 
 
 # @spec PLAY-083
-@NOT_BUILT
 def test_a_sorcery_speed_spell_cast_out_of_the_casters_turn_fails_the_timing_check() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -694,7 +655,6 @@ def test_a_sorcery_speed_spell_cast_out_of_the_casters_turn_fails_the_timing_che
 
 
 # @spec PLAY-083
-@NOT_BUILT
 def test_a_sorcery_speed_spell_cast_in_the_casters_main_step_over_a_stack_fails_timing() -> None:
     situation = two_seats(
         lambda b: b.with_hand("Grizzly Bears"),
@@ -709,7 +669,6 @@ def test_a_sorcery_speed_spell_cast_in_the_casters_main_step_over_a_stack_fails_
 
 
 # @spec PLAY-083
-@NOT_BUILT
 def test_a_spell_with_flash_may_be_cast_out_of_the_casters_turn() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),

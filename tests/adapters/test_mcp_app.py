@@ -50,7 +50,7 @@ def test_the_mcp_endpoint_lists_tools_without_a_session(http: TestClient) -> Non
 
     result = _result(response.text)["result"]
     assert isinstance(result, dict)
-    assert len(result["tools"]) == 12
+    assert len(result["tools"]) == 13
 
 
 # @spec TOOL-001

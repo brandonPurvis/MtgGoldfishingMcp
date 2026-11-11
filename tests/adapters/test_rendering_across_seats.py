@@ -52,7 +52,9 @@ def response(tool: str, situation: Situation, seat: SeatNumber, result: Any) -> 
 
 
 def recorded(situation: Situation, delta: object, seat: SeatNumber = S1) -> Any:
-    return effect(situation.game, situation.deck, seat, source="a test effect", delta=delta)
+    return effect(
+        situation.game, situation.deck, seat, source="a test effect", delta=delta, immediate=True
+    )
 
 
 # ------------------------------------------------------------------ hidden zones

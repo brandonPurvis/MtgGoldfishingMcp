@@ -38,7 +38,9 @@ def table_of(seats: int = 3, *, third_out: bool = False) -> Situation:
 
 
 def recorded(situation: Situation, delta: object, seat: SeatNumber = S1) -> Any:
-    return effect(situation.game, situation.deck, seat, source="Mind Rot", delta=delta)
+    return effect(
+        situation.game, situation.deck, seat, source="Mind Rot", delta=delta, immediate=True
+    )
 
 
 def asking(situation: Situation, *entries: dict[str, object]) -> Any:
