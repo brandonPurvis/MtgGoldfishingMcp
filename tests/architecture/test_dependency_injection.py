@@ -7,9 +7,11 @@ import inspect
 import tomllib
 from abc import ABC
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from mtg_goldfishing.adapters import system
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.memory import (
     FixedClock,
@@ -278,3 +280,21 @@ def test_no_source_module_imports_a_dependency_injection_container() -> None:
         if imported.split(".", maxsplit=1)[0] in CONTAINER_LIBRARIES
     ]
     assert found == []
+
+
+# ------------------------------------------------------------------ waking waiting seats
+
+
+# @spec APP-041, APP-042
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_game_changes_is_a_port_with_an_announce_and_a_wait_operation() -> None:
+    port: Any = getattr(ports, "GameChanges")  # noqa: B009
+    assert ABC in port.__mro__
+    assert port.__abstractmethods__ == {"announce", "wait_for_change"}
+
+
+# @spec APP-048, APP-051
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_the_test_composition_root_wakes_waiting_seats_with_the_in_process_game_changes() -> None:
+    harness: Any = a_service()
+    assert isinstance(harness.changes, getattr(system, "InProcessGameChanges"))  # noqa: B009

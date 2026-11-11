@@ -8,8 +8,15 @@ from typing import Any
 import pytest
 
 from mtg_goldfishing.application.ports import GameRecords, RecordStore
+from mtg_goldfishing.domain.events import EffectRecorded, HiddenCardsDrawn
 from mtg_goldfishing.domain.game.seats import SeatNumber
-from tests.support.stored import a_call, a_log_entry, a_snapshot
+from tests.support.stored import (
+    a_call,
+    a_contested_log_entry,
+    a_contested_snapshot,
+    a_log_entry,
+    a_snapshot,
+)
 from tests.support.stores import STORE_ADAPTER_IDS, STORE_ADAPTERS, OpenStores
 
 GAME = "gtest000001"
@@ -120,3 +127,78 @@ def test_a_call_record_s_seat_number_is_read_back(records: RecordStore) -> None:
     (read,) = records.read(GAME).calls
     seat: Any = read
     assert seat.seat == SeatNumber(2)
+
+
+# ------------------------------------------------------------------ contested records
+
+
+# @spec APP-046, STOR-022
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_a_seat_with_no_call_record_has_no_digest_baseline(records: RecordStore) -> None:
+    records.add_call(replace(a_call(GAME, 3), seat=SeatNumber(1)))
+    store: Any = records
+    assert store.digest_baseline(GAME, SeatNumber(2)) is None
+
+
+# @spec APP-046, STOR-022
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_a_seat_s_digest_baseline_is_the_change_on_its_latest_call_record_other_than_get_log(
+    records: RecordStore,
+) -> None:
+    two = SeatNumber(2)
+    records.add_call(replace(a_call(GAME, 3), seat=two))
+    records.add_call(replace(a_call(GAME, 5, tool="get_state"), seat=two))
+    records.add_call(replace(a_call(GAME, 7, tool="get_log"), seat=two))
+    records.add_call(replace(a_call(GAME, 8), seat=SeatNumber(1)))
+    records.add_call(replace(a_call(OTHER, 9), seat=two))
+    store: Any = records
+    assert store.digest_baseline(GAME, two) == 5
+
+
+# @spec APP-046, STOR-022
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_a_seat_whose_only_call_records_are_get_log_has_no_digest_baseline(
+    records: RecordStore,
+) -> None:
+    records.add_call(replace(a_call(GAME, 7, tool="get_log"), seat=SeatNumber(2)))
+    store: Any = records
+    assert store.digest_baseline(GAME, SeatNumber(2)) is None
+
+
+# @spec APP-092, STOR-029
+def test_a_second_snapshot_for_a_table_turn_raises_and_the_first_stays(
+    records: RecordStore, request: pytest.FixtureRequest
+) -> None:
+    if "memory" in request.node.name:
+        request.node.add_marker(pytest.mark.xfail(strict=True, reason="M3c: not built"))
+    records.add_snapshot(GAME, a_snapshot(1, written_by=3))
+    with pytest.raises(Exception):  # noqa: B017, PT011
+        records.add_snapshot(GAME, a_snapshot(1, written_by=4))
+    assert records.read(GAME).snapshots == (a_snapshot(1, written_by=3),)
+
+
+# @spec STOR-028
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_snapshots_of_two_seats_turns_of_the_same_number_are_kept_by_table_turn(
+    records: RecordStore,
+) -> None:
+    first = a_contested_snapshot(3, table_turn=5, written_by=10)
+    second = a_contested_snapshot(3, table_turn=6, written_by=12)
+    records.add_snapshot(GAME, first)
+    records.add_snapshot(GAME, second)
+    assert records.read(GAME).snapshots == (first, second)
+
+
+# @spec REC-040, REC-067
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_a_contested_log_entry_with_its_public_events_is_read_back_equal(
+    records: RecordStore,
+) -> None:
+    entry = a_contested_log_entry(
+        4,
+        seat=2,
+        table_turn=3,
+        public=(EffectRecorded("Phyrexian Arena"), HiddenCardsDrawn(SeatNumber(2), 1)),
+    )
+    records.append_entry(GAME, entry)
+    assert records.read(GAME).entries == (entry,)

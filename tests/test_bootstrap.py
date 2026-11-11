@@ -1,11 +1,13 @@
 """The composition root: settings from the environment, the wiring, and start-up."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from mtg_goldfishing.adapters import system
 from mtg_goldfishing.adapters.memory import InMemoryCardCatalog
 from mtg_goldfishing.adapters.scryfall import ScryfallCatalog
 from mtg_goldfishing.adapters.sqlite import MIGRATIONS, SqliteDatabase, SqliteStores
@@ -148,3 +150,26 @@ def test_start_up_with_a_bad_setting_ends_with_a_non_zero_exit(
     code = main({"MTG_GOLDFISHING_PORT": "eighty"})
 
     assert (code != 0, "MTG_GOLDFISHING_PORT" in capsys.readouterr().err) == (True, True)
+
+
+# @spec APP-051
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_the_composed_service_wakes_waiting_seats_with_the_in_process_game_changes(
+    tmp_path: Path,
+) -> None:
+    composition: Any = compose(_settings(tmp_path), catalog=InMemoryCardCatalog(recorded_cards()))
+    try:
+        assert isinstance(composition.changes, getattr(system, "InProcessGameChanges"))  # noqa: B009
+    finally:
+        composition.close()
+
+
+# @spec APP-075
+@pytest.mark.xfail(strict=True, reason="M3c: not built")
+def test_the_composed_service_answers_wait(tmp_path: Path) -> None:
+    composition: Any = compose(_settings(tmp_path), catalog=InMemoryCardCatalog(recorded_cards()))
+    try:
+        answer = composition.service.wait({"game_id": "gnosuchgame"})
+    finally:
+        composition.close()
+    assert answer.response.startswith("ERROR ")
