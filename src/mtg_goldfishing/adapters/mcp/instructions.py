@@ -4,6 +4,7 @@ from __future__ import annotations
 
 SERVER_NAME = "goldfishing"
 
+# @spec TOOL-012, TOOL-034
 SERVER_INSTRUCTIONS = """\
 MTG Goldfishing keeps the state of a Commander goldfish game you play against three \
 imaginary opponents who take no actions. You make every decision and say what each card \
@@ -29,4 +30,18 @@ dealt, commander damage, commander tax); use `get_state` only when that is not e
 next changing call so that a call sent twice is applied once.
 10. When a notice says an end condition is reached, or you judge the game decided, call \
 `end_game` with the result and your verdict. `get_log` returns the game's records as JSON.
+
+Contested games:
+1. `new_game` with `opponents` starts a contested game and returns one seat id per seat; each \
+seat's agent passes its own seat id as `game_id`.
+2. Seats act one at a time. When your seat is not the seat to act, call `wait`; it returns \
+when it is, with what you are asked.
+3. Spells and abilities go on the stack and resolve once every other seat has passed. When \
+asked to respond, `play` or `effect` to respond, or `pass`.
+4. Answer a `CHOICE` addressed to you with `choose`: blocks, a decision another seat's effect \
+asks of you, or whether a spell still does what was stated.
+5. After blocks, the attacking seat states what happens to the creatures with `effect` and \
+`immediate: true`; the service deals the damage to seats, so the `effect` does not repeat it.
+6. Each response begins with what the other seats did since your last call.
+7. Only the tested seat ends the game; an opposing seat's `end_game` concedes.
 """

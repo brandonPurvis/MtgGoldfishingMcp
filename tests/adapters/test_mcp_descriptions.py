@@ -188,7 +188,6 @@ GOLDFISH_GUIDE = (FIXTURES / "goldfish_server_instructions.txt").read_text(encod
 CONTESTED = "Contested games:"
 CONTESTED_TOOLS = ("pass", "wait")
 """Tools that exist for contested games, and say so in their purpose."""
-M5 = pytest.mark.xfail(strict=True, reason="M5: not built")
 
 
 def _goldfish_part(text: str) -> str:
@@ -216,33 +215,26 @@ def _contested_part(text: str) -> str:
     return text.partition(CONTESTED)[2]
 
 
-def _goldfish(name: str, *marks: pytest.MarkDecorator) -> object:
-    return pytest.param(DEFINITIONS[name], id=name, marks=marks)
-
-
 # @spec TOOL-033
-@pytest.mark.parametrize(
-    "definition",
-    [_goldfish(n) for n in GOLDFISH_DESCRIPTIONS if n != "choose"] + [_goldfish("choose", M5)],
-)
+@pytest.mark.parametrize("name", list(GOLDFISH_DESCRIPTIONS))
 def test_a_goldfish_agent_reads_every_description_as_before_once_contested_parts_are_left_out(
-    definition: ToolDefinition,
+    name: str,
 ) -> None:
-    assert _as_a_goldfish_agent_reads_it(definition) == GOLDFISH_DESCRIPTIONS[definition.name]
+    assert _as_a_goldfish_agent_reads_it(DEFINITIONS[name]) == GOLDFISH_DESCRIPTIONS[name]
 
 
 # @spec TOOL-033
 @pytest.mark.parametrize(
     ("tool", "words"),
     [
-        pytest.param("mulligan", ("every seat has kept",), id="mulligan", marks=M5),
-        pytest.param("get_state", ("every seat", "hand and library"), id="get_state", marks=M5),
-        pytest.param("play", ("stack", "every other seat has passed"), id="play", marks=M5),
-        pytest.param("effect", ("stack", "immediate"), id="effect", marks=M5),
-        pytest.param("choose", ("blocks", "restate"), id="choose"),
-        pytest.param("attack", ("window", "send attack again"), id="attack"),
-        pytest.param("advance", ("end", "next seat"), id="advance", marks=M5),
-        pytest.param("end_game", ("tested seat", "concede"), id="end_game", marks=M5),
+        ("mulligan", ("every seat has kept",)),
+        ("get_state", ("every seat", "hand and library")),
+        ("play", ("stack", "every other seat has passed")),
+        ("effect", ("stack", "immediate")),
+        ("choose", ("blocks", "restate")),
+        ("attack", ("window", "send attack again")),
+        ("advance", ("end", "next seat")),
+        ("end_game", ("tested seat", "concede")),
     ],
 )
 def test_a_tool_that_behaves_differently_in_a_contested_game_says_so_after_its_automatic_part(
@@ -263,7 +255,7 @@ def test_a_tool_that_behaves_differently_in_a_contested_game_says_so_after_its_a
         ("choose", "delta"),
         ("choose", "blocks"),
         ("choose", "restate"),
-        pytest.param("choose", "override", marks=M5),
+        ("choose", "override"),
         ("attack", "targets"),
     ],
 )
@@ -276,7 +268,6 @@ def test_a_parameter_taken_only_in_a_contested_game_is_marked_contested_games(
 
 
 # @spec TOOL-033
-@M5
 def test_the_delta_shape_names_the_counter_key_among_its_contested_keys() -> None:
     contested = _contested_part(next(p.meaning for p in PLAY.parameters if p.name == "delta"))
 
@@ -295,7 +286,6 @@ def test_the_server_instructions_begin_with_the_guide_for_every_game_unchanged()
 
 
 # @spec TOOL-034
-@M5
 @pytest.mark.parametrize(
     ("point", "words"),
     [

@@ -23,7 +23,6 @@ TOOLS = (
     "get_log",
 )
 CONTESTED_SECTION = "## Contested games"
-M5 = pytest.mark.xfail(strict=True, reason="M5: not built")
 
 
 def _front_matter() -> dict[str, str]:
@@ -61,7 +60,6 @@ def test_the_player_brief_is_a_subagent_named_goldfish_player() -> None:
 
 
 # @spec TOOL-029
-@M5
 def test_the_player_brief_restricts_the_subagent_to_the_goldfishing_tools() -> None:
     tools = [tool.strip() for tool in _front_matter()["tools"].split(",")]
 
@@ -89,7 +87,6 @@ def test_the_player_brief_instructs_the_subagent(instruction: str, words: tuple[
 
 
 # @spec TOOL-052
-@M5
 def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_instead() -> None:
     given = _section("## What you are given")
 
@@ -97,7 +94,6 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
 
 
 # @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055
-@M5
 @pytest.mark.parametrize(
     ("instruction", "words"),
     [

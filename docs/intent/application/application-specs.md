@@ -114,5 +114,5 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-024**: The domain tests and the in-process behave feature tests (those outside `features/http`) shall run without a database file, a network connection or a running server.
 - [x] **APP-025**: The in-process behave feature tests (those outside `features/http`) shall drive the MCP adapter's tool functions in-process over the in-memory adapters.
 - [x] **APP-076**: The in-process behave scenarios of contested games shall drive each seat through the MCP adapter's tool functions with that seat's own seat id.
-- [ ] **APP-077**: The behave scenarios under `features/http` shall start the real service process with a SQLite database and drive each seat of a contested game through its own MCP client over HTTP.
-- [ ] **APP-080**: The behave scenarios under `features/http` shall be run by CI and shall not be among the checks run before a commit, as the end-to-end tests under `tests/e2e` are.
+- [x] **APP-077**: The behave scenarios under `features/http` shall start the real service process with a SQLite database and drive each seat of a contested game through its own MCP client over HTTP.
+- [x] **APP-080**: The behave scenarios under `features/http` shall be run by CI and shall not be among the checks run before a commit, as the end-to-end tests under `tests/e2e` are.

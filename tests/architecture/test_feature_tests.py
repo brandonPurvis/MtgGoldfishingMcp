@@ -5,8 +5,6 @@ import ast
 import configparser
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 HTTP_FEATURES = ROOT / "features" / "http"
 OUTSIDE_WORLD = (
@@ -105,7 +103,6 @@ def test_the_checks_before_a_commit_do_not_run_behave() -> None:
 
 
 # @spec APP-080
-@pytest.mark.xfail(strict=True, reason="M5: not built")
 def test_ci_runs_the_http_scenarios() -> None:
     commands = _run_steps(ROOT / ".github" / "workflows" / "ci.yml")
 
