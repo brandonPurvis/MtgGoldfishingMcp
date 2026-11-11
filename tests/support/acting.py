@@ -51,7 +51,21 @@ def choice_ids(situation: Situation) -> list[str]:
 
 def cast(situation: Situation, seat: SeatNumber, card: str, **arguments: Any) -> Applied:
     """The seat plays a card, and the call is applied; the situation then holds the game."""
-    return acted(situation, play(situation.game, situation.deck, seat, card=card, **arguments))
+    return acted(situation, playing(situation, seat, card, **arguments))
+
+
+def playing(situation: Situation, seat: SeatNumber, card: str, **arguments: Any) -> Any:
+    """The seat plays a card; the result, applied or not, with the situation unchanged.
+
+    The call is made with untyped arguments, so that a test may pass an argument `play`
+    does not take yet and fail for that reason alone."""
+    operate: Any = play
+    return operate(situation.game, situation.deck, seat, card=card, **arguments)
+
+
+def a_trigger(source: str, delta: dict[str, object], **more: object) -> dict[str, object]:
+    """A cast trigger as `play`'s `cast_triggers` takes it."""
+    return {"source": source, "delta": delta, **more}
 
 
 def recorded(

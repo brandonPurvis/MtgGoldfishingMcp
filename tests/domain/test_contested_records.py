@@ -317,7 +317,7 @@ def test_a_blocks_answer_with_no_blocks_records_an_empty_map() -> None:
 
 
 # @spec REC-074
-def test_an_ask_answer_records_no_outcome() -> None:
+def test_an_ask_answer_without_answer_text_records_no_outcome() -> None:
     situation = a_table()
     an_effect(situation, S1, {"ask": [{"seats": [2], "text": "discard a card"}]})
     choice = situation.game.pending[0].choice_id
@@ -326,6 +326,56 @@ def test_an_ask_answer_records_no_outcome() -> None:
     entry = logged(situation, S2, "choose", {"choice_id": choice, "delta": delta}, result)
     assert data(entry)["outcome"] is None
     assert data(entry)["seat"] == 2
+
+
+def a_text_answer(situation: Situation, text: str, **more: object) -> Any:
+    """Seat 2 answers seat 1's ask to name a card with answer text; its log entry."""
+    an_effect(situation, S1, {"ask": [{"seats": [2], "text": "name a card"}]})
+    choice = situation.game.pending[0].choice_id
+    answer: Any = choose
+    result = answer(situation.game, situation.deck, S2, choice_id=choice, text=text, **more)
+    return logged(situation, S2, "choose", {"choice_id": choice, "text": text, **more}, result)
+
+
+# @spec REC-087
+def test_an_ask_answer_with_answer_text_records_it_as_held_in_its_outcome() -> None:
+    situation = a_table()
+    entry = a_text_answer(situation, "  Lightning\n Bolt ", delta={"life": -1})
+    assert data(entry)["outcome"] == {"text": "Lightning Bolt"}
+
+
+# @spec REC-087, REC-003
+def test_an_ask_answer_s_arguments_keep_its_answer_text_as_received() -> None:
+    situation = a_table()
+    entry = a_text_answer(situation, "  Lightning\n Bolt ")
+    assert data(entry)["arguments"]["text"] == "  Lightning\n Bolt "
+
+
+# @spec REC-088
+def test_an_ask_answer_s_public_events_hold_its_answer_text() -> None:
+    situation = a_table()
+    (answer,) = [
+        e for e in data(a_text_answer(situation, "7"))["public"] if e["type"] == "AskAnswered"
+    ]
+    assert (answer["seat"], answer["text"]) == (2, "7")
+
+
+# @spec GAME-179, REC-088
+def test_an_opposing_seat_id_in_answer_text_reaches_the_records_redacted() -> None:
+    situation = a_table()
+    third = situation.game.seat(S3).seat_id.value
+    entry = a_text_answer(situation, f"the seat {third}")
+    (answer,) = [e for e in data(entry)["public"] if e["type"] == "AskAnswered"]
+    assert answer["text"] == "the seat [redacted]"
+
+
+# ------------------------------------------------------------------ cast triggers
+
+
+# @spec REC-085
+def test_a_contested_entry_whose_call_stated_no_cast_triggers_records_an_empty_list() -> None:
+    situation = a_table()
+    assert data(an_effect(situation, S1, {"life": 1}))["cast_triggers"] == []
 
 
 # @spec REC-072

@@ -28,6 +28,7 @@ StackItem {
   delta: Delta               // as stated; applied on resolution
   to: Destination | null     // where a spell's card goes on resolution, if stated
   choices: Choices | null
+  cast_with: string | null   // a cast trigger: the id of the spell it was stated with
   disturbed: bool            // something above this item resolved while it waited
 }
 
@@ -41,10 +42,11 @@ A spell's card is in the zone `stack` while its item waits. An ability has no ca
 In a contested game:
 
 - `play` of a card whose played face is not a land puts a spell on the stack. The cost is paid, the commander tax counted and the card moved to the stack when the call is applied; the delta waits.
+- The cast triggers stated with that `play` (see `play`) go on the stack in the same call, above the spell: each is an ability controlled by the casting seat, holding the trigger's `source`, `delta` and `choices` and the spell's id as `cast_with`. They are put on in reverse of the order listed, so that the first listed is on top and resolves first; each takes the next stack item id as it goes on, so the first listed has the highest id. No seat is asked between the items of one call: the response window opens once, for the top item, when the last of them is on the stack.
 - `effect` puts an ability on the stack, its cost paid when the call is applied. An `effect` with `immediate: true` is applied at once and opens no window: it is for mana abilities, special actions, the result of combat between creatures (see `combat`), and corrections.
 - Playing a land never uses the stack. A land played while a window is open leaves the window as it was: the same seat is still asked, and the passes already made stand.
 
-**What is checked when.** A held delta is written before the board it will meet exists, so the call that puts it on the stack checks only what does not depend on where cards are: its shape (unknown keys, malformed values, more than one of `look`, `search` and `look_at_hand`), its seat numbers, and its `counter` entries, each of which must name an item on the stack at that moment and is held from then on as that item's id. The cards the delta names are not looked for until the item resolves, and are then found in the game as it stands, with the item's controller as the acting seat. A permanent's delta can therefore name the permanent itself, which is not on the battlefield when the spell is cast.
+**What is checked when.** A held delta is written before the board it will meet exists, so the call that puts it on the stack checks only what does not depend on where cards are: its shape (unknown keys, malformed values, more than one of `look`, `search` and `look_at_hand`), its seat numbers, and its `counter` entries, each of which must name an item on the stack at that moment and is held from then on as that item's id. A cast trigger's delta is checked the same way, against the stack with its spell already on it and none of the call's cast triggers yet, so its `counter` may name its own spell but never another cast trigger of the same call. The cards the delta names are not looked for until the item resolves, and are then found in the game as it stands, with the item's controller as the acting seat. A permanent's delta can therefore name the permanent itself, which is not on the battlefield when the spell is cast.
 
 ### Resolution
 
@@ -56,7 +58,7 @@ A stated `to` follows the rule every move follows (see `play`): `hand`, `graveya
 
 A commander never goes from the stack to a graveyard or to exile unasked. Whether its spell resolves there, is countered, or is removed because its controller was eliminated, the card goes to its owner's command zone instead and the response says so, unless the delta that sends it there — the item's own, held or restated, or the countering delta — sets `commander_stays`.
 
-When an item resolves, every item still below it is marked **disturbed**.
+When an item resolves, every item still below it is marked **disturbed**, with one exception: a cast trigger that resolves, as held or restated, marks neither the spell it was stated with nor the other cast triggers stated with that spell. The casting seat wrote all of them in one call, knowing its cast triggers resolve first and in their order, so the spell's delta already describes the board its cast triggers leave. Any other item that resolves above them, such as another seat's response, disturbs them as usual.
 
 ### Confirming or restating a disturbed item
 
@@ -139,6 +141,8 @@ Errors:
 
 A triggered ability is recorded by its controller with `effect`, as in a goldfish game, and goes on the stack like any other ability, where it can be responded to.
 
+A cast trigger of the casting seat is the exception to recording with `effect`: it is stated with the `play` that casts the spell, because a spell that every other seat is passed on automatically resolves within that call (see Automatic pass), before its caster could make another. It goes on the stack above its spell, so it resolves first, even though nobody responds. A copy of the spell made by a cast trigger is the trigger's delta, stating what the copy does. Another seat's trigger on the same cast is recorded by that seat with `effect` in the first window it is asked in after the cast, which is about the caster's top cast trigger when there is one.
+
 A seat records only when it is the seat to act. A trigger that happens while another seat is acting — a creature dying in combat damage, where no window opens — is recorded by its controller at the next window in which it is asked, or on its own turn. The delay is a known gap (tenet *Pushback over fidelity*).
 
 ## Elimination and the Stack
@@ -168,15 +172,19 @@ When a seat is eliminated (see `game`), every item it controls is removed from t
 | Eliminations when one call resolves several items | After each resolution | Once, after the call | A seat at 0 life has left the game; its lower items resolving, and perhaps saving it, would make the result depend on how many seats were passed automatically. |
 | A commander leaving the stack | To its owner's command zone, unless `commander_stays` | To the graveyard as any spell | The commander zone change holds wherever a move comes from (see `play`); a countered commander is the commonest case of it. |
 | What a restate may hold | Any delta, unchecked against the held one | Only a smaller version of the held delta | The service cannot tell smaller from different, and the controller is trusted with the first delta as much as the second. |
+| Where a caster's cast triggers go | On the stack above the spell, in the `play` call, before any seat is asked | Asking the caster first after every spell; general holding priority | Asking the caster costs a call on every spell; holding priority in general is a larger change than the case that loses triggers today, a spell resolving within its own `play`. |
+| Stack item ids of several cast triggers | Numbered in the order put on the stack, so the first listed, put on last, has the highest id | Numbered in the order listed | Every id says when its item went on the stack; one rule for all items. |
+| A spell disturbed by its own cast triggers | Not disturbed by them, nor are its other cast triggers | Disturbed, as by any item resolving above | The caster wrote the spell's delta for the board its cast triggers leave; a `resolve` choice after every cast trigger would cost the call the parameter exists to save. |
 | Where blocks are asked for | When the active seat advances into `declare_blockers` (see `combat`) | When the attack window closes | A closing window then does one thing in every case: it returns the game to the active seat. Blocks belong to a step, and the step is entered by `advance`. |
 
 ## Open Questions & Future Decisions
 
 ### Deferred
 1. Stops: a seat choosing the windows it wants to be asked in, should automatic passes prove too few.
-2. Holding priority: a seat putting two items on the stack before others are asked. Today a seat's second item goes on the stack the next time it is asked.
+2. Holding priority: a seat putting two items on the stack before others are asked, other than a spell and its cast triggers. Today a seat's second item goes on the stack the next time it is asked.
 3. Split second and other rules that forbid responses; the seats observe them by passing.
 4. Copies of spells on the stack; an `effect` whose delta does what the copy does.
+5. A cast trigger that casts another spell (cascade, discover): no delta puts a spell on the stack, so the spell found is cast with `play` the next time its caster is asked, or its effect is stated in the trigger's delta.
 
 ## References
 

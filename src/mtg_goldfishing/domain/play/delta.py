@@ -75,11 +75,13 @@ def place_all(
     commander_stays: bool = False,
     decks: Decks | None = None,
     arriving_under: SeatNumber | None = None,
+    mover: SeatNumber | None = None,
 ) -> list[Event]:
     """Move cards to one destination; for the library, list order is top to bottom.
 
     Each card is read from its owner's deck (`decks`; omitted, every seat plays `deck`), and
-    enters the battlefield under `arriving_under`, or its owner when none is named.
+    enters the battlefield under `arriving_under`, or its owner when none is named. `mover`
+    is the seat whose delta or answer moves them, when the moves name other seats' zones.
     """
     every = decks or Decks.everyone_playing(game, deck)
     ordered = list(reversed(cards)) if destination is Destination.LIBRARY_TOP else list(cards)
@@ -93,6 +95,7 @@ def place_all(
                 destination,
                 commander_stays=commander_stays,
                 arriving_under=arriving_under,
+                mover=mover,
             )
         )
     return events
@@ -248,7 +251,7 @@ def _control(game: Game, decks: Decks, seat: SeatNumber, delta: Delta) -> list[E
     return events
 
 
-# @spec STACK-030, STACK-033, STACK-065, STACK-081
+# @spec STACK-030, STACK-033, STACK-065, STACK-081, STACK-091
 def _counter(
     game: Game, decks: Decks, delta: Delta, countered: list[CardInstance]
 ) -> list[Event] | Error:
@@ -283,7 +286,7 @@ def _on_the_stack(game: Game, decks: Decks, error: Error) -> Error:
     return Error(ErrorKind.CARD_ON_STACK, subject=name) if on_stack else error
 
 
-# @spec PLAY-090, PLAY-123, PLAY-130, STACK-031, STACK-032
+# @spec PLAY-090, PLAY-123, PLAY-130, STACK-031, STACK-032, PLAY-144, PLAY-145, PLAY-147
 def _move(
     game: Game, decks: Decks, seat: SeatNumber, delta: Delta, countered: list[CardInstance]
 ) -> list[Event] | Error:
@@ -328,6 +331,7 @@ def _move(
                 commander_stays=delta.commander_stays,
                 decks=decks,
                 arriving_under=seat,
+                mover=seat,
             )
         )
     for card in countered:
@@ -339,6 +343,7 @@ def _move(
                     card,
                     Destination.GRAVEYARD,
                     commander_stays=delta.commander_stays,
+                    mover=seat,
                 )
             )
         if card.zone is not Zone.BATTLEFIELD:

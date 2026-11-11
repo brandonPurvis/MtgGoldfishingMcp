@@ -14,7 +14,7 @@ from behave import given, then, when
 from tests.support.responses import headline
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
-from mtg_goldfishing.domain.game.acting import seats_to_act
+from mtg_goldfishing.domain.game.asking import seats_to_act
 from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.seats import SeatNumber
 
@@ -154,6 +154,11 @@ def step_impl(context: Any, number: int, delta: str) -> None:
 def step_impl(context: Any, number: int) -> None:
     card = _names_in(context, number, Zone.HAND)[0]
     _as_seat(context, number, "choose", choice_id=_choice_id(context), delta={"discard": [card]})
+
+
+@when(f'seat {SEAT} answers its ask choice with text "{{text}}"')
+def step_impl(context: Any, number: int, text: str) -> None:
+    _as_seat(context, number, "choose", choice_id=_choice_id(context), text=text)
 
 
 @when(f'seat {SEAT} answers its blocks choice with blocks {{blocks}} and override "{{reason}}"')

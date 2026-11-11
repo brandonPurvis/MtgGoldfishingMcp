@@ -9,6 +9,7 @@ goldfish game the only seat is always the seat to act, so `wait` returns at once
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import partial
 
@@ -50,7 +51,7 @@ def _timeout(arguments: Mapping[str, object]) -> float | Error:
 
 # @spec APP-063, APP-064, APP-065, APP-066, APP-067, APP-068, APP-069, APP-070, APP-071
 # @spec APP-072, APP-073, APP-074, APP-075, APP-078, APP-088, APP-089, APP-090, APP-091
-# @spec REC-026, REC-053, GAME-114
+# @spec REC-026, REC-053, GAME-114, APP-096
 def wait(ports: Ports, arguments: Mapping[str, object]) -> Answer:
     """Wait until the calling seat has something to do, and say what it is.
 
@@ -110,5 +111,9 @@ def _look(
         return call.finish(Outcome(Status.OK, ended, (), loaded.summary))
     remaining = (deadline - now).total_seconds()
     if timed_out or remaining <= 0:
-        return call.finish(Outcome(Status.OK, still_waiting(loaded.game), (), loaded.summary))
+        table = loaded.summary.table
+        waiting = replace(
+            still_waiting(loaded.game), time_asked=table.time_asked if table else None
+        )
+        return call.finish(Outcome(Status.OK, waiting, (), loaded.summary))
     return loaded.game.change, deadline, remaining

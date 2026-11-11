@@ -57,12 +57,20 @@ The `schema_version` row records the layout. On start, the adapter applies, in o
 
 The migrations, by the version they reach:
 
-- **2, seats.** Creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, keeping every goldfish game's behavior as it was.
+- **2, seats.** Creates the `seats` table and a row for every existing game's tested seat, adds the seat number column to `calls`, and rewrites each stored game document into the seat-holding shape, so that every goldfish game answers the calls it would have answered before, with the same responses. Its records are another matter: a log export reads entries as they are now shaped, and so carries fields that records have gained since, such as each entry's `cast_triggers`.
 - **3, whose turns a step trigger happens on.** Rewrites every step trigger reading held in a stored loaded deck or game document that names a step alone as a trigger in that step on its controller's turn, the only turns such a reading was ever reminded on; a reading that already says whose turns it happens on is left as it is. Because a loaded deck never changes once written, a deck stored before this migration keeps these readings when its list is loaded again with the same card data, and so do the games played on it: a trigger in it on each turn, or on opponents' turns, is reminded on its controller's turns only. A deck loaded afresh, under a new id, is read as usual.
 
 - **4, evasion and reach readings.** Adds to every card reading held in a stored loaded deck or game document the flying, horsemanship, reach and "can't be blocked" readings (see `card-reading`), made from the card data stored with that reading, card definition applied, exactly as `load_deck` would make them now. Every other part of each reading is left as it is. Without it, a deck loaded before these readings existed would never have them: a loaded deck never changes once written, and loading its list again returns the stored deck under the same id, so no block against its creatures would ever be checked for evasion. A declared attack stored before this version holds no evasion statements and no trample damage, and is read as having none; it needs no rewriting.
 
 No migration changes a game's version counter: a migrated game is the same game.
+
+Every seat's state at the end of a contested game (see `records`) needs no migration. It is part of a log entry's `outcome`, which is stored as JSON as built: an `end_game` entry stored before it holds none and is not rewritten, and the ended game's stored document still holds the state it ended in.
+
+Cast triggers (see `stack` and `records`) need no migration. A stack item stored before them holds no `cast_with` and is read as no cast trigger, and a log entry stored before them holds no `cast_triggers` and is read as stating none; neither is rewritten, and the schema version does not change.
+
+The change number since which a contested game's seats to act have been asked (see `game`) needs no migration either. A game document stored before it holds none and is read as holding none, which shows no time beside the seat to act until the game's next change sets one.
+
+The time a game's change was made (see `application`) is read from `calls`: the earliest-stored row with that game id and that change number, which is the call record of the call that made the change. The existing index on the game id and seat number columns of `calls` narrows the search to that game's rows, so the lookup needs no new index and no schema change.
 
 ## Decisions & Alternatives
 

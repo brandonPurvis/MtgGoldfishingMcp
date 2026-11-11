@@ -183,7 +183,8 @@ class StackItem:
     controller stated, as stated (its `counter` entries held as stack item ids).
 
     A spell has its card on the stack and may hold the destination `to`; an ability has no
-    card. `disturbed` says an item above it resolved while it waited.
+    card. A cast trigger is an ability holding in `cast_with` the id of the spell it was stated
+    with. `disturbed` says an item above it resolved while it waited.
     """
 
     id: str
@@ -195,6 +196,7 @@ class StackItem:
     card: str | None = None
     to: Destination | None = None
     choices: dict[str, object] | None = None
+    cast_with: str | None = None
     disturbed: bool = False
 
     # @spec APP-032
@@ -208,6 +210,8 @@ class StackItem:
             raise ValueError("a spell on the stack has its card")
         if self.kind is StackItemKind.ABILITY and (self.card is not None or self.to is not None):
             raise ValueError("an ability on the stack has no card and no destination")
+        if self.cast_with is not None and self.kind is not StackItemKind.ABILITY:
+            raise ValueError("only an ability is a cast trigger")
 
 
 class WindowKind(Enum):
@@ -393,6 +397,9 @@ class Game:
     round: int = 0
     step: Step | None = None
     change: int = 0
+    asked_since: int | None = None
+    """A contested game's change since which its seats to act have been asked what they are
+    asked now; None in a goldfish game, and in a game stored before it was kept."""
     pending: list[PendingChoice] = field(default_factory=list)
     stack: list[StackItem] = field(default_factory=list)
     """Bottom first: the last item is the top. Always empty in a goldfish game."""

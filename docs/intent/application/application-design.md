@@ -96,7 +96,7 @@ Events are typed values, one type per kind of fact: steps entered, cost paid, ca
 
 Two consumers read a call's events. The MCP adapter renders the outcome as response text (see `tools`). The `records` domain builds the log entry from the events and the game before and after the call, including the public form of each event. Neither is derived from the other.
 
-In a contested game an outcome also carries a **digest** and is rendered for the calling seat: its game summary is that seat's view (see `game`).
+In a contested game an outcome also carries a **digest** and is rendered for the calling seat: its game summary is that seat's view (see `game`). When the calling seat is not a seat to act, the game summary also holds how long the seats to act have been asked what they are asked now (see How Long a Seat Has Been Asked).
 
 ```
 Outcome {
@@ -113,6 +113,12 @@ The baseline is the change number on the seat's most recent call record whose re
 
 A resend is answered with the original change's summary and events, but its digest and game summary are of the moment it is answered: other seats may have acted since the response that was lost, and the resend's call record moves the baseline like any other.
 
+### How Long a Seat Has Been Asked
+
+A seat that waits sees which seat the game is waiting on and, beside it, for how long, so that a seat taking its time reads as what it is and not as a game that has stopped. The game holds the change number since which its seats to act have been asked what they are asked now (see `game`); the domain reads no clock, so it holds a change number, not a time. The use case turns that change number into a time through `RecordStore`: a change was made at the time on the call record of the call that made it, which is the earliest call record of the game holding that change number, since the applying call's record is saved in the same unit of work as the change and every later call of that game, refused, read-only or a resend, holds that number or a greater one. The time asked is from then to the `Clock`'s now, in whole seconds rounded down, and never below zero, so a clock set back since shows no time rather than a negative one. A change the call itself makes is not yet on any saved record when that call's response is rendered, since the record holds the response; its time is the time the call was received, which is the time its record will hold, so a seat whose change asks another seat reads that seat asked for `0 s`. Call records keep their times across a restart, so the time asked does too.
+
+The time asked is computed only for a contested game, only when the calling seat is not among the seats to act, and only when the game holds the change number and a call record holds that change; otherwise the summary holds none and nothing is shown. A seat that is itself to act is told so on every response and gains nothing from a clock.
+
 ## Ports
 
 Interfaces owned by the application and implemented by adapters. Each port is an abstract base class in `application/ports.py`; each implementation is a concrete class that inherits from the port it implements.
@@ -121,7 +127,7 @@ Interfaces owned by the application and implemented by adapters. Each port is an
 |---|---|---|
 | `GameRepository` | Load and save games | get a game by id; find the game and seat number a seat id names; save a game, failing if the stored game has changed since it was loaded |
 | `DeckRepository` | Keep loaded decks | get a loaded deck by id; add a loaded deck, leaving an existing one with the same id in place |
-| `RecordStore` | Keep and return records | append a log entry; add a snapshot, raising if its game and table turn already have one; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give a seat's digest baseline: the change number on its most recent call record for a tool other than `get_log` |
+| `RecordStore` | Keep and return records | append a log entry; add a snapshot, raising if its game and table turn already have one; add a call record; read a game's entries, snapshots and call records, optionally after a change number; give a seat's digest baseline: the change number on its most recent call record for a tool other than `get_log`; give the time a game's change was made: the time on the earliest call record of that game holding that change number |
 | `CardCatalog` | Supply card data by exact name | look up a set of names, returning for each: a card, not found, or unavailable; optionally refreshing |
 | `UnitOfWork` | Make one call's saves atomic | begin; commit; roll back — spanning `GameRepository`, `DeckRepository` and `RecordStore` |
 | `GameLocks` | Apply one game's calls one at a time | hold a game's lock for the length of a call |
@@ -185,11 +191,11 @@ Every return of `wait` that is not an error is `OK`; its summary says which of f
 | Summary | When |
 |---|---|
 | What the calling seat is asked to do | The seat is a seat to act. |
-| Timed out: which seat the game is waiting on and what it is asked (during mulligans, every seat still to keep) | The timeout passed first. |
+| Timed out: which seat the game is waiting on, what it is asked (during mulligans, every seat still to keep) and how long it has been asked | The timeout passed first. |
 | The seat is eliminated | The calling seat is eliminated and the game has not ended. |
 | The game has ended | The game's status is `ended`, whatever the seat's state. |
 
-A timeout is not an error: nothing was wrong with the call, and the status line's `Act` already tells the agent whether to wait again. `wait` returns only for these four reasons. A change that leaves the calling seat still waiting — another seat's play, a notice — does not end the wait; the seat reads it in the digest when `wait` does return. The notices the tested seat must act on reach it without delay all the same: its own elimination returns its `wait`, and when every opposing seat is eliminated it is the only seat left and so the seat to act.
+A timeout is not an error: nothing was wrong with the call, and the status line's `Act` already tells the agent whether to wait again. A timed-out `wait` is the ordinary answer while another seat takes its time, and the agent's next call is another `wait` (see `tools` for how the instructions and the player brief say so). `wait` returns only for these four reasons. A change that leaves the calling seat still waiting — another seat's play, a notice — does not end the wait; the seat reads it in the digest when `wait` does return. The notices the tested seat must act on reach it without delay all the same: its own elimination returns its `wait`, and when every opposing seat is eliminated it is the only seat left and so the seat to act.
 
 `timeout` is a number of seconds, default 30, from 1 to 60 inclusive; a fraction is accepted. A value below 1 or above 60 is an error, checked after the game is found, so the error carries the status line and digest like any other refusal. In a goldfish game the only seat is always the seat to act, so `wait` returns at once, saying what the seat is asked to do or that the game has ended.
 
@@ -234,7 +240,12 @@ Conventions that keep tests readable:
 | What moves a seat's digest baseline | Only a call whose response carried a digest; `get_log` does not | Every call the seat makes | A `get_log` response is JSON with no digest lines; if it moved the baseline, the changes made since the seat's last text response would never be shown to it. |
 | The range of `wait`'s timeout | 1 to 60 seconds, anything else an error | Clamp to the range; allow 0 as a poll | A clamped value hides a caller's mistake; a zero wait is `get_state`, which already answers at once. |
 | The type of `wait`'s timeout | Any number in the range, fractions included | Whole seconds only | Refusing `1.5` would turn a harmless value into an error for no gain. |
-| A `wait` that times out | `OK`, with a summary that says so | `ERROR`; a fifth status | Nothing was wrong with the call, an `ERROR` would set the MCP error flag, and the four statuses already cover it. |
+| A `wait` that times out | `OK`, with a summary that says so | `ERROR`; a fifth status; a structured field such as `{status: "still_waiting"}` | Nothing was wrong with the call, an `ERROR` would set the MCP error flag, and the four statuses already cover it. Responses are plain text (see `tools`), and the summary already names the seat to act and how long it has been asked. |
+| What the time beside a seat to act measures | Since the seat to act was first asked what it is asked now | Since the game's last accepted change | The time since the last change is derivable from call records with no new game state, but it restarts with every play of a seat taking a long turn, so `S2 is asked to take its turn` would read as just begun however long the turn has run. |
+| Where the start of the time asked is kept | The game holds a change number; the time is that change's call record time | The game holds a time; log entries gain a time | The domain reads no clock, so it can hold a change number but not a time. Call records already carry the time of every call and survive a restart; a time on log entries would change the shape of every log for one lookup. |
+| Who is shown the time asked | Only a seat that is not a seat to act | Every seat, the seat to act included | The seat to act is told it is asked on every response; a clock beside it would lengthen the most frequent status lines and tell it nothing. |
+| The time of the change the call itself makes | The time the call was received | No time, until its record is saved | The call's record, saved with the change, will hold exactly that time; showing none would leave a seat's own play answered without the time asked that every later response gives. |
+| A clock that reads earlier than a change's call record | Zero | A negative time; no time | The system clock can be set back; zero is the honest floor and keeps the format fixed. |
 | What ends a `wait` | The seat becoming a seat to act, its elimination, the game's end, the timeout | Also any notice being raised | Every notice the tested seat must act on already makes it a seat to act or eliminates it; returning on others would wake seats that have nothing to do. |
 | What a seat is shown of a change to its own hidden zones made in another seat's call | The entry's `private` list for that seat, taken as stored | Public events only | A seat's turn begins, and its spells resolve, inside other seats' calls; with counts alone it would call `get_state` every turn to learn what it drew. |
 | A resend's digest and status line | Of the moment the resend is answered | The original response reproduced whole | Other seats may have acted since; the resend's call record moves the baseline, so an old digest would lose their changes for good. |

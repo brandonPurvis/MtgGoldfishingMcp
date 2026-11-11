@@ -25,6 +25,7 @@ from mtg_goldfishing.adapters.mcp.listing_lines import (
     EVASION_WORDS,
     attackers_to_block,
     report_lines,
+    rules_text_lines,
     state_lines,
 )
 from mtg_goldfishing.adapters.mcp.refusal_lines import (
@@ -55,6 +56,7 @@ from mtg_goldfishing.domain.events import (
     CardsDiscarded,
     CardsDrawn,
     CardsRevealed,
+    CastTriggerApplied,
     ChecksOverridden,
     ChoiceAsked,
     ChoiceResolved,
@@ -94,10 +96,12 @@ from mtg_goldfishing.domain.events import (
     NoticeKind,
     NoticeRaised,
     Passed,
+    Placement,
     Refused,
     ReminderIssued,
     ResolveAsked,
     RevealedCard,
+    RulesTextGiven,
     SeatDamaged,
     SeatEliminated,
     SeatOut,
@@ -120,6 +124,7 @@ from mtg_goldfishing.domain.game.model import (
     GameStatus,
 )
 from mtg_goldfishing.domain.game.mulligan import cards_to_bottom
+from mtg_goldfishing.domain.game.rules_text import RulesText
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.summary import GameSummary, TableSummary
 from mtg_goldfishing.domain.steps import Step
@@ -133,7 +138,7 @@ class TextRenderer(Renderer):
     """Implements the `Renderer` port with the plain-text response format."""
 
     # @spec TOOL-014, TOOL-015, TOOL-016, TOOL-022, TOOL-024, TOOL-025, TOOL-026, REC-018, REC-024
-    # @spec TOOL-040, TOOL-051, TOOL-056
+    # @spec TOOL-040, TOOL-051, TOOL-056, TOOL-086
     def render(self, tool: str, outcome: Outcome) -> Rendered:
         summary = outcome.summary
         if tool == GET_LOG and outcome.status is Status.OK and isinstance(summary, LogExported):
@@ -163,6 +168,8 @@ def response_lines(tool: str, outcome: Outcome) -> list[str]:
         lines.extend(asked_lines(outcome.game))
     if isinstance(outcome.payload, StateListing):
         lines.extend(state_lines(outcome.payload))
+    if isinstance(outcome.payload, RulesText):
+        lines.extend(rules_text_lines(outcome.payload))
     raised: list[tuple[NoticeKind, SeatNumber | None]] = []
     after = outcome.game.change if outcome.game else None
     for event in sorted(outcome.events, key=_place_in_order):
@@ -268,15 +275,26 @@ def _commander_groups(game: GameSummary) -> list[str]:
     return [f"Cmdr {damage}", f"Tax {'|'.join(str(c.tax) for c in commanders)}"]
 
 
+# @spec TOOL-091
+def time_asked_text(seconds: int) -> str:
+    """A time asked: whole seconds under a minute (`45 s`), else whole minutes (`4 min`)."""
+    return f"{seconds} s" if seconds < 60 else f"{seconds // 60} min"
+
+
+# @spec TOOL-090, TOOL-092
 def _act(table: TableSummary) -> str:
-    """Who is to act, `you` for the calling seat, and the word for what it is asked."""
+    """Who is to act, `you` for the calling seat, the word for what it is asked, and how
+    long it has been asked when the summary holds that and it is not the calling seat."""
     asked = table.asked
     assert asked is not None
     who = " ".join("you" if seat == table.seat else str(seat) for seat in asked.seats)
+    asked_for = ""
+    if table.time_asked is not None and table.seat not in asked.seats:
+        asked_for = f" ({time_asked_text(table.time_asked)})"
     if asked.kind is AskedKind.KEEP:
-        return f"Act {who}"
+        return f"Act {who}{asked_for}"
     word = asked.choice if asked.kind is AskedKind.CHOICE else asked.kind.value
-    return f"Act {who} {word}"
+    return f"Act {who} {word}{asked_for}"
 
 
 def _standing(table: TableSummary) -> list[str]:
@@ -284,8 +302,17 @@ def _standing(table: TableSummary) -> list[str]:
     return [f"{o.seat} {'out' if o.eliminated else o.life}" for o in table.others]
 
 
+# @spec TOOL-093
+def _commander_damage_taken(table: TableSummary) -> list[str]:
+    """`Cmdr taken`: the commander damage the calling seat has taken from each other seat,
+    one entry per life group, a seat with two commanders as a `|` group and a seat with none
+    as `0`."""
+    entries = ["|".join(str(n) for n in o.commander_damage_taken) or "0" for o in table.others]
+    return [f"Cmdr taken {'/'.join(entries)}"]
+
+
 # @spec TOOL-041, TOOL-042, TOOL-043, TOOL-044, TOOL-045, TOOL-047, TOOL-048, TOOL-049
-# @spec TOOL-058, TOOL-059, TOOL-062
+# @spec TOOL-058, TOOL-059, TOOL-062, TOOL-093
 def contested_status_line(game: GameSummary, table: TableSummary) -> str:
     """The status line of a contested game as the calling seat sees it: its own figures,
     every other seat's life, and who is to act."""
@@ -302,7 +329,9 @@ def contested_status_line(game: GameSummary, table: TableSummary) -> str:
             f"Pool {game.pool}",
             f"Life {game.life}",
             *_standing(table),
-            *_commander_groups(game),
+            *_commander_groups(game)[:1],
+            *_commander_damage_taken(table),
+            *_commander_groups(game)[1:],
         ]
         if table.stack and not ended:
             parts.append(f"Stack {table.stack}")
@@ -331,6 +360,8 @@ def _place_in_order(event: Event) -> int:
             return 2
         case CostPaid():
             return 3
+        case CastTriggerApplied():
+            return 4
         case (
             CardMoved()
             | TokensCreated()
@@ -367,6 +398,7 @@ def _place_in_order(event: Event) -> int:
             | EffectRecorded()
             | GameEnded()
             | StateListed()
+            | RulesTextGiven()
             | LogExported()
             | Refused()
             | SeatToAct()
@@ -376,7 +408,7 @@ def _place_in_order(event: Event) -> int:
             | Passed()
             | AttackNotDeclared()
         ):
-            return 4
+            return 5
         case (
             CardsRevealed()
             | ResolveAsked()
@@ -385,27 +417,27 @@ def _place_in_order(event: Event) -> int:
             | BlocksRequested()
             | NothingRevealed()
         ):
-            return 5
-        case CombatDamageDealt() | CombatDamageToSeats():
             return 6
-        case AssumptionMade():
+        case CombatDamageDealt() | CombatDamageToSeats():
             return 7
-        case ReminderIssued():
+        case AssumptionMade():
             return 8
-        case AdvanceStopped():
+        case ReminderIssued():
             return 9
-        case ExpectationMismatched():
+        case AdvanceStopped():
             return 10
-        case ItemStacked():
+        case ExpectationMismatched():
             return 11
-        case AutomaticPass():
+        case ItemStacked():
             return 12
-        case ItemResolved() | ItemCountered() | ItemRemoved():
+        case AutomaticPass():
             return 13
-        case SeatEliminated():
+        case ItemResolved() | ItemCountered() | ItemRemoved():
             return 14
-        case NoticeRaised():
+        case SeatEliminated():
             return 15
+        case NoticeRaised():
+            return 16
         case _:
             assert_never(event)
 
@@ -446,6 +478,21 @@ _PLAYED_TO = {
 
 def _zone(name: str) -> str:
     return _ZONE_NAMES.get(name, name)
+
+
+_SEATS_ZONE_NAMES = {
+    "library_top": "top of {seat}'s library",
+    "library_bottom": "bottom of {seat}'s library",
+}
+
+
+def _seats_zone(name: str, seat: SeatNumber | None) -> str:
+    """A zone, named with its seat when the event names one: `S2's graveyard`."""
+    if seat is None:
+        return _zone(name)
+    if name in _SEATS_ZONE_NAMES:
+        return _SEATS_ZONE_NAMES[name].format(seat=seat)
+    return f"{seat}'s {_zone(name)}"
 
 
 def _steps(event: StepsEntered) -> list[str]:
@@ -493,13 +540,24 @@ def _paid(event: CostPaid) -> str:
     return f"Paid {cost}" + (f": {'; '.join(parts)}" if parts else "") + "."
 
 
+# @spec TOOL-094
 def _moved(event: CardMoved) -> str:
-    line = f"Moved {event.card}: {_zone(event.from_zone)} → {_zone(event.to)}"
+    left = _seats_zone(event.from_zone, event.from_seat)
+    line = f"Moved {event.card}: {left} → {_seats_zone(event.to, event.to_seat)}"
     if event.commander_redirected:
         line += "; a commander goes to the command zone instead"
     if event.token_gone:
         line += "; the token ceased to exist"
     return line + "."
+
+
+# @spec TOOL-094
+def _placed(placement: Placement) -> str:
+    """Where a revealed card went; from another seat's zone, that zone too."""
+    left = ""
+    if placement.from_seat is not None:
+        left = f" from {_seats_zone(placement.from_zone, placement.from_seat)}"
+    return f"{placement.card}{left} → {_seats_zone(placement.to, placement.to_seat)}"
 
 
 def _counters(event: CountersChanged) -> str:
@@ -638,6 +696,13 @@ def _asked(event: ChoiceAsked) -> str:
     return f"Choice {event.choice_id} (ask) for {event.seat}: {text}{ending}"
 
 
+# @spec TOOL-087
+def _ask_answered(event: AskAnswered) -> str:
+    """An answer to an `ask`, with its answer text in double quotes, written verbatim."""
+    answered = f"{event.seat} answered choice {event.choice_id} (ask)"
+    return f'{answered}: "{event.text}".' if event.text is not None else f"{answered}."
+
+
 def _assumption(event: AssumptionMade) -> str:
     match event.kind:
         case AssumptionKind.X_IS_ZERO:
@@ -766,11 +831,18 @@ _INTO_HIDDEN = {
 
 # @spec TOOL-063
 def _still_waiting(event: StillWaiting) -> str:
-    """A wait that timed out: who the game is still waiting on, and what they are asked."""
+    """A wait that timed out: who the game is still waiting on, what they are asked, and for
+    how long, when that is known."""
     asked = event.asked
     if asked is None or not asked.seats:
         return "Still waiting: the game is waiting on no seat."
-    return f"Still waiting: {seats_asked(asked)} asked to {asked_to(asked, yourself=False)}."
+    asked_for = ""
+    if event.time_asked is not None:
+        asked_for = f" (for {time_asked_text(event.time_asked)})"
+    return (
+        f"Still waiting: {seats_asked(asked)} asked to {asked_to(asked, yourself=False)}"
+        f"{asked_for}."
+    )
 
 
 def _number_word(number: int) -> str:
@@ -907,7 +979,9 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
                 f' Say where they go with choose(choice_id="{event.choice_id}").'
             ]
         case AskAnswered():
-            return [f"{event.seat} answered choice {event.choice_id} (ask)."]
+            return [_ask_answered(event)]
+        case CastTriggerApplied():
+            return [f"Cast trigger: {event.source}."]
         case ChoiceRevealedTo():
             return [_revealed_to(event)]
         case ChoiceAsked():
@@ -927,7 +1001,7 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
         case NothingRevealed():
             return [f"The {event.kind} revealed no cards, so no choice is pending."]
         case ChoiceResolved():
-            placed = ", ".join(f"{p.card} → {_zone(p.to)}" for p in event.placements)
+            placed = ", ".join(_placed(placement) for placement in event.placements)
             return [f"Placed the revealed cards: {placed}." if placed else "Placed no cards."]
         case AttackDeclared():
             return [_attack(event)]
@@ -954,6 +1028,8 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
             return [f"Snapshot written for turn {event.turn}."]
         case StateListed():
             return [f"State, {event.detail} detail."]
+        case RulesTextGiven():
+            return [f"Rules text of {_plural(event.cards, 'card')}."]
         case LogExported():
             return [
                 f"Exported the log: {_plural(event.entries, 'entry', 'entries')},"

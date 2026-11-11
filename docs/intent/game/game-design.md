@@ -28,6 +28,8 @@ Game {                         // the table
   round: int                   // 0 during mulligans
   step: Step | null            // null during mulligans
   change: int                  // the change number
+  asked_since: int | null      // contested: the change since which the seats to act have been
+                               //   asked what they are asked now; null in a goldfish game
   stack: [StackItem]           // see stack; always empty in a goldfish game
   window: Window | null        // the open response window, see stack
   pending: [PendingChoice]     // see play; each addressed to one seat, answered in order
@@ -203,6 +205,17 @@ In a goldfish game the only seat is always the seat to act, and what it may call
 
 A resend of the calling seat's most recent change is answered as such whatever the game's state.
 
+### Since when a seat has been asked
+
+A contested game holds `asked_since`, the change number since which its seats to act have been asked what they are asked now, so that a seat that waits can be told how long the seat it waits on has been asked (the time itself comes from the records; see `application`). It is set to the change that creates the game. During mulligans it does not move: every seat still to keep has been asked to keep or mulligan since the game was created, and a mulligan taken, a concession or another seat's keep that leaves the game in mulligans does not change that. Every other accepted change, the one that starts the game included, compares the seat to act and what it is asked after the change with before it, and sets `asked_since` to the change's own number when they differ, keeping it otherwise. What a seat is asked differs when its kind differs (a pending choice, a reminder, a response window, its turn) or, within one kind, when:
+
+- a pending choice: the choice is another one (its choice id);
+- a reminder: the step differs or the permanents reminded differ;
+- a response window: the window's kind differs or it asks about another stack item;
+- its turn: the table turn differs.
+
+So the active seat playing a land, which opens no window, is still asked to take its turn since the same change; a spell it casts asks another seat to respond, and when the stack is empty again the active seat is asked to take its turn anew, from that change. A game stored before `asked_since` existed holds none and keeps none until a change makes the seat to act or what it is asked differ.
+
 ## What a Seat May See
 
 Every response to a seat, and its `get_state`, shows only what that seat's player could see:
@@ -213,14 +226,14 @@ Every response to a seat, and its `get_state`, shows only what that seat's playe
 
 What a seat is shown of an event depends on whose hidden zones the event touches, never on whose call caused it. A card that moves into, between or out of a seat's own hand or library is named to that seat, whichever seat's call moved it: a seat whose draw spell resolves on another seat's `pass` is told what it drew, and a seat whose hand was looked at is told which of its cards was taken. Every other seat sees the same event in its public form.
 
-The **public form** of an event is what any seat may see of it: a card moved from one hidden zone to another without being revealed is shown as a count (`S2 drew 2 cards`, `S3 put a card into its hand`); a card moved from a hidden zone into a public one or onto the stack is shown by name; a card moved from a public zone or the stack into a hidden zone is also shown by name, because every seat could already see it (`S2 returned Sol Ring to its hand`); a kept hand shows the number of cards kept and bottomed, and a mulligan taken shows the seat and how many it has now taken; a pending choice shows its kind and the seat it is addressed to — and, for a look at a hand, whose hand — not what it revealed. The digest of `tools` and the public event list of `records` are built from public forms, with the events that touch the reading seat's own hidden zones given to that seat in full (see `application`).
+The **public form** of an event is what any seat may see of it: a card moved from one hidden zone to another without being revealed is shown as a count (`S2 drew 2 cards`, `S3 put a card into its hand`); a card moved from a hidden zone into a public one or onto the stack is shown by name; a card moved from a public zone or the stack into a hidden zone is also shown by name, because every seat could already see it (`S2 returned Sol Ring to its hand`); a kept hand shows the number of cards kept and bottomed, and a mulligan taken shows the seat and how many it has now taken; a pending choice shows its kind and the seat it is addressed to — and, for a look at a hand, whose hand — not what it revealed; an answer to an `ask` shows the answering seat, the choice and its answer text (see `play`), since a card named or a guess made is announced to the table. The digest of `tools` and the public event list of `records` are built from public forms, with the events that touch the reading seat's own hidden zones given to that seat in full (see `application`).
 
 The service hides in its views and does not police agents: `get_log` is outside these limits and returns the whole record, every seat's hidden zones included, to any seat at any time (see `records`).
 
 ## `get_state`
 
 ```
-get_state(game_id, detail?)
+get_state(game_id, detail?, card?)
 ```
 
 `detail: "summary"` (the default) lists the calling seat's hand, then for each seat in turn order its battlefield — the permanents it controls, whichever seat owns them — its graveyard and command zone, and current notices. In a contested game it also shows the stack, the open window and who is being asked, each seat's life, hand size and library size, and which seats are eliminated. Each battlefield permanent is shown with its instance id, tapped state, counters, its owner when that is not its controller, and what the service has read of it: the mana it makes, haste or vigilance it has or is granted, and the steps it has a trigger in, marked `(opp)` for a trigger read as happening only on opponents' turns, and unmarked for a trigger on its controller's turn or on each turn; a goldfish game, which has no opponents' turns, lists only the others. `detail: "full"` adds exile, each library's size, per-commander cast counts and damage, and the calling seat's payments this turn.
@@ -228,6 +241,14 @@ get_state(game_id, detail?)
 In a contested game the listing also gives the pending choices addressed to the calling seat, in the order they will be answered, so that a seat that has not read the response or digest that created one can still find what it owes. Each is listed with its choice id, its kind and what it asks: for a `look`, `search` or `hand` choice, the cards it revealed, by name and instance id, which the calling seat is the one seat allowed to see; for an `ask`, its text and the seat whose effect asked; for `blocks`, the attackers it may block, each with the evasion the service holds for it (see `combat`); for `resolve`, the stack item, its source, its held delta and destination, and the error that kept it from resolving as held, if any. Pending choices addressed to other seats are not listed; the status line's `Act` already names the seat a waiting choice is addressed to and its kind.
 
 In a goldfish game `get_state` shows the one seat's zones exactly as it always has, with no pending choice listed: its status line says one is pending, and the `CHOICE` response that created it showed the revealed cards.
+
+### Rules text on request
+
+The listing shows what the service has read of each permanent, never its rules text, which would make every listing long. An agent that is unsure what a card does asks for its rules text instead of trusting its memory: `get_state` with `card`, a card name or instance id or a list of them, answers with each named card's rules text in place of the listing, in any game. `card` and `detail` are not given together; one call asks for one of the two.
+
+Each named card is answered with, for each face, the face's name, mana cost, type line, rules text, and power and toughness when it has them. The data is the card's own as the game reads it (see Reading a card instance): the data the card instance carries when it carries any — a card brought from outside the game — and otherwise its owner's deck's, card definition applied. Rules text belongs to the card, not the instance, so entries that find cards with the same name and the same data — a name given twice, a name and an instance id, two copies in different zones — are answered once. A token has no card data: it is answered with its spec as given — name, types, power and toughness, and the mana it produces — and a statement that the service holds no rules text for it. An entry is a name or instance id as text, its surrounding whitespace removed; an entry with nothing in it is a malformed argument, as is a `card` that is neither text nor a non-empty list of texts.
+
+Only cards the calling seat may see are answered: the cards in every public zone, the stack, its own hand and library, and the cards revealed to it by a pending choice addressed to it that is still waiting. A name is looked for there in this order — its own hand; then the battlefield, graveyards, exile and command zones, each zone across every seat as names are resolved for public zones; then the stack; then the cards revealed to it; then its own library — and the first card found is answered. A name never says which zone it was found in, so asking by name about a card of the seat's own library reveals nothing of the library. Hidden information applies as it does to every other call: a name that matches nothing the seat may see gets the same error whether or not another seat's hand or library holds such a card, and an instance id of a card in another seat's hand or library, not revealed to the calling seat, gets the error that the card is in a hidden zone of that seat. An instance id that names no card in the game, never issued or of a card that has left it, gets a not-found error. An instance id of a card in the calling seat's own library is an error too, because answering it would name a library card that has not been drawn or revealed; the error says to ask by name. When any entry of `card` is refused, the call answers with that error and no rules text.
 
 ## Life, Elimination and Conceding
 
@@ -274,7 +295,7 @@ A notice never changes the game's status and never stops play. Once raised, a no
 end_game(game_id, result, notes?)
 ```
 
-From the tested seat, ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-text verdict. The result is trusted; no condition is required, and the game may be ended whatever it is waiting on. Every pending choice, open window, stack item and declared attack is discarded, and a snapshot is written for the turn in progress if it does not have one (see `records`). After this the status is `ended` and only `get_state`, `get_log` and `wait` are accepted.
+From the tested seat, ends the game with `result` of `win`, `loss` or `stalled` and the agent's free-text verdict. The result is trusted; no condition is required, and the game may be ended whatever it is waiting on. Every pending choice, open window, stack item and declared attack is discarded, and a snapshot is written for the turn in progress if it does not have one; in a contested game the call's log entry also records every seat's state as the game ended (see `records`). After this the status is `ended` and only `get_state`, `get_log` and `wait` are accepted.
 
 From an opposing seat, `end_game` concedes: the seat is eliminated, its `notes` are recorded, and the game goes on. A concession is accepted at any moment, like the tested seat's `end_game`: during mulligans, out of turn, and while the game waits on the conceding seat.
 
@@ -314,6 +335,13 @@ From an opposing seat, `end_game` concedes: the seat is eliminated, its `notes` 
 | A permanent controlled by a seat that does not own it, in `get_state` | On its controller's battlefield, with its owner named | On its owner's battlefield, with its controller named | A battlefield is read to see what a seat can do and what can be done to it, which follows control; the owner matters only when the permanent leaves. |
 | Which deck a card instance is read from | Its owner's, whichever seat controls it | The controlling seat's deck | A deck holds data and readings only for its own cards: read from the controlling seat's deck, a permanent taken from another seat would lose its mana, keywords and triggers. Control changes who the reading's "you" is, not what the card is. |
 | Pending choices in a contested game's `get_state` | Those addressed to the calling seat, with what each asks | None, as in a goldfish game; every seat's choices | A seat that waits, or that missed the line that created a choice, needs one call that tells it what it owes. Other seats' choices may reveal cards the calling seat may not see. |
+| How an agent learns what a card does | `get_state` with `card`, answering the rules text of cards the seat may see | Rules text on every `play` and `effect` response; a separate tool listing a deck's cards with their text | Text on every response would undo the short responses the HLD sets as a goal, for cards the agent usually knows. A separate tool adds surface to every agent's context, and a deck list for an opposing seat would reveal that seat's library. |
+| Rules text when one named card is refused | The whole call is an error | Answer the others and list the refusals | One status per response: a partly answered call would be `OK` with an error inside it, or an `ERROR` that carries answers. The agent corrects the one name and asks again. |
+| `card` and `detail` together | An error | The listing followed by the rules text; `detail` ignored | One call answers one question; the listing and rules text together would make the longest response the service gives, and an ignored argument would change the call's meaning without the agent knowing. |
+| A card in the calling seat's own library | Answered by name; an instance id is an error | Refused either way; answered either way | A seat knows its own deck list, so a name reveals nothing; an instance id answered would name a library card that has not been drawn or revealed, which no response may do. |
+| Since when a seat has been asked | A change number held by the game and set when the seat to act or what it is asked changes | Derived from the records when asked; a time held by the game | The records do not say who was to act after each change, so the start cannot be derived from them; the domain reads no clock, so it holds a change number and the application finds that change's time. |
+| `asked_since` during mulligans | The change that created the game | Moved by each keep or mulligan | Every seat still to keep has been asked the same thing since the game began; a keep by another seat does not make the question new. |
+| What makes a seat's turn a new question | A new table turn, or the active seat being asked again after another seat was | Only a new table turn | A seat asked to respond holds the game; when the active seat is asked again the question is new, and the time shown then measures how long it has had the game back, not how long its turn has run. |
 | Empty library notices | One for each seat | One notice naming the first seat; one notice whose text grows | A raised notice never changes; a second seat running out is a separate condition the tested seat may care about. |
 
 ## Open Questions & Future Decisions
@@ -322,6 +350,7 @@ From an opposing seat, `end_game` concedes: the seat is eliminated, its `notes` 
 1. Results beyond `win`, `loss` and `stalled`.
 2. Poison counters and other loss tracks; the agents record them and a seat concedes.
 3. Drawing from an empty library as a cause of elimination.
+4. Face-down permanents (morph, manifest, disguise). The game holds every card face up, so every seat sees such a permanent by name in `get_state` and may ask for its rules text; an agent that needs one hidden records it as a token it describes.
 
 ## References
 

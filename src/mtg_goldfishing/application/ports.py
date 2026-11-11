@@ -87,7 +87,7 @@ class DeckRepository(ABC):
         ...
 
 
-# @spec APP-046, APP-092
+# @spec APP-046, APP-092, APP-093
 class RecordStore(ABC):
     """Keeps a game's log entries, turn snapshots and call records.
 
@@ -115,6 +115,13 @@ class RecordStore(ABC):
         other than `get_log`, or None when it has no such call record."""
         ...
 
+    @abstractmethod
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        """The time a game's change was made: the time on the earliest-stored call record of
+        that game holding that change number, which is the record of the call that made it;
+        None when the game has no such call record."""
+        ...
+
 
 class CardCatalog(ABC):
     """Supplies card data by exact name."""
@@ -130,7 +137,7 @@ class CardCache(ABC):
 
     @abstractmethod
     def get(self, name: str) -> Card | None:
-        """The cached card whose full name or a face name matches, ignoring case."""
+        """The cached card a name resolves to by the card model's name-matching rule."""
         ...
 
     @abstractmethod

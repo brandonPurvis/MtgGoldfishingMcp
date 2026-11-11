@@ -111,6 +111,11 @@ def step_impl(context: Any, number: int, card: str, delta: str) -> None:
     _as_seat(context, number, "play", card=card, delta=json.loads(delta))
 
 
+@when(f'seat {SEAT} casts "{{card}}" with cast triggers {{triggers}}')
+def step_impl(context: Any, number: int, card: str, triggers: str) -> None:
+    _as_seat(context, number, "play", card=card, cast_triggers=json.loads(triggers))
+
+
 @when(f'seat {SEAT} records an effect from "{{source}}" with delta {{delta}}')
 def step_impl(context: Any, number: int, source: str, delta: str) -> None:
     _as_seat(context, number, "effect", source=source, delta=json.loads(delta))

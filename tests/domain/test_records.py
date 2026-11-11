@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -37,7 +38,7 @@ from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.mulligan import mulligan
 from mtg_goldfishing.domain.game.results import Applied, Result
 from mtg_goldfishing.domain.mana import ManaString
-from mtg_goldfishing.domain.play.playing import effect
+from mtg_goldfishing.domain.play.playing import effect, play
 from mtg_goldfishing.domain.reading.model import CardReading, FaceReading, StepTrigger
 from mtg_goldfishing.domain.records.export import export, log_entry_to_data
 from mtg_goldfishing.domain.records.log import log_entry
@@ -96,6 +97,16 @@ def reported(
         events=events[1:],
     )
     return entry, after
+
+
+def cast_with_triggers(
+    situation: Situation, triggers: list[dict[str, object]], **more: object
+) -> LogEntry:
+    """The entry of a goldfish `play` of Lightning Bolt stating these cast triggers."""
+    operate: Any = play
+    arguments = {"card": "Lightning Bolt", "cast_triggers": triggers, **more}
+    result = operate(situation.game, situation.deck, TESTED, **arguments)
+    return logged("play", arguments, situation.game, result)
 
 
 def effect_from(before: Game, source: str) -> tuple[LogEntry, Game]:
@@ -525,6 +536,62 @@ def test_a_log_entry_holds_only_json_compatible_data() -> None:
     entry = logged("advance", {"to": "upkeep", "reason": "go"}, situation.game, result)
     data = log_entry_to_data(entry)
     assert json.loads(json.dumps(data)) == data
+
+
+# @spec REC-083
+def test_a_goldfish_play_records_each_cast_trigger_s_delta_as_applied_in_the_order_listed() -> None:
+    situation = (
+        a_game()
+        .with_hand("Lightning Bolt")
+        .with_battlefield("Mountain")
+        .with_library("Forest")
+        .build()
+    )
+    triggers = [
+        {"source": "Thousand-Year Storm", "delta": {"fetch": {"hand": ["Forest"]}}},
+        {"source": "Young Pyromancer", "delta": {"draw": 0}, "choices": {"notes": "n"}},
+    ]
+    entry = cast_with_triggers(situation, triggers)
+    no_bookkeeping = {"shuffles": 0, "commander_redirected": [], "tokens_gone": []}
+    assert log_entry_to_data(entry)["cast_triggers"] == [
+        {
+            "source": "Thousand-Year Storm",
+            "delta": {
+                "fetch": {"hand": ["Forest"]},
+                "added": {"shuffles": 1, "commander_redirected": [], "tokens_gone": []},
+            },
+            "choices": None,
+        },
+        {
+            "source": "Young Pyromancer",
+            "delta": {"draw": 0, "added": no_bookkeeping},
+            "choices": {"notes": "n"},
+        },
+    ]
+
+
+# @spec REC-083, REC-004
+def test_a_goldfish_spell_s_delta_holds_none_of_its_cast_triggers_bookkeeping() -> None:
+    situation = (
+        a_game()
+        .with_hand("Lightning Bolt")
+        .with_battlefield("Mountain")
+        .with_library("Forest")
+        .build()
+    )
+    triggers = [{"source": "Thousand-Year Storm", "delta": {"fetch": {"hand": ["Forest"]}}}]
+    entry = cast_with_triggers(situation, triggers, delta={"damage": 3})
+    assert entry.delta == {
+        "damage": 3,
+        "added": {"shuffles": 0, "commander_redirected": [], "tokens_gone": []},
+    }
+
+
+# @spec REC-085
+def test_a_goldfish_entry_whose_call_stated_no_cast_triggers_records_an_empty_list() -> None:
+    situation = a_game().build()
+    entry = logged("advance", {}, situation.game, advance(situation.game, situation.deck, TESTED))
+    assert log_entry_to_data(entry)["cast_triggers"] == []
 
 
 # ---------------------------------------------------------------------------------------

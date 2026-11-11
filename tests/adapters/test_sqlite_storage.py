@@ -1,10 +1,13 @@
 """What the SQLite adapter does beyond the port contracts: rows, restarts and concurrency."""
 
+import json
 import sqlite3
 import threading
 from collections.abc import Iterator
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -284,3 +287,40 @@ def test_a_cached_card_has_a_lookup_row_for_each_face_name(
         ("tibalt, cosmic impostor",),
         ("valki, god of lies",),
     ]
+
+
+# ------------------------------------------------------------------ since when seats are asked
+
+
+# @spec STOR-041
+def test_a_game_stored_without_an_asked_since_change_reads_as_holding_none(
+    stores: SqliteStores, path: Path
+) -> None:
+    builder: Any = a_game().and_an_opposing_seat()
+    game = builder.build().game
+    held: Any = game
+    held.asked_since = 4
+    stores.games.add(game)
+    document = json.loads(str(_query(path, "SELECT state FROM games")[0][0]))
+    document.pop("asked_since")
+    _execute(path, "UPDATE games SET state = ?", json.dumps(document))
+    version = _query(path, "SELECT version FROM schema_version")
+
+    stored = _restarted(stores, path).games.get(GAME)
+
+    assert stored is not None
+    assert vars(stored.game).get("asked_since", "absent") is None
+    assert _query(path, "SELECT version FROM schema_version") == version
+
+
+# @spec STOR-042
+def test_the_time_of_a_change_is_read_from_the_lowest_keyed_calls_row_of_that_change(
+    stores: SqliteStores,
+) -> None:
+    later = datetime(2026, 11, 9, 12, 30, tzinfo=UTC)
+    earlier = datetime(2026, 11, 9, 12, 5, tzinfo=UTC)
+    stores.records.add_call(replace(a_call(GAME, 4, tool="play"), time=later))
+    stores.records.add_call(replace(a_call(GAME, 4, tool="get_state"), time=earlier))
+    store: Any = stores.records
+
+    assert store.change_time(GAME, 4) == later

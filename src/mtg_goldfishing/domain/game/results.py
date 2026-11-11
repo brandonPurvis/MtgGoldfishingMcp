@@ -7,20 +7,22 @@ from dataclasses import dataclass, field
 
 from mtg_goldfishing.domain.events import ChecksOverridden, Error, Event, FailedCheck
 from mtg_goldfishing.domain.game.model import Game
-from mtg_goldfishing.domain.records.model import TurnSnapshot
+from mtg_goldfishing.domain.records.model import SeatFinal, TurnSnapshot
 
 
 @dataclass(frozen=True)
 class Applied:
     """The changed game, the headline event and everything else worth telling, in order.
 
-    `snapshots` holds any turn snapshot written while the call was applied.
+    `snapshots` holds any turn snapshot written while the call was applied; `final`, every
+    seat's state once the tested seat's `end_game` has ended a contested game.
     """
 
     game: Game
     summary: Event
     events: tuple[Event, ...] = ()
     snapshots: tuple[TurnSnapshot, ...] = ()
+    final: tuple[SeatFinal, ...] | None = None
 
 
 @dataclass(frozen=True)

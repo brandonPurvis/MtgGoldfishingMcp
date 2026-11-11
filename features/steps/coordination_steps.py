@@ -6,6 +6,7 @@ each response begins with, resends against a seat's own change, and records nami
 import json
 import threading
 from collections import Counter
+from datetime import timedelta
 from typing import Any
 
 from behave import given, then, when
@@ -139,3 +140,10 @@ def step_impl(context: Any, count: int) -> None:
     seats = json.loads(context.agent.text)["game"]["seats"]
     opposing = [seat for seat in seats if not seat["tested"]]
     assert [seat["deck_id"] for seat in opposing] == [context.opposing_deck_id] * count, seats
+
+
+@when("{minutes:d} minutes pass")
+def step_impl(context: Any, minutes: int) -> None:
+    """The service's clock moves on, as time passes while the seats play."""
+    clock = context.agent.harness.clock
+    clock.set(clock.now() + timedelta(minutes=minutes))

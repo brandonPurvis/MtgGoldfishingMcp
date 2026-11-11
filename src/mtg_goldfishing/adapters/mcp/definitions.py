@@ -307,20 +307,24 @@ MULLIGAN = ToolDefinition(
     ),
 )
 
-# @spec TOOL-075
+# @spec TOOL-075, TOOL-098
 GET_STATE = ToolDefinition(
     name="get_state",
-    purpose="List the hand, battlefield and other zones when the status line is not enough.",
+    purpose=(
+        "List the hand, battlefield and other zones when the status line is not enough,"
+        " or give cards' rules text."
+    ),
     automatic=(
         "Changes nothing. The summary lists the hand, the battlefield (each permanent with"
         " its instance id, tapped state, counters, the mana it makes, haste or vigilance and"
         " its step triggers), the graveyard, the command zone and notices; full adds exile,"
         " the number of cards in the library, each commander's casts and damage, and this"
-        " turn's payments. The library's order is never shown. Accepted in every game"
-        " status. Contested games: shows every seat's battlefield, graveyard and command zone"
-        " with its life and its hand and library sizes, the stack and who is asked; of the"
-        " hands, only yours. It ends with the pending choices your seat owes, with the cards"
-        " each reveals to you or what it asks of you."
+        " turn's payments. The library's order is never shown. With `card`, the response"
+        " gives the rules text of the cards named in place of the listing. Accepted in every"
+        " game status. Contested games: shows every seat's battlefield, graveyard and command"
+        " zone with its life and its hand and library sizes, the stack and who is asked; of"
+        " the hands, only yours. It ends with the pending choices your seat owes, with the"
+        " cards each reveals to you or what it asks of you."
     ),
     parameters=(
         _game_id(),
@@ -330,10 +334,21 @@ GET_STATE = ToolDefinition(
             '"summary" (the default) or "full".',
             "full",
         ),
+        Parameter(
+            "card",
+            Kind.TEXT_OR_LIST,
+            "A card name or instance id, or a list of them: the response gives each card's"
+            " rules text (each face's name, mana cost, type line, rules text, and power and"
+            " toughness) in place of the listing, or a token's description. Only cards you"
+            " may see are answered; ask for a card in your library by name. Not given"
+            " together with detail.",
+            ["Sol Ring", "c12"],
+        ),
     ),
     overridable="Nothing; it changes nothing.",
 )
 
+# @spec TOOL-081, TOOL-082
 PLAY = ToolDefinition(
     name="play",
     purpose="Play a land or cast a spell, stating what it does.",
@@ -343,12 +358,17 @@ PLAY = ToolDefinition(
         " extra cost and commander tax — is paid by the auto payment system unless `pay`"
         " says how, and the response shows what was tapped. The card then goes to its"
         " destination: a permanent to the battlefield (tapped if it enters tapped), an"
-        " instant or sorcery to the graveyard. The delta is applied last. The library is"
-        " shuffled after a fetch, a commander bound for the graveyard or exile goes to the"
-        " command zone, and a token that leaves the battlefield ceases to exist. Contested"
-        " games: a spell goes on the stack with its cost paid, and resolves once every other"
-        " seat has passed: only then does the card move and the delta apply. A land does not"
-        " use the stack."
+        " instant or sorcery to the graveyard. The delta is applied last. A spell's"
+        " `cast_triggers` are applied once its cost is paid, in the order listed, before the"
+        " card moves; one that would look or search is recorded with `effect` after the play."
+        " The library is shuffled after a fetch, a commander bound for the graveyard or exile"
+        " goes to the command zone, and a token that leaves the battlefield ceases to exist."
+        " Contested games: a spell goes on the stack with its cost paid, and resolves once"
+        " every other seat has passed: only then does the card move and the delta apply. Its"
+        " cast triggers go on the stack above the spell before any seat is asked, the first"
+        " listed on top, so they resolve first; state them in the play itself, because a spell"
+        " no other seat can answer resolves within the call, and a later effect would come"
+        " after it. A land does not use the stack."
     ),
     parameters=(
         _game_id(),
@@ -386,6 +406,17 @@ PLAY = ToolDefinition(
             Kind.OBJECT,
             PAY_SHAPE,
             {"with": [{"source": "Birds of Paradise", "mana": "{U}"}]},
+        ),
+        Parameter(
+            "cast_triggers",
+            Kind.LIST,
+            'Your own triggers on casting this spell ("whenever you cast an instant, copy it",'
+            ' "when you cast this spell, draw a card"), each {source, delta, choices?}: source'
+            " names what triggered, delta is what it does in the delta shape, and choices are"
+            " recorded only. They resolve before the spell, in the order listed, the first"
+            " listed first. A land is not cast and takes none; record a trigger on playing a"
+            " land with effect.",
+            [{"source": "Archmage Emeritus", "delta": {"draw": 1}}],
         ),
         _expect(),
         _reason("holding up Counterspell mana"),
@@ -462,7 +493,7 @@ EFFECT = ToolDefinition(
     ),
 )
 
-# @spec TOOL-077
+# @spec TOOL-077, TOOL-083
 CHOOSE = ToolDefinition(
     name="choose",
     purpose="Finish a look or search by saying where the revealed cards go.",
@@ -474,7 +505,10 @@ CHOOSE = ToolDefinition(
         " on top. Contested games: a choice addressed to your seat is answered by its kind —"
         " a look at another seat's hand with selections (the cards go to their owner's"
         " zones, the rest stay in that hand), an ask with your own delta, applied at once,"
-        " blocks with blocks, and a resolve choice (a spell or ability that waited while"
+        " and optionally `text`, the answer text (the card named, the guess, the number),"
+        " which every seat is shown and which is recorded and never judged; it holds at most"
+        " 200 characters and is accepted for no other kind of choice; blocks with blocks, and"
+        " a resolve choice (a spell or ability that waited while"
         " something resolved above it, or whose stated delta can no longer be applied) with"
         " nothing to let it resolve as held, or with restate to say what it does now."
     ),
@@ -508,6 +542,13 @@ CHOOSE = ToolDefinition(
             " For a look at a hand, only control, for selected cards put onto the battlefield"
             " under a seat other than their owner.",
             {"discard": ["Island"]},
+        ),
+        Parameter(
+            "text",
+            Kind.TEXT,
+            "Contested games: for an ask, the answer text: the card you name, your guess or"
+            " your number, shown to every seat; at most 200 characters.",
+            "Lightning Bolt",
         ),
         Parameter(
             "blocks",
@@ -703,7 +744,7 @@ PASS = ToolDefinition(
     ),
 )
 
-# @spec APP-072, APP-090
+# @spec APP-072, APP-090, TOOL-099
 WAIT = ToolDefinition(
     name="wait",
     purpose="Wait until your seat has something to do, then say what it is (contested games).",
@@ -711,9 +752,11 @@ WAIT = ToolDefinition(
         "Changes nothing. Returns at once when your seat is the seat to act, has been"
         " eliminated, or the game has ended; otherwise holds the call until another seat's"
         " change makes it so, or the timeout passes, and then says who the game is still"
-        " waiting on. Like every response to a seat, it begins with what the other seats did"
-        " since your last call. In a goldfish game your seat is always the seat to act, so it"
-        " returns at once."
+        " waiting on and for how long. Like every response to a seat, it begins with what"
+        " the other seats did since your last call. In a goldfish game your seat is always"
+        " the seat to act, so it returns at once. Contested games: an answer that says your"
+        " seat is still waiting means only that the seat to act has not yet acted; call wait"
+        " again."
     ),
     parameters=(
         _game_id(),
@@ -727,6 +770,7 @@ WAIT = ToolDefinition(
     overridable="Nothing; it changes nothing. A timeout outside 1 to 60 is an error.",
 )
 
+# @spec TOOL-111
 END_GAME = ToolDefinition(
     name="end_game",
     purpose="End the game with a result and verdict.",
@@ -734,7 +778,9 @@ END_GAME = ToolDefinition(
         "Discards any pending choice and declared attack, writes the turn snapshot if this"
         " turn has none, and ends the game; afterwards only `get_state` and `get_log` are"
         " accepted. Contested games: only the tested seat ends the game; an opposing seat's"
-        " end_game concedes, which eliminates it, and the game goes on."
+        " end_game concedes, which eliminates it, and the game goes on. When the tested seat"
+        " ends the game, the log records every seat's life, commander damage taken, hand,"
+        " battlefield and graveyard as the game ended, so your verdict need not restate them."
     ),
     parameters=(
         _game_id(),
@@ -756,6 +802,7 @@ END_GAME = ToolDefinition(
     overridable="Nothing; your result is trusted.",
 )
 
+# @spec TOOL-109, TOOL-110
 GET_LOG = ToolDefinition(
     name="get_log",
     purpose="Return the game's records as JSON for analysis.",
@@ -774,6 +821,13 @@ GET_LOG = ToolDefinition(
             20,
         ),
         Parameter(
+            "tools",
+            Kind.LIST,
+            "A list of tool names: keeps only the log entries and call records of calls to"
+            " those tools, leaving the snapshots as they would be without it.",
+            ["play", "attack"],
+        ),
+        Parameter(
             "include_snapshots",
             Kind.FLAG,
             "False to leave the turn snapshots out; true by default.",
@@ -785,8 +839,20 @@ GET_LOG = ToolDefinition(
             "True to include the call records; false by default.",
             True,
         ),
+        Parameter(
+            "seat",
+            Kind.WHOLE_NUMBER,
+            "Contested games: a seat number; keeps only the log entries and call records of"
+            " calls that seat made and the snapshots of that seat's turns, whichever seat calls."
+            " Refused in a goldfish game.",
+            2,
+        ),
     ),
-    overridable="Nothing; it changes nothing.",
+    overridable=(
+        "Nothing; it changes nothing. An empty `tools`, or one naming anything that is not a"
+        " tool, is an error. Contested games: a `seat` that is not one of the game's seat"
+        " numbers is an error."
+    ),
 )
 
 # @spec TOOL-007, TOOL-008, TOOL-009, TOOL-011, TOOL-033

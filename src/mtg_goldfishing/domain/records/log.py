@@ -7,6 +7,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 
 from mtg_goldfishing.domain.events import (
+    AskAnswered,
     AssumptionMade,
     AttackDeclared,
     AutomaticPass,
@@ -15,6 +16,7 @@ from mtg_goldfishing.domain.events import (
     CardPlayed,
     CardsDiscarded,
     CardsDrawn,
+    CastTriggerApplied,
     ChecksOverridden,
     ChoiceResolved,
     CombatDamageDealt,
@@ -52,6 +54,7 @@ from mtg_goldfishing.domain.records.model import (
     ReminderRecord,
     ResolvedRecord,
     SeatEvents,
+    SeatFinal,
 )
 from mtg_goldfishing.domain.records.redaction import (
     opposing_seat_ids,
@@ -65,7 +68,7 @@ DELTA_TOOLS = ("play", "effect", "choose")
 
 # @spec REC-001, REC-003, REC-004, REC-005, REC-006, REC-007, REC-008, REC-027, REC-030
 # @spec REC-057, REC-058, REC-065, REC-061, REC-072, REC-073, REC-075, REC-076, REC-080
-# @spec REC-082
+# @spec REC-082, REC-083, REC-084, REC-085, REC-097, REC-102
 def log_entry(
     *,
     tool: str,
@@ -75,6 +78,7 @@ def log_entry(
     summary: Event,
     events: Sequence[Event],
     seat: SeatNumber | None = None,
+    final: Sequence[SeatFinal] | None = None,
 ) -> LogEntry:
     """The log entry for an accepted call that changed a game, made by `seat` (None for
     `new_game`, which no seat makes).
@@ -82,7 +86,9 @@ def log_entry(
     `before` is the game as it was when the call was made (None for `new_game`); `after`
     is the game once the call has been counted as its next change. Everything is taken
     from the call's summary and events and from those two games, never from response text.
-    Every value is JSON-compatible data, so the entry can be stored and exported.
+    Every value is JSON-compatible data, so the entry can be stored and exported. `final`,
+    every seat's state when the tested seat ended a contested game, is held in the outcome
+    alone, in none of the entry's events.
 
     In a contested game the entry also places the call among the seats and holds its
     public and private events, and no opposing seat's seat id is kept anywhere in it.
@@ -97,11 +103,12 @@ def log_entry(
         step=before.step if before else None,
         tool=tool,
         arguments=stored_arguments(copy.deepcopy(dict(arguments)), after.game_id, seat_ids),
-        outcome=_outcome(tool, reported, after),
+        outcome=_with_final(_outcome(tool, reported, after), final),
         card=played.card if played else effect.source if effect else None,
         from_zone=played.from_zone if played else None,
         delta=_delta(tool, arguments, before, after, reported),
         choices=_mapping(arguments.get("choices")),
+        cast_triggers=_cast_triggers(arguments, reported),
         paid=_payment(reported),
         drawn=tuple(card for e in reported if isinstance(e, CardsDrawn) for card in e.cards),
         steps=tuple(
@@ -126,6 +133,34 @@ def log_entry(
         contested=_contested(tool, before, after, seat, reported) if after.contested else None,
     )
     return redacted(entry, seat_ids)
+
+
+def _with_final(
+    outcome: dict[str, object] | None, final: Sequence[SeatFinal] | None
+) -> dict[str, object] | None:
+    """The outcome with `final` beside the result and notes, when there is one."""
+    if final is None:
+        return outcome
+    return {**(outcome or {}), "final": [_seat_final_to_data(seat) for seat in final]}
+
+
+# @spec REC-098, REC-099
+def _seat_final_to_data(seat: SeatFinal) -> dict[str, object]:
+    """One seat's final state as data; commander damage taken keyed by seat number as text."""
+    return {
+        "seat": seat.seat.value,
+        "life": seat.life,
+        "eliminated": seat.eliminated,
+        "hand": list(seat.hand),
+        "battlefield": [
+            {"name": p.name, "tapped": p.tapped, "counters": dict(p.counters)}
+            for p in seat.battlefield
+        ],
+        "graveyard": list(seat.graveyard),
+        "commander_damage_taken": {
+            str(dealer.value): dict(dealt) for dealer, dealt in seat.commander_damage_taken
+        },
+    }
 
 
 def _turn(before: Game | None, after: Game) -> int:
@@ -155,6 +190,7 @@ def _shown_to_others(
 
 # @spec REC-028, REC-029, REC-031, REC-038, REC-039, REC-040, REC-060, REC-062, REC-067
 # @spec REC-068, REC-077, REC-078, REC-032, REC-034, REC-036, REC-037, REC-066, REC-035
+# @spec REC-088
 def _contested(
     tool: str,
     before: Game | None,
@@ -195,6 +231,67 @@ def _contested(
             AutoPassRecord(e.seat, e.item) for e in reported if isinstance(e, AutomaticPass)
         ),
     )
+
+
+def _stated_triggers(arguments: Mapping[str, object]) -> list[Mapping[str, object]]:
+    """The call's cast triggers as received, in the order listed."""
+    stated = arguments.get("cast_triggers")
+    if not isinstance(stated, list | tuple):
+        return []
+    return [entry for entry in stated if isinstance(entry, Mapping)]
+
+
+# @spec REC-083, REC-084, REC-085
+def _cast_triggers(
+    arguments: Mapping[str, object], reported: Sequence[Event]
+) -> tuple[dict[str, object], ...]:
+    """The cast triggers the call stated, in the order listed: in a goldfish game each delta
+    as applied, with what the service added; in a contested game each delta as stated, with
+    the id of the stack item the trigger became. None for a call that stated none."""
+    stated = _stated_triggers(arguments)
+    applied = [e for e in reported if isinstance(e, CastTriggerApplied)]
+    if applied:
+        return tuple(
+            {
+                "source": event.source,
+                "delta": copy.deepcopy(event.delta),
+                "choices": _mapping(entry.get("choices")),
+            }
+            for event, entry in zip(applied, stated, strict=False)
+        )
+    spell = _first(reported, ItemStacked)
+    if spell is None:
+        return ()
+    items = [e.item for e in reported if isinstance(e, ItemStacked) and e.cast_with == spell.item]
+    return tuple(
+        {
+            "source": entry.get("source"),
+            "delta": _mapping(entry.get("delta")),
+            "choices": _mapping(entry.get("choices")),
+            "item": item,
+        }
+        for entry, item in zip(stated, reversed(items), strict=False)
+    )
+
+
+def _without_cast_triggers(added: dict[str, object], reported: Sequence[Event]) -> None:
+    """Take out of a goldfish spell's bookkeeping what its cast triggers added, which their
+    own entries hold."""
+    for event in reported:
+        if not isinstance(event, CastTriggerApplied):
+            continue
+        theirs = event.delta.get("added")
+        if not isinstance(theirs, Mapping):
+            continue
+        shuffles = theirs.get("shuffles")
+        if isinstance(shuffles, int) and isinstance(added["shuffles"], int):
+            added["shuffles"] -= shuffles
+        for key in ("commander_redirected", "tokens_gone"):
+            mine, others = added[key], theirs.get(key)
+            if isinstance(mine, list) and isinstance(others, list):
+                for name in others:
+                    if name in mine:
+                        mine.remove(name)
 
 
 def _first[E](reported: Sequence[Event], kind: type[E]) -> E | None:
@@ -242,6 +339,7 @@ def _delta(
         "commander_redirected": [m.card for m in moves if m.commander_redirected],
         "tokens_gone": [m.card for m in moves if m.token_gone],
     }
+    _without_cast_triggers(added, reported)
     if received is None and not any(added.values()):
         return None
     return {**(received or {}), "added": added}
@@ -313,7 +411,7 @@ def _card_name(before: Game | None, after: Game, instance_id: str) -> str | None
     return None
 
 
-# @spec REC-074
+# @spec REC-074, REC-087
 def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, object] | None:
     """What the tool produced that no other field of the entry carries.
 
@@ -322,7 +420,8 @@ def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, obj
     the seat each attacker attacks; a trample statement each named attacker's trample damage,
     by name and instance id, and the seat it attacks; its combat damage the seat each attacker
     dealt it to;
-    a blocks answer each blocker and the attacker it blocks; a concession its notes.
+    a blocks answer each blocker and the attacker it blocks; an ask answer its answer
+    text, when it carries some; a concession its notes.
     """
     outcome: dict[str, object] = {}
     for event in reported:
@@ -336,6 +435,8 @@ def _outcome(tool: str, reported: Sequence[Event], after: Game) -> dict[str, obj
         elif isinstance(event, HandKept):
             outcome["hand"] = list(event.hand)
             outcome["bottomed"] = list(event.bottomed)
+        elif isinstance(event, AskAnswered) and event.text is not None:
+            outcome["text"] = event.text
         elif isinstance(event, ChoiceResolved):
             outcome["placements"] = [{"card": p.card, "to": p.to} for p in event.placements]
         elif isinstance(event, AttackDeclared) and event.targets:

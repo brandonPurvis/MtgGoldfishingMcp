@@ -54,6 +54,9 @@ class ErrorKind(Enum):
     TOO_FEW_MATCHING = "too_few_matching"
     INSTANCE_REPEATED = "instance_repeated"
     HIDDEN_ZONE = "hidden_zone"
+    NO_CARD_SEEN = "no_card_seen"
+    LIBRARY_CARD_BY_ID = "library_card_by_id"
+    CARD_WITH_DETAIL = "card_with_detail"
     # arguments
     MALFORMED_ARGUMENT = "malformed_argument"
     UNKNOWN_DELTA_KEY = "unknown_delta_key"
@@ -73,10 +76,13 @@ class ErrorKind(Enum):
     WRONG_CHOICE = "wrong_choice"
     NOT_REVEALED = "not_revealed"
     WRONG_ANSWER = "wrong_answer"
+    ANSWER_TEXT_TOO_LONG = "answer_text_too_long"
     ANSWER_MAY_NOT_REVEAL = "answer_may_not_reveal"
     HAND_ANSWER_DELTA = "hand_answer_delta"
     SOURCE_MANA_UNKNOWN = "source_mana_unknown"
     SOURCE_TAPPED = "source_tapped"
+    LAND_NOT_CAST = "land_not_cast"
+    CAST_TRIGGER_REVEALS = "cast_trigger_reveals"
     # mulligan and advance
     BOTTOM_NOT_IN_HAND = "bottom_not_in_hand"
     BOTTOM_WITHOUT_KEEP = "bottom_without_keep"
@@ -110,6 +116,9 @@ class ErrorKind(Enum):
     DEFINITION_NEEDS_TYPE_LINE = "definition_needs_type_line"
     # wait
     BAD_TIMEOUT = "bad_timeout"
+    # get_log
+    UNKNOWN_TOOL = "unknown_tool"
+    NO_TOOLS_NAMED = "no_tools_named"
     # the service itself
     CHANGED_UNDERNEATH = "changed_underneath"
     INTERNAL_FAILURE = "internal_failure"
@@ -390,7 +399,9 @@ class CostPaid:
 @dataclass(frozen=True)
 class CardMoved:
     """A card moved. In a contested game `owner` names the seat that owns it, whose hand or
-    library a move into or out of a hidden zone touches."""
+    library a move into or out of a hidden zone touches; `from_seat` and `to_seat` name the
+    seat whose zone the card left or entered, when a delta or an answer moved it there and
+    that seat is not the one whose delta or answer it was."""
 
     card: str
     from_zone: str
@@ -398,6 +409,8 @@ class CardMoved:
     commander_redirected: bool = False
     token_gone: bool = False
     owner: SeatNumber | None = None
+    from_seat: SeatNumber | None = None
+    to_seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -569,12 +582,15 @@ class NothingRevealed:
 @dataclass(frozen=True)
 class Placement:
     """Where a revealed card went. In a contested game `owner` names the seat that owns it,
-    and `from_zone` is the zone it came from."""
+    and `from_zone` is the zone it came from; `from_seat` and `to_seat` name the seat whose
+    zone it left or entered when that seat is not the answering seat."""
 
     card: str
     to: str
     owner: SeatNumber | None = None
     from_zone: str = ""
+    from_seat: SeatNumber | None = None
+    to_seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -584,10 +600,12 @@ class ChoiceResolved:
 
 @dataclass(frozen=True)
 class AskAnswered:
-    """A seat's answer to an `ask` pending choice; what its delta did follows it."""
+    """A seat's answer to an `ask` pending choice; what its delta did follows it. `text` is
+    the answer's answer text as the game holds it, None when the answer carries none."""
 
     choice_id: str
     seat: SeatNumber
+    text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -763,12 +781,14 @@ class AttackNotDeclared:
 
 @dataclass(frozen=True)
 class ItemStacked:
-    """A play or effect put on the stack as item `item`, of kind `spell` or `ability`."""
+    """A play or effect put on the stack as item `item`, of kind `spell` or `ability`; a cast
+    trigger names the spell it was stated with in `cast_with`."""
 
     item: str
     controller: SeatNumber
     source: str
     kind: str
+    cast_with: str | None = None
 
 
 @dataclass(frozen=True)
@@ -791,6 +811,16 @@ class AutomaticPass:
     seat: SeatNumber
     item: str | None
     window: str
+
+
+@dataclass(frozen=True)
+class CastTriggerApplied:
+    """In a goldfish game, a cast trigger stated with `play` applied within the call: its
+    source and its delta as applied, with what the service added under `added`. What it
+    changed follows it."""
+
+    source: str
+    delta: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -882,9 +912,11 @@ class SeatToAct:
 @dataclass(frozen=True)
 class StillWaiting:
     """`wait` timed out: the seats the game is still waiting on and what they are asked, or
-    None when it waits on no seat."""
+    None when it waits on no seat, and in a contested game how long, in whole seconds, they
+    have been asked it, when that is known."""
 
     asked: Asked | None
+    time_asked: int | None = None
 
 
 @dataclass(frozen=True)
@@ -902,6 +934,14 @@ class GameHasEnded:
 @dataclass(frozen=True)
 class SnapshotWritten:
     turn: int
+
+
+@dataclass(frozen=True)
+class RulesTextGiven:
+    """`get_state` with `card`: the rules text of `cards` cards is carried in the outcome's
+    payload."""
+
+    cards: int
 
 
 @dataclass(frozen=True)
@@ -979,6 +1019,7 @@ Event = (
     | Passed
     | AutomaticPass
     | ItemResolved
+    | CastTriggerApplied
     | ItemCountered
     | ItemRemoved
     | ResolveAsked
@@ -993,6 +1034,7 @@ Event = (
     | GameHasEnded
     | SnapshotWritten
     | StateListed
+    | RulesTextGiven
     | LogExported
     | Refused
 )

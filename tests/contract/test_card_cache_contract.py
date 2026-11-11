@@ -71,6 +71,45 @@ def test_a_cache_has_nothing_for_a_name_no_stored_card_matches(
     assert cache.get(name) is None
 
 
+# @spec CARD-021, CARD-024
+@pytest.mark.parametrize(
+    "name", ["Gallifrey Falls/No More", "gallifrey falls / no more", " Gallifrey Falls//No More "]
+)
+def test_a_cache_returns_a_stored_multi_faced_card_by_its_full_name_written_with_slashes(
+    new_cache: CacheFactory, name: str
+) -> None:
+    gallifrey = recorded_card("Gallifrey Falls // No More")
+    cache = new_cache()
+    cache.put(gallifrey)
+
+    assert cache.get(name) == gallifrey
+
+
+# @spec CARD-021, CARD-024
+@pytest.mark.parametrize(
+    "name", ["Gallifrey Falls/No Mor", "No More/Gallifrey Falls", "Gallifrey Falls/No More/No More"]
+)
+def test_a_cache_has_nothing_for_a_name_with_slashes_naming_no_card_s_faces_in_order(
+    new_cache: CacheFactory, name: str
+) -> None:
+    cache = new_cache()
+    cache.put(recorded_card("Gallifrey Falls // No More"))
+
+    assert cache.get(name) is None
+
+
+# @spec CARD-022
+def test_a_cache_returns_the_card_a_name_names_as_written_before_one_whose_faces_it_names(
+    new_cache: CacheFactory,
+) -> None:
+    choco = recorded_card("Summon: Choco/Mog")
+    cache = new_cache()
+    cache.put(_two_faced("Summon: Choco // Mog", "Summon: Choco", "Mog"))
+    cache.put(choco)
+
+    assert cache.get("Summon: Choco/Mog") == choco
+
+
 def test_an_empty_cache_has_nothing(new_cache: CacheFactory) -> None:
     assert new_cache().get("Sol Ring") is None
 

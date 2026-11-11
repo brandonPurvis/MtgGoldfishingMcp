@@ -35,6 +35,7 @@ def play(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             delta=arguments.get("delta"),
             choices=arguments.get("choices"),
             pay=arguments.get("pay"),
+            cast_triggers=arguments.get("cast_triggers"),
             expect=arguments.get("expect"),
             reason=arguments.get("reason"),
             override=override,

@@ -32,7 +32,9 @@ LogEntry {
                              //   new_game: opening hand (contested: every seat's, by seat number)
                              //   mulligan: new hand, cards bottomed
                              //   choose: where each revealed card went (look, search, hand);
-                             //           the blocks as applied (blocks); null (ask, resolve)
+                             //           the blocks as applied (blocks); { text } when an
+                             //           ask's answer carries answer text, otherwise null
+                             //           (ask); null (resolve)
                              //   attack: attackers, blocked, targets (contested: attackers and
                              //           the seat each attacks, no blocked list; an attack that
                              //           states trample damage: each named attacker's trample
@@ -40,11 +42,15 @@ LogEntry {
                              //           that enters combat_damage: damage per attacker
                              //           (contested: with the seat it was dealt to)
                              //   advance: cards discarded
-                             //   end_game: result and notes (a concession: null result, notes)
+                             //   end_game: result and notes (a concession: null result, notes;
+                             //           the tested seat's in a contested game: also `final`,
+                             //           every seat's state as the game ended)
   card: string | null        // card played, or effect source
   from: string | null        // zone a played card came from
   delta: Delta | null        // as applied, including what the service added
   choices: Choices | null
+  cast_triggers: [{ source, delta, choices }]   // a play's cast triggers, in the order listed;
+                             //   empty for every other call (contested: each also holds `item`)
   paid: { cost, sources: [name], life, from_pool, surplus } | null
   drawn: [name]
   steps: [Step]              // steps entered by this call
@@ -80,6 +86,8 @@ LogEntry {
 
 Every positional field — `turn`, `step`, `active`, `table_turn`, `round` — describes the game as it stood when the call was made, before the call was applied. The keep that starts a game is therefore recorded at turn 0 with no step and no active seat, and an `advance` that passes the turn is recorded in the turn it left. In a contested game `turn` is the own turn number of the seat that was then active, as its status line showed it; `table_turn` and `round` place the entry in the game as a whole.
 
+A `play`'s cast triggers (see `play`) are recorded in `cast_triggers`, in the order listed, each with its `source`, `delta` and `choices`. In a goldfish game each delta is recorded as applied, with what the service added, as `delta` is. In a contested game each is recorded as stated, with `item`, the id of the stack item it became; `stacked` keeps holding the spell's id, and each cast trigger's resolution is recorded in `resolved` like any ability's.
+
 For a call whose item goes on the stack, `delta` and `paid` record what was stated and paid when the call was applied, `stacked` holds the new item's id, and the item's resolution is recorded in `resolved` on the entry of whichever call caused it, with the delta that was actually applied (the restated one when its controller restated it). An item that leaves the stack unresolved is recorded by id on the entry of the call that caused it: in `countered` when a delta's `counter` named it, in `removed` when a seat's elimination or the tested seat's `end_game` took it off.
 
 `auto_passes` holds only automatic passes in response windows. A seat the service declared no blockers for, because it controlled no untapped creature when blocks were requested, is listed in `no_blocks`: the two are different decisions made for a seat, and an attack window with an empty stack would otherwise make them look alike.
@@ -98,9 +106,35 @@ An opposing seat's `end_game` concedes and ends nothing. Its entry's `outcome` h
 
 `reason` is the agent's own explanation of the play and is what makes a log useful for analysis; it is stored verbatim (but see Seat Ids in Records).
 
+The answer text of an `ask` answer (see `play`) is public, so besides its `outcome` it is in the entry's `public` events, and from there in every other seat's digest. It is stored as the game holds it, whitespace runs as single spaces, while `arguments` keeps `text` as received.
+
+### Every seat's state at the end of a contested game
+
+A contested game's turn snapshots each describe one seat, the active one, so the turn in which the game ends records only that seat's board. When the tested seat's `end_game` ends a contested game, its entry's `outcome` therefore also holds `final`: one object per seat, in seat number order (which is turn order), describing each seat as the game stands once the end has been applied — every pending choice, the open window and the stack already discarded. The caller states none of it.
+
+```
+final: [{
+  seat: int
+  life: int
+  eliminated: bool
+  hand: [name]
+  battlefield: [{ name, tapped, counters }]   // the permanents the seat controls, whichever seat
+                                             //   owns them, each read from its owner's deck
+  graveyard: [name]
+  commander_damage_taken: { [seat number]: { [commander name]: int } }
+                             // every other seat, eliminated seats included: each commander of
+                             //   that seat's deck and the combat damage it has dealt this seat,
+                             //   zeros included; an empty map for a deck with no commander
+}]
+```
+
+The zones are the ones a turn snapshot records for its seat, each card named and listed as a snapshot of that seat would name and list it, without the figures that judge one turn (`payable`, mana available and spent, the land drop). A spell that was on the stack when the game ended is in none of them; its stack item's id is in the entry's `removed`. An eliminated seat is listed like any other, as it now is: its cards have left the game, so its hand, battlefield and graveyard are empty, while its life is the life it was eliminated at and its commander damage taken is what it had taken by then.
+
+`final` is held in `outcome` alone. It is not an event, so it is in neither `public` nor `private` and in no seat's digest, and the `end_game` response does not show it; like every record, it is read through `get_log`, which shows any seat the whole record. A goldfish game's `end_game` entry has no `final`: every snapshot of a goldfish game already describes its one seat. A concession has none either, since the game goes on.
+
 ## Reminders
 
-Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step, with the seat it was issued to in a contested game. A reminder is **answered** when, later in the same turn — in a contested game, the same table turn — an `effect` call from that seat is accepted whose `source` names the reminded permanent. Otherwise it is **unanswered**. Acceptance is what counts: the reminder exists to catch a forgotten trigger, so it is answered once the seat has recorded the trigger, whether the stack item that `effect` made later resolves, is countered or is removed. A `pass` declines a reminder and does not answer it, but does not close it either: an `effect` naming the permanent later in the same table turn still answers it. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
+Each reminder issued (see `turn`) is recorded on the log entry of the call that entered the step, with the seat it was issued to in a contested game. A reminder is **answered** when, later in the same turn — in a contested game, the same table turn — an `effect` call from that seat is accepted whose `source` names the reminded permanent. Otherwise it is **unanswered**. Acceptance is what counts: the reminder exists to catch a forgotten trigger, so it is answered once the seat has recorded the trigger, whether the stack item that `effect` made later resolves, is countered or is removed. A `pass` declines a reminder and does not answer it, but does not close it either: an `effect` naming the permanent later in the same table turn still answers it. `source` names a permanent when, ignoring case, it equals the permanent's card name, the name of its face in play, or its instance id. One such `effect` answers the reminders of every permanent it names, so two copies of a card are answered together unless an instance id is used. A cast trigger stated with `play` answers no reminder, whatever its `source` names: a reminder is for a step trigger, which is recorded with `effect`. Whether each reminder was answered is worked out when records are read and when the turn's snapshot is written.
 
 ## Turn Snapshots
 
@@ -167,7 +201,7 @@ Arguments are stored as received, with any object or list parameter that was giv
 ## `get_log`
 
 ```
-get_log(game_id, since?, include_snapshots?, include_calls?)
+get_log(game_id, since?, seat?, tools?, include_snapshots?, include_calls?)
 ```
 
 Returns JSON, unlike every other tool, because its reader is a program. Any seat may call it at any time, and every seat receives the whole record, hidden zones included: the service hides in its views, not in its records. The rule that a response to a seat shows only what that seat may see (see `game`) governs every other tool and does not apply to `get_log`.
@@ -190,6 +224,19 @@ In a contested game the header's `turn` is the tested seat's own turn count, the
 `since` returns only entries with a sequence number greater than it, calls whose `change` is greater than it, and snapshots written by those entries. `include_snapshots` defaults to true. `include_calls` defaults to false. `get_log` is accepted in every game status.
 
 Because a refused or read-only call carries the change number it was made at, a reader that polls with `since` set to the change number it last saw does not receive calls made at that same change number; a full read includes them.
+
+### Filters
+
+The record of a long contested game is large, and a reader often wants one part of it. Two filters narrow the export besides `since`:
+
+- `seat` (contested games only) names the seat whose records to keep, whichever seat calls — the calling seat is the one its seat id names — and keeps the log entries and call records whose `seat` is that seat number — the calls that seat made — and the snapshots whose `seat` is that seat number, the snapshots of its turns. The `new_game` entry and call record, which no seat makes, are kept by no `seat`. Entries other seats made are left out even when they changed that seat: what a call did to another seat (a resolution, an automatic pass, an attack on it, a card it drew) is recorded on the entry of the call that caused it, and a reader following one seat's fortunes reads the whole log.
+- `tools` keeps the log entries and call records whose `tool` is one of the tool names listed, each name given exactly as the tool is called. A snapshot belongs to no tool, so `tools` keeps or drops none; `include_snapshots: false` leaves snapshots out.
+
+Filters combine: a record is kept only when every filter given keeps it, `since` included, so a snapshot is kept under `since` and `seat` when the entry that wrote it is numbered after `since` and the snapshot describes that seat. A filter applies to the sections the call includes and never to the `game` object, which is always whole. A kept record is exported exactly as an unfiltered export gives it: every field, its `public` and `private` events, and whether each reminder was answered, judged over every entry of the game.
+
+A filter only leaves records out. `seat` is not that seat's view of the game: an entry it keeps holds the other seats' hidden zones as every entry does, and the seat ids of opposing seats were redacted when the record was stored (see Seat Ids in Records), so no filter can show more than the whole record shows.
+
+A filter that cannot be applied is an error, answered like every `get_log` error in the text format: `seat` in a goldfish game, whose records name no seat; a `seat` that is not one of the game's seat numbers, the error listing them; a `tools` that names something that is not one of the service's tools, the error naming each such name and listing the tools; and an empty `tools`. Every such error, and every malformed argument, is named in the one response. A `seat` that is not a whole number, or a `tools` that is not a list, is a malformed argument, as for any parameter. A filter that matches nothing is not an error: `since` at or past the game's change number, or a `seat` that has made no call, gives empty sections.
 
 ## Seat Ids in Records
 
@@ -232,7 +279,19 @@ A `get_log` call that cannot be answered — an unknown game, a malformed argume
 | An `effect` answering a reminder whose item is countered | Answered on acceptance | Answered only when the item resolves | The reminder detects a forgotten trigger, not a trigger that failed. |
 | Other seats' reminders in a snapshot | Every seat's unanswered reminders of the table turn, each naming its seat | The active seat's only; carried to the reminded seat's next snapshot | Reminders are judged per table turn and snapshots are keyed by table turn; the tested seat's missed triggers on other seats' turns are what an analysis looks for. |
 | A game ended during mulligans | No snapshot | A snapshot at table turn 0 | No turn has begun and no seat is active; the log entries already hold every hand. |
+| Where a `play`'s cast triggers are recorded | Their own `cast_triggers` list on the `play`'s entry, empty on every other entry | Folded into `delta`; one entry per cast trigger; only in `arguments` | A spell's delta and its triggers' deltas are applied at different moments and may be restated apart; a log entry records one accepted call; `arguments` hold what was received, not what was applied. |
+| Where an `ask`'s answer text is recorded | The entry's `outcome` and its public events | Only in `arguments` | `outcome` holds what an answer did that no other field carries, and the public events are what the other seats are shown; `arguments` are kept as received, before the text is held on one line. |
 | Positional fields of an entry | The game before the call | The game after the call | A call is recorded where it was made; what it moved the game to is in `steps` and the next entry. |
+| Where every seat's state at the end of a contested game is recorded | `final` in the outcome of the tested seat's `end_game` entry | One end-of-game snapshot per seat; one end-of-game snapshot listing every seat; stated by the caller in `notes` | A snapshot per seat would key snapshots by seat as well as table turn, a migration of every stored snapshot, and break "one snapshot per table turn"; an end-of-game snapshot is written only when the turn has none, so a game ended in `cleanup` or during mulligans would lose the boards; every contested game that ends has exactly one such entry, which needs no change to storage. The service already holds the state, so the caller restating it could only add mistakes. |
+| An eliminated seat in `final` | Listed, as it now is: empty zones, the life it was eliminated at | Left out; its board as it was when it was eliminated | One object per seat in turn order lets a reader index seats without checking for gaps; the cards it owned have left the game, and its last board is in the snapshot of its last turn and the events of the entry that eliminated it. |
+| A permanent in `final` | The snapshot's `{ name, tapped, counters }` | Adding its owner and instance id | A reader reads a board the same way in every record; a change of control is in the entries' deltas. |
+| `final` in a goldfish game | None | `final` on every game's `end_game` entry | Every goldfish snapshot describes its one seat, and a goldfish game's records keep the shape readers rely on. |
+| What `seat` keeps | Records of calls the seat made, and the snapshots of its turns | Also entries that changed the seat; that seat's view, its `private` events in place of `public` | "Made by" is one field compared; "changed" has no single definition (a resolution, an automatic pass, an attack, a draw) and would grow with every new field. A view would make a filter show less than the record, and `get_log` hides nothing from any seat. |
+| How entries are selected by kind | `tools`, matching the entry's `tool` | A new entry kind field; event types | The tool is already what names what an entry records, on entries and call records alike; event types would select inside entries rather than entries. |
+| `tools` and snapshots | Snapshots kept or dropped as without `tools` | Only snapshots written by kept entries; no snapshots | A snapshot belongs to a turn, not to the call that happened to end it; `include_snapshots` already leaves them out. |
+| A filter naming no tool or no seat of the game | Error | Accepted, matching nothing | A misspelt tool name or a wrong seat number would otherwise read as "nothing happened" (tenet *Pushback over fidelity*). |
+| The shape of `tools` and `seat` | `tools` a list of names (a JSON string holding one is decoded); `seat` a whole number; any other value a malformed argument | `tools` given as one name in text, as `get_state`'s `card` is; a `seat` given as text answered with the seat numbers | `tools` names a set of tools, and the list parameters already share one shape; a value of the wrong type is shaped away at the edge for every parameter, so one rule covers every argument. |
+| Taking in a long log | Filters on `get_log` | A summary mode (life, commander damage and cards cast per turn); writing the export to a file path the caller names | A summary is statistics, which the service does not compute (see the HLD's non-goals); the service and the agent may not share a disk, and a file a hosted service writes would be on its own (tenet *Build for local, don't block hosted*). |
 
 ## Open Questions & Future Decisions
 

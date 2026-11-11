@@ -84,7 +84,7 @@ def _not_your_call(asked: Asked | None) -> str:
     )
 
 
-# @spec TOOL-026, TOOL-050, TOOL-067, TOOL-068
+# @spec TOOL-026, TOOL-050, TOOL-067, TOOL-068, TOOL-097
 def error_text(error: Error) -> str:
     """The one wording of an error's kind, filled with its facts."""
     return _through_ask(error, _error_text(error))
@@ -142,11 +142,21 @@ def _error_text(error: Error) -> str:
                 " seat declares its own blocks and each attacker attacks a seat named in targets."
             )
         case ErrorKind.NO_SUCH_SEAT:
-            return f"There is no seat S{error.number} in this game."
+            seats = f" Its seat numbers are {names}." if names else ""
+            return f"There is no seat S{error.number} in this game.{seats}"
         case ErrorKind.SEAT_OUT:
             return f"S{error.number} has been eliminated."
         case ErrorKind.HIDDEN_ZONE:
             return f"{subject} is in a hidden zone of S{error.number}."
+        case ErrorKind.NO_CARD_SEEN:
+            return f"{subject} names no card you can see."
+        case ErrorKind.LIBRARY_CARD_BY_ID:
+            return f"{subject} is in your library; ask for a library card's rules text by name."
+        case ErrorKind.CARD_WITH_DETAIL:
+            return (
+                "Give card or detail, not both: get_state answers either the listing or the"
+                " rules text."
+            )
         case ErrorKind.TOO_MANY_REVEALS:
             return (
                 "A delta holds at most one of look, search and look_at_hand."
@@ -158,6 +168,21 @@ def _error_text(error: Error) -> str:
             return 'damage in a contested game is a map from seat number to damage, like {"2": 3}.'
         case ErrorKind.WRONG_ANSWER:
             return f"A {error.zone} choice is not answered with {subject}. Answer it with {names}."
+        case ErrorKind.ANSWER_TEXT_TOO_LONG:
+            return (
+                f"The answer text is {error.number} characters long once held on one line;"
+                f" it may hold at most {error.expected}. Shorten it and send again."
+            )
+        case ErrorKind.LAND_NOT_CAST:
+            return (
+                f"{subject} is a land, and a land is not cast, so it takes no cast_triggers."
+                " Record a trigger on playing it with effect."
+            )
+        case ErrorKind.CAST_TRIGGER_REVEALS:
+            return (
+                f"The cast trigger {subject} holds look or search, which a goldfish game"
+                " cannot stop the play for. Record such a trigger with effect after the play."
+            )
         case ErrorKind.ANSWER_MAY_NOT_REVEAL:
             return (
                 f"The delta answering a choice may not hold {subject}:"
@@ -344,6 +369,10 @@ def _error_text(error: Error) -> str:
             return f"{subject} was not found, so its definition needs a type_line."
         case ErrorKind.BAD_TIMEOUT:
             return "timeout must be a number of seconds from 1 to 60."
+        case ErrorKind.UNKNOWN_TOOL:
+            return f"tools names {subject}, which are not tools. The tools are {names}."
+        case ErrorKind.NO_TOOLS_NAMED:
+            return f"tools names no tool; name at least one of {names}, or leave tools out."
         case ErrorKind.CHANGED_UNDERNEATH:
             return "The game changed while this call was applied, so nothing was. Send it again."
         case ErrorKind.INTERNAL_FAILURE:

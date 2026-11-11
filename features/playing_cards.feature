@@ -63,3 +63,22 @@ Feature: Playing cards
     And the response does not say "on the stack"
     And the response does not say "passed automatically"
     And the status line has no seat, Act or Stack field
+
+  # @spec PLAY-135, TOOL-086
+  Scenario: A spell's cast trigger is applied before the spell, and the response says so
+    Given "Llanowar Elves" is in my hand
+    And "Forest" is on the battlefield
+    When I cast "Llanowar Elves" with cast triggers [{"source": "Thousand-Year Storm", "delta": {"draw": 1}}]
+    Then the response is OK
+    And the response says "Cast trigger: Thousand-Year Storm."
+    And "Llanowar Elves" is on the battlefield
+
+  # @spec GAME-186, GAME-187, TOOL-095
+  Scenario: Asking for a card's rules text answers it in place of the listing
+    Given "Sol Ring" is in my hand
+    When I ask for the rules text of "Sol Ring"
+    Then the response is OK
+    And the response says "Rules text of 1 card."
+    And the response says "Sol Ring {1} · Artifact"
+    And the response says "  {T}: Add {C}{C}."
+    And the response does not say "Hand ("

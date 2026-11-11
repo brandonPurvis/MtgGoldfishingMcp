@@ -14,7 +14,10 @@ PURPOSES = {
     "load_deck": "Load a Commander deck list once and get a deck id to start games with.",
     "new_game": "Start a goldfish game on a loaded deck: shuffles and deals seven.",
     "mulligan": "Keep the opening hand or take a mulligan.",
-    "get_state": "List the hand, battlefield and other zones when the status line is not enough.",
+    "get_state": (
+        "List the hand, battlefield and other zones when the status line is not enough,"
+        " or give cards' rules text."
+    ),
     "play": "Play a land or cast a spell, stating what it does.",
     "effect": "Record anything that happens without playing a card.",
     "choose": "Finish a look or search by saying where the revealed cards go.",
@@ -51,8 +54,12 @@ def _ids(definition: ToolDefinition) -> str:
     return definition.name
 
 
+DESCRIBED = [pytest.param(d, id=d.name) for d in TOOL_DEFINITIONS]
+"""Every tool's definition; `get_state` gains `card` and a purpose that names rules text."""
+
+
 # @spec TOOL-011
-@pytest.mark.parametrize("definition", TOOL_DEFINITIONS, ids=_ids)
+@pytest.mark.parametrize("definition", DESCRIBED)
 def test_a_description_opens_with_the_tools_purpose_in_one_sentence(
     definition: ToolDefinition,
 ) -> None:
@@ -60,7 +67,7 @@ def test_a_description_opens_with_the_tools_purpose_in_one_sentence(
 
 
 # @spec TOOL-011
-@pytest.mark.parametrize("definition", TOOL_DEFINITIONS, ids=_ids)
+@pytest.mark.parametrize("definition", DESCRIBED)
 def test_a_description_says_what_the_service_does_automatically_after_its_purpose(
     definition: ToolDefinition,
 ) -> None:
@@ -182,10 +189,13 @@ GOLDFISH_DESCRIPTIONS: dict[str, str] = json.loads(
     (FIXTURES / "goldfish_tool_descriptions.json").read_text(encoding="utf-8")
 )
 """Each tool's description as an agent playing a goldfish game reads it: the descriptions the
-service gave before contested games existed, with `new_game`'s `starting_life` and `choose`'s
-optional `selections`, which goldfish games also take, and with `attack`'s `attackers` not marked
-required, since a contested game's `attack` stating trample damage gives none."""
+service gave before contested games existed, with `new_game`'s `starting_life`, `choose`'s
+optional `selections`, `get_state`'s `card` and `get_log`'s `tools`, which goldfish games also
+take (with the errors `tools` can meet), and with
+`attack`'s `attackers` not marked required, since a contested game's `attack` stating trample
+damage gives none."""
 GOLDFISH_GUIDE = (FIXTURES / "goldfish_server_instructions.txt").read_text(encoding="utf-8")
+"""The guide for every game, as the service gives it to a goldfish agent."""
 CONTESTED = "Contested games:"
 CONTESTED_TOOLS = ("pass", "wait")
 """Tools that exist for contested games, and say so in their purpose."""
@@ -216,8 +226,11 @@ def _contested_part(text: str) -> str:
     return text.partition(CONTESTED)[2]
 
 
-# @spec TOOL-033
-@pytest.mark.parametrize("name", list(GOLDFISH_DESCRIPTIONS))
+# @spec TOOL-033, TOOL-109
+@pytest.mark.parametrize(
+    "name",
+    [pytest.param(name) for name in GOLDFISH_DESCRIPTIONS],
+)
 def test_a_goldfish_agent_reads_every_description_as_before_once_contested_parts_are_left_out(
     name: str,
 ) -> None:
@@ -320,3 +333,171 @@ def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_tra
         "before combat damage",
     ):
         assert words in contested, words
+
+
+# @spec TOOL-084
+def test_the_contested_section_says_to_state_cast_triggers_in_the_play_that_casts() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in ('"whenever you cast" triggers', "`cast_triggers`", "resolves within that call"):
+        assert words in contested, words
+
+
+# @spec TOOL-085
+def test_the_contested_section_says_to_give_a_named_card_or_guess_as_text() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in ("name a card, guess or choose a number", "`text`", "every seat sees it"):
+        assert words in contested, words
+
+
+# ------------------------------------------------------------------ rules text and waiting
+
+
+# @spec TOOL-098
+@pytest.mark.parametrize(
+    "words",
+    [
+        "card name or instance id, or a list of them",
+        "rules text",
+        "in place of the listing",
+        "Only cards you may see",
+        "Not given together with detail",
+    ],
+)
+def test_get_state_describes_card_for_every_game(words: str) -> None:
+    meaning = next(p.meaning for p in DEFINITIONS["get_state"].parameters if p.name == "card")
+
+    assert words in meaning
+    assert not meaning.startswith(CONTESTED)
+
+
+# @spec TOOL-098
+def test_get_state_gives_an_example_of_card() -> None:
+    (card,) = [p for p in DEFINITIONS["get_state"].parameters if p.name == "card"]
+
+    assert f"Example: {json.dumps(card.example)}" in DEFINITIONS["get_state"].description
+
+
+# @spec TOOL-099
+def test_the_wait_description_says_still_waiting_means_the_seat_to_act_has_not_acted() -> None:
+    contested = _contested_part(DEFINITIONS["wait"].automatic)
+
+    for words in ("still waiting", "has not yet acted", "call wait again"):
+        assert words in contested, words
+
+
+# @spec TOOL-100
+def test_the_guide_for_every_game_says_to_read_rules_text_rather_than_rely_on_memory() -> None:
+    for words in ("rules text", "`get_state` and `card`", "rather than relying on memory"):
+        assert words in GOLDFISH_GUIDE, words
+        assert words in SERVER_INSTRUCTIONS, words
+
+
+# @spec TOOL-101
+def test_the_contested_section_says_to_call_wait_again_while_still_waiting_however_long() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in (
+        "Until the game ends or your seat is eliminated",
+        "call `wait` again after every answer that says you are still waiting",
+        "however long",
+        "not a stalled game",
+    ):
+        assert words in contested, words
+
+
+# @spec TOOL-102
+def test_the_contested_section_gives_wait_s_default_and_most_and_says_to_keep_the_default() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in (
+        "30 seconds unless you give one, at most 60",
+        "Leave it at the default",
+        "wait longer than 60 seconds",
+    ):
+        assert words in contested, words
+
+
+# @spec TOOL-108
+def test_the_contested_section_says_a_failed_or_empty_wait_is_the_client_giving_up() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in (
+        "fails or comes back empty",
+        "your client stopped waiting",
+        "not that the game stalled",
+        "call `wait` again",
+    ):
+        assert words in contested, words
+
+
+# ------------------------------------------------------------------ reading the records
+
+
+def _get_log_parameter(name: str) -> str:
+    """The meaning of one of get_log's parameters; empty when get_log has none of that name."""
+    return next((p.meaning for p in DEFINITIONS["get_log"].parameters if p.name == name), "")
+
+
+# @spec TOOL-109
+@pytest.mark.parametrize(
+    "words",
+    [
+        "A list of tool names",
+        "keeps only the log entries and call records of calls to those tools",
+        "leaving the snapshots as they would be without it",
+    ],
+)
+def test_get_log_describes_tools_for_every_game(words: str) -> None:
+    meaning = _get_log_parameter("tools")
+
+    assert words in meaning
+    assert not meaning.startswith(CONTESTED)
+
+
+# @spec TOOL-109
+def test_get_log_gives_an_example_of_tools() -> None:
+    (tools,) = [p for p in DEFINITIONS["get_log"].parameters if p.name == "tools"]
+
+    assert f"Example: {json.dumps(tools.example)}" in DEFINITIONS["get_log"].description
+
+
+# @spec TOOL-110
+@pytest.mark.parametrize(
+    "words",
+    [
+        "a seat number",
+        "keeps only the log entries and call records of calls that seat made",
+        "the snapshots of that seat's turns",
+        "Refused in a goldfish game",
+    ],
+)
+def test_the_contested_part_of_get_log_describes_seat(words: str) -> None:
+    meaning = _get_log_parameter("seat")
+
+    assert meaning.startswith(CONTESTED)
+    assert words in meaning
+
+
+# @spec TOOL-110
+def test_get_log_gives_an_example_of_seat() -> None:
+    (seat,) = [p for p in DEFINITIONS["get_log"].parameters if p.name == "seat"]
+
+    assert f"- seat: {seat.meaning} Example: 2" in DEFINITIONS["get_log"].description
+
+
+# @spec TOOL-111
+@pytest.mark.parametrize(
+    "words",
+    [
+        "When the tested seat ends the game",
+        "the log records every seat's life, commander damage taken, hand, battlefield and"
+        " graveyard as the game ended",
+        "your verdict need not restate them",
+    ],
+)
+def test_the_contested_part_of_end_game_says_the_log_records_every_seat_s_board(
+    words: str,
+) -> None:
+    assert words in _contested_part(DEFINITIONS["end_game"].automatic)

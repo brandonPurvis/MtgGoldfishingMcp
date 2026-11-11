@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -72,6 +73,46 @@ def same_name(first: str, second: str) -> bool:
     return first.strip().casefold() == second.strip().casefold()
 
 
+_SLASH_SEPARATOR = re.compile(r"\s*(?://|/)\s*")
+
+
+def split_at_slash_separators(name: str) -> tuple[str, ...]:
+    """A requested name's parts between its slash separators; one part when it has none.
+
+    A slash separator is a `//`, or a `/` that is not part of one, with the spaces around it.
+    """
+    return tuple(_SLASH_SEPARATOR.split(name.strip()))
+
+
+class NameMatch(Enum):
+    """How a requested name matches a card, in the order a name resolves by."""
+
+    FULL_NAME = 0
+    FACE_NAME = 1
+    FACE_NAMES_WITH_SLASH_SEPARATORS = 2
+
+
+# @spec CARD-006, CARD-021
+def name_match(requested: str, full_name: str, face_names: Sequence[str]) -> NameMatch | None:
+    """How a requested name matches the card with this full name and these face names, if at all.
+
+    As written, it is the full name or a face name. With slash separators, it is split into
+    exactly one part per face, each part the name of the face in the same position.
+    """
+    if same_name(requested, full_name):
+        return NameMatch.FULL_NAME
+    if any(same_name(requested, face) for face in face_names):
+        return NameMatch.FACE_NAME
+    if "/" not in requested:
+        return None
+    parts = split_at_slash_separators(requested)
+    if len(parts) == len(face_names) and all(
+        part and same_name(part, face) for part, face in zip(parts, face_names, strict=True)
+    ):
+        return NameMatch.FACE_NAMES_WITH_SLASH_SEPARATORS
+    return None
+
+
 # @spec CARD-001, CARD-002
 @dataclass(frozen=True)
 class Card:
@@ -101,10 +142,13 @@ class Card:
     def front(self) -> Face:
         return self.faces[0]
 
-    # @spec CARD-006
+    def name_match(self, name: str) -> NameMatch | None:
+        """How a requested name matches this card, if at all."""
+        return name_match(name, self.name, [face.name for face in self.faces])
+
     def matches(self, name: str) -> bool:
-        """Whether a requested name is this card's full name or one of its face names."""
-        return same_name(name, self.name) or any(same_name(name, f.name) for f in self.faces)
+        """Whether a requested name matches this card by the name-matching rule."""
+        return self.name_match(name) is not None
 
     def face_named(self, name: str) -> int | None:
         """The index of the face a name refers to: 0 for the full name, or that face's index."""
@@ -114,6 +158,22 @@ class Card:
             if same_name(name, face.name):
                 return index
         return None
+
+
+# @spec CARD-007, CARD-022
+def resolve_name(name: str, cards: Iterable[Card]) -> Card | None:
+    """The card a requested name resolves to among these cards, if any.
+
+    A card the name matches as its full name comes first, then one it matches as a face
+    name, then one whose faces it names with slash separators. Among cards matching alike,
+    the one whose full name sorts first.
+    """
+    matching = [(match, card) for card in cards if (match := card.name_match(name)) is not None]
+    if not matching:
+        return None
+    return min(
+        matching, key=lambda found: (found[0].value, found[1].name.casefold(), found[1].name)
+    )[1]
 
 
 class LookupStatus(Enum):

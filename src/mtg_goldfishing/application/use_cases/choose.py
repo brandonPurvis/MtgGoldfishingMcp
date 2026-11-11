@@ -29,6 +29,7 @@ def choose(ports: Ports, arguments: Mapping[str, object]) -> Answer:
             override=override,
             decks=decks,
             restate=arguments.get("restate"),
+            text=arguments.get("text"),
         )
 
     return change_game(ports, TOOL, arguments, overridable(arguments, operate))

@@ -129,7 +129,7 @@ def test_a_restated_resolution_records_the_restated_delta_and_the_choose_has_no_
 
 
 # @spec REC-074
-def test_a_choose_answering_an_ask_has_no_outcome() -> None:
+def test_a_choose_answering_an_ask_without_answer_text_has_no_outcome() -> None:
     situation = two_seats(lambda b: b.with_hand("Grizzly Bears"), lands=False)
     an_effect(situation, S1, {"ask": [{"seats": [2], "text": "lose 1 life"}]}, immediate=True)
     choice = situation.game.pending[0].choice_id
@@ -138,6 +138,47 @@ def test_a_choose_answering_an_ask_has_no_outcome() -> None:
     entry = data(logged(situation, S2, "choose", {"choice_id": choice}, result))
 
     assert entry["outcome"] is None
+
+
+# @spec REC-084
+def test_a_play_records_its_cast_triggers_as_stated_with_the_items_they_became() -> None:
+    situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
+    triggers = [
+        {"source": "first", "delta": {"life": 1}, "choices": {"notes": "n"}},
+        {"source": "second", "delta": {"counter": ["Lightning Bolt"]}},
+    ]
+
+    entry = data(a_cast(situation, S1, "Lightning Bolt", delta=bolt_at(2), cast_triggers=triggers))
+
+    assert entry["cast_triggers"] == [
+        {"source": "first", "delta": {"life": 1}, "choices": {"notes": "n"}, "item": "s3"},
+        {
+            "source": "second",
+            "delta": {"counter": ["Lightning Bolt"]},
+            "choices": None,
+            "item": "s2",
+        },
+    ]
+
+
+# @spec REC-084
+def test_a_play_with_cast_triggers_records_the_spell_s_item_as_stacked() -> None:
+    situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
+    triggers = [{"source": "first", "delta": {"life": 1}}]
+
+    entry = data(a_cast(situation, S1, "Lightning Bolt", delta=bolt_at(2), cast_triggers=triggers))
+
+    assert entry["stacked"] == "s1"
+
+
+# @spec REC-084
+def test_a_cast_trigger_s_resolution_is_recorded_on_the_entry_of_the_call_that_caused_it() -> None:
+    situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
+    a_cast(situation, S1, "Lightning Bolt", cast_triggers=[{"source": "first", "delta": {}}])
+
+    (resolved,) = data(a_pass(situation, S2))["resolved"]
+
+    assert (resolved["item"], resolved["source"]) == ("s2", "first")
 
 
 # @spec REC-035

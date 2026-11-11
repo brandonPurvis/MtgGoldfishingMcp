@@ -149,3 +149,58 @@ def test_a_catalog_finds_a_card_on_a_refresh_lookup(new_catalog: CatalogFactory)
     catalog.look_up(["Cultivate"])
 
     assert catalog.look_up(["Cultivate"], refresh=True)["Cultivate"].status is LookupStatus.FOUND
+
+
+# @spec CARD-006, CARD-023
+@pytest.mark.parametrize(
+    "full_name",
+    [
+        "Fire // Ice",
+        "Valki, God of Lies // Tibalt, Cosmic Impostor",
+        "Gallifrey Falls // No More",
+    ],
+)
+def test_a_catalog_finds_a_multi_faced_card_by_its_full_name(
+    new_catalog: CatalogFactory, full_name: str
+) -> None:
+    result = new_catalog(()).look_up([full_name])[full_name]
+
+    assert (result.status, result.card and result.card.name) == (LookupStatus.FOUND, full_name)
+
+
+# @spec CARD-021
+@pytest.mark.parametrize(
+    ("requested", "full_name"),
+    [
+        ("Gallifrey Falls/No More", "Gallifrey Falls // No More"),
+        ("Fire/Ice", "Fire // Ice"),
+        ("fire / ice", "Fire // Ice"),
+        ("Fire//Ice", "Fire // Ice"),
+    ],
+)
+def test_a_catalog_finds_a_multi_faced_card_by_its_full_name_written_with_slashes(
+    new_catalog: CatalogFactory, requested: str, full_name: str
+) -> None:
+    result = new_catalog(()).look_up([requested])[requested]
+
+    assert (result.status, result.card and result.card.name) == (LookupStatus.FOUND, full_name)
+
+
+# @spec CARD-012, CARD-021
+@pytest.mark.parametrize("requested", ["Fire/Ise", "Ice/Fire", "Fire///Ice", "Sol/Ring"])
+def test_a_catalog_reports_a_name_with_slashes_naming_no_card_s_faces_in_order_as_not_found(
+    new_catalog: CatalogFactory, requested: str
+) -> None:
+    assert new_catalog(()).look_up([requested])[requested] == NOT_FOUND
+
+
+# @spec CARD-022
+def test_a_catalog_finds_a_card_with_a_slash_in_its_own_name_by_that_name(
+    new_catalog: CatalogFactory,
+) -> None:
+    result = new_catalog(()).look_up(["Summon: Choco/Mog"])["Summon: Choco/Mog"]
+
+    assert (result.status, result.card and result.card.name) == (
+        LookupStatus.FOUND,
+        "Summon: Choco/Mog",
+    )

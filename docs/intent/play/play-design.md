@@ -27,7 +27,9 @@ Every refusal is one of two kinds.
 - a seat number that is not in the game, or names an eliminated seat;
 - a delta key only a contested game has (`counter`, `control`, `ask`, `look_at_hand`, `life` or `damage` given per seat) used in a goldfish game, or `damage` given as a single number in a contested game;
 - `counter` naming something not on the stack;
-- a card played from outside the game whose card data cannot be obtained and for which no definition was given.
+- a card played from outside the game whose card data cannot be obtained and for which no definition was given;
+- `cast_triggers` on a `play` of a land, or a cast trigger that is malformed (see Cast triggers);
+- answer text given to a pending choice that is not an `ask`, or answer text longer than 200 characters (see Pending Choices).
 
 **Rule checks** are approximations from card data. A failed check refuses the call with an explanation, and nothing is applied. The agent may resubmit the same call with `override: "<reason>"`; the call is then applied and the override recorded.
 
@@ -49,7 +51,7 @@ When "cost not payable" is overridden, nothing is tapped and nothing is spent: t
 ## `play`
 
 ```
-play(game_id, card, from?, to?, delta?, choices?, pay?, expect?, reason?, override?)
+play(game_id, card, from?, to?, delta?, choices?, pay?, cast_triggers?, expect?, reason?, override?)
 ```
 
 Plays `card` — a land, a spell, or the commander.
@@ -67,6 +69,24 @@ Plays `card` — a land, a spell, or the commander.
 **Where it ends up.** `to` names the destination. When omitted: a permanent goes to the battlefield under the acting seat's control, with its `entered_turn` set; an instant or sorcery goes to its owner's graveyard.
 
 **Then the delta is applied** (below). In a contested game a spell is paid for and put on the stack, and its destination and delta wait for it to resolve (see `stack`); a land is applied at once.
+
+### Cast triggers
+
+A **cast trigger** is a triggered ability of the casting seat's own that triggers on its casting the spell: "whenever you cast an instant, copy it", "when you cast this spell, draw a card". The service never looks for one in card text; the casting seat states each one with the `play` that casts the spell, so that it resolves before the spell even when no other seat can respond (see `stack`).
+
+```
+CastTrigger {
+  source: string             // what triggered, free text as for `effect`
+  delta: Delta               // what the trigger does
+  choices: Choices | null    // recorded as for `effect`
+}
+```
+
+`cast_triggers` is a list of these, in the order they resolve: the first listed resolves first. An entry has `source` and `delta`, may have `choices`, and holds nothing else. A cast trigger's `choices` are recorded only: with no cost to multiply or add to and no card to define, its `x`, `extra_cost` and `definition` do nothing. A call with `expect` that puts cast triggers on the stack compares its expected values once the last of them is on, before any resolves. A cast trigger has no cost of its own: a trigger that asks for a payment as it resolves states what is tapped in its delta, as an overridden unpayable cost does. Each cast trigger's delta is checked as an `effect`'s would be when the call is made — in a contested game, as for any delta that goes on the stack — and an error in any of them refuses the whole call. An omitted or empty `cast_triggers` changes nothing. A land is not cast, so `cast_triggers` on a `play` whose played face is a land is an error; a trigger on playing a land is recorded with `effect`.
+
+Only the casting seat's own cast triggers are stated this way, the spell's own "when you cast this spell" among them. Another seat's trigger on the same cast ("whenever an opponent casts a spell") is that seat's to record, with `effect`, in the first window it is asked in after the cast (see `stack`).
+
+In a contested game each cast trigger is put on the stack as an ability above the spell (see `stack`). In a goldfish game, which has no stack, the call applies them in the order a contested game would resolve them when no seat responds: the cost is paid, the spell's card leaves the zone it was played from, each cast trigger's delta is applied in the order listed, the spell's card found by none of them, and then the card goes to its destination and the spell's delta is applied. A goldfish game holds at most one pending choice, created by the last part of a call, so a cast trigger's delta there may not hold `look` or `search`; such a trigger is recorded with `effect` after the `play`.
 
 ## `effect`
 
@@ -121,7 +141,7 @@ Keys are applied in the order listed above, whatever order the agent wrote them 
 
 Details that are not obvious from the shape:
 
-- **`move`** finds each named card among the acting seat's hand and the public zones of every seat — battlefield, graveyard, exile, command — in that order, and the response says which zone it came from. The zones are searched one after another, each across every seat before the next zone is tried, and within a zone the acting seat's cards come first (see `game`); so a removal spell that names a card finds an opponent's copy on the battlefield before the acting seat's own copy in its graveyard. It never takes cards from a library; that is `fetch`. A card goes to its **owner's** hand, graveyard, exile, library or command zone, whoever moves it; to the battlefield it goes under the acting seat's control. A card moved to the battlefield from the battlefield leaves and arrives again: its counters and tapped state are cleared, its `entered_turn` is set, and the acting seat controls it, whoever did before; a later `effect` with `control` gives it to another seat. A spell's card on the stack can be moved only by the delta that counters its item: for such a delta a name means the countered card first, and for any other delta `move` does not look on the stack, so a name shared with a spell on the stack moves the card in hand or in a public zone, and a name or instance id found only on the stack is an error.
+- **`move`** finds each named card among the acting seat's hand and the public zones of every seat — battlefield, graveyard, exile, command — in that order, and the response says which zone it came from and where it went. The zones are searched one after another, each across every seat before the next zone is tried, and within a zone the acting seat's cards come first (see `game`); so a removal spell that names a card finds an opponent's copy on the battlefield before the acting seat's own copy in its graveyard. It never takes cards from a library; that is `fetch`. A card goes to its **owner's** hand, graveyard, exile, library or command zone, whoever moves it; to the battlefield it goes under the acting seat's control. A card moved to the battlefield from the battlefield leaves and arrives again: its counters and tapped state are cleared, its `entered_turn` is set, and the acting seat controls it, whoever did before; a later `effect` with `control` gives it to another seat. A spell's card on the stack can be moved only by the delta that counters its item: for such a delta a name means the countered card first, and for any other delta `move` does not look on the stack, so a name shared with a spell on the stack moves the card in hand or in a public zone, and a name or instance id found only on the stack is an error.
 - **`fetch`** takes cards from the library by name. A name not in the library is an error. The cards are taken out, the library is shuffled, and only then are any cards destined for `library_top` or `library_bottom` put back, so a card fetched to the top of the library stays on top. Each list fetched to the library is placed top to bottom, its first-named card topmost.
 - **`draw`** shows exactly the cards drawn.
 - **`damage`** in a goldfish game adds to the pooled damage against the imaginary opponents; an effect that hits each opponent for 2 is `damage: 6`. In a contested game it is a map from seat number to damage, and each amount is taken from that seat's life; it never counts as commander damage.
@@ -152,6 +172,8 @@ In a contested game a delta may reach another seat in these ways only:
 - `life` and `damage` per seat;
 - `ask`, for anything that seat must decide or that touches its hand or library (a discard, a sacrifice, a draw);
 - `look_at_hand`, to see its hand.
+
+A move that reaches another seat is accepted like any other: taking a card from an opponent's graveyard to the battlefield is a real play in Magic, and the service does not judge whether the acting seat's card allows it. What it does is say so. Wherever a card moved by a delta's `move`, or by the answer to a `hand` pending choice, leaves or enters a zone of a seat other than the seat whose delta or answer moved it, the response names that seat with the zone: `Moved Sol Ring: S2's graveyard → battlefield.` A battlefield permanent's zone is its controller's; a hand, library, graveyard, exile or command zone is its owner's; the stack is no seat's. A move the agent did not mean — a name that found an opponent's card where it meant its own — is then plain in the response that applied it (tenet *Best guess, shown*), and the agent corrects it with another `effect`.
 
 A name is never looked for in another seat's hand or library. In `move`, `discard`, `fetch` or `tap`, a name that matches nothing where the operation looks is the same error whether or not another seat holds such a card, since a different error would say what is in that seat's hand; in a contested game the error adds that other seats' hands and libraries are reached through `ask`. An instance id of a card in another seat's hand or library is an error saying that the card is in a hidden zone of that seat, named by seat number, and that such zones are reached through `ask`, without saying which of the two zones the card is in; an instance id's owner and its absence from every public zone are already in view (see `game`).
 
@@ -203,7 +225,7 @@ A `look` or `search` that reveals no cards creates no pending choice: the call c
 While a choice is pending the game's status is `pending_choice` (see `game`).
 
 ```
-choose(game_id, choice_id, selections?, rest_order?, delta?, restate?, blocks?)
+choose(game_id, choice_id, selections?, rest_order?, delta?, text?, restate?, blocks?)
 ```
 
 Each kind is answered with its own argument; any other argument given is an error.
@@ -212,7 +234,7 @@ Each kind is answered with its own argument; any other argument given is an erro
 |---|---|
 | `look`, `search` | `selections`, and for `look` optionally `rest_order` |
 | `hand` | `selections`, and optionally `delta` holding only `control` |
-| `ask` | `delta`: the answering seat's own delta, applied at once; it may not create a pending choice |
+| `ask` | `delta`: the answering seat's own delta, applied at once; it may not create a pending choice; and optionally `text`, the answer text |
 | `resolve` | `restate`, or nothing (see `stack`) |
 | `blocks` | `blocks` (see `combat`) |
 
@@ -221,6 +243,10 @@ Each kind is answered with its own argument; any other argument given is an erro
 For a `hand` choice, revealed cards not selected stay in the hand they were shown from, and a selected card goes to its owner's zones: its owner's graveyard, exile, library or hand. Selected to the battlefield, it enters under its owner's control, unless the answer's `delta` gives it to another seat with `control`, as when the looking seat puts the card onto the battlefield under its own control. That `delta` may hold `control` alone, naming only cards selected to the battlefield; anything else in it is an error.
 
 The service does not judge an `ask` answer against its `text`; the answering seat is trusted, as every seat is. Its delta may hold any key except those that create a pending choice, with the reach any delta of that seat has, and it may be omitted or empty when the seat has nothing to do.
+
+Some effects ask a seat for words rather than a change: name a card, guess, choose a number, choose a color. The answer to an `ask` may carry **answer text** in `text` saying what the seat named, guessed or chose ("Lightning Bolt", "7"), with or without a delta. Naming and guessing are announced at the table in Magic, so the answer text is public: every seat is shown it with the answer (see `game`), and it is recorded. The service never judges it, never compares it with the asking `text` or with the answer's delta, and never applies it: what follows from the named card is stated by the seats' deltas, the answering seat's own or the asking seat's later ones. The answer text is held with surrounding whitespace removed and every run of whitespace inside it, line breaks included, as one space, so that it reads on one line; text that is empty once so held counts as no answer text. Held text longer than 200 characters is an error: it would be repeated in every other seat's digest, and no card name or guess needs more.
+
+Answer text is accepted only for an `ask`. Every other kind is answered by structured arguments that say the whole answer — cards selected, blocks, a restated delta — and a second, free-text channel beside them would carry nothing the service or the other seats could rely on.
 
 A wrong `choice_id`, a choice addressed to another seat, or a name that was not revealed is an error. Selecting nothing is allowed.
 
@@ -250,6 +276,8 @@ Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax
 | Decisions another seat owes | `ask`, answered by that seat's own delta | Structured kinds per effect (sacrifice, discard, draw) | One shape covers every such effect; the service would only be checking what it does not understand. |
 | Where moved cards go | Their owner's zones | The acting seat's zones | A card always goes to its owner's graveyard, hand, library or exile in Magic, and records follow the owner. |
 | A card taken from another seat's hand to the battlefield | Enters under its owner's control unless the answer's `control` says otherwise | Enters under the looking seat's control | Most effects that take a card from a hand discard or exile it, and one that puts it onto the battlefield does not always give it to the looking seat; the owner is the default every other move uses, and one key states the exception. |
+| A `move` out of another seat's public zone | Accepted, and the response names that seat with the zone | Refused, or a rule check, unless the acting seat's card allows it; checked against the card's rules text | Reanimating or exiling another seat's card is ordinary Magic, so a refusal would block real plays (tenet *It's the agent's simulation*); checking the card's text means validating targets and modes, a non-goal. Naming the seat makes a mistaken move visible at once. |
+| Which zones a move names a seat for | Any zone, left or entered, of a seat other than the seat whose delta or answer moved the card | Only the zone left | A card sent to another seat's hand or graveyard is as easy to misread as one taken from it; one rule covers both ends. |
 | Search order of `move` across seats | Zone by zone, each zone across every seat, the acting seat first within a zone | Seat by seat, all of the acting seat's zones before any other seat's | Removal names a permanent far more often than a card in a graveyard; seat-first would exile the acting seat's own graveyard copy in place of the opponent's permanent in a mirror match. |
 | A name that might be in another seat's hand or library | Never looked for there; one not-found error either way | A distinct error when another seat holds the card | A distinct error would tell the acting seat what is in that hand or library. |
 | A permanent that changes controller | Counts as arrived this turn; tapped state and counters kept | `entered_turn` unchanged | A creature taken this turn cannot attack or tap for mana in Magic unless it has haste; the rule checks then say so, and the agent that knows better lists it in `haste` or overrides. |
@@ -259,6 +287,13 @@ Allowed keys: `hand`, `lands`, `untapped_lands`, `life`, `pool`, `library`, `tax
 | Tax on another seat's commander cast from the command zone | The commander's own count sets the tax and rises | No tax and no count for a seat that does not own it | Commander tax is defined per commander; a second count per casting seat would be a rule with no card behind it. |
 | `damage` in a contested game | A map from seat number | A single number split by the service | There is no pool to split: each seat's life is its own, and splitting would be a decision. |
 | Timing check across turns | Sorcery speed means the caster's own main step with an empty stack | Any main step | In a contested game it is often another seat's main step; casting a sorcery then is the error the check exists to catch. |
+| How a seat states its cast triggers | A `cast_triggers` list on the `play` that casts the spell | A window in which the caster is asked first after casting; a separate `effect` after the `play`; the service reading "whenever you cast" in card text | A window for the caster would cost a call on every spell, most of which have no cast trigger. A later `effect` arrives too late in a contested game, where a spell nobody can answer resolves within the `play`. Reading card text for triggers is a non-goal: the controller states its triggers. |
+| What a cast trigger carries | `source`, `delta` and optionally `choices`, the shape of an ability `effect` puts on the stack | Also `pay`; also `immediate` | One shape for every held ability. Cast triggers rarely cost anything, and the few that ask for a payment as they resolve state what is tapped in their delta; a cost paid with the spell's would make one call pay two costs from one auto payment. A trigger is never immediate: resolving before the spell is its point. |
+| Order of several cast triggers | The first listed resolves first | The first listed goes on the stack first and resolves last | An agent lists what happens in the order it happens; that reading also serves a goldfish game, which has no stack to picture. |
+| Cast triggers in a goldfish game | Accepted, applied before the spell's card is moved and its delta applied | An error, as for keys only a contested game has; applied after the spell | One call means the same in both kinds of game, and the order matches what a contested game resolves when no seat responds. A cast trigger is not a matter between seats, so it has no reason to be contested-only. |
+| A goldfish cast trigger that would reveal cards | An error; recorded with `effect` after the `play` | A pending choice created partway through the call, the rest waiting | A goldfish game holds at most one pending choice, always created last; a call that stops halfway would need a stack the goldfish game does not have. |
+| Free text on an answer | `text` on the answer to an `ask` only, public, never judged | On every kind of answer; private to the asking seat; a structured "named card" field | Only an `ask`'s requirement is free text the service cannot structure. Naming a card or a guess is announced at the table. A named card checked against card data would be the service judging an answer, which it does for no `ask`. |
+| Long or multi-line answer text | Whitespace runs held as one space; over 200 characters an error | Truncated when shown; no limit | Every other seat reads the text in its digest; truncation would hide part of an answer the asking seat must check, and a line break would split one digest line in two. |
 
 ## Open Questions & Future Decisions
 

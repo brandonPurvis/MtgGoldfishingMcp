@@ -10,3 +10,4 @@ MTG Goldfishing keeps the state of a Commander goldfish game you play against th
 8. Every response ends with a status line (turn, step, hand, lands, mana pool, life, damage dealt, commander damage, commander tax); use `get_state` only when that is not enough.
 9. The status line ends with the game's change number (`#41`). Pass it as `after` on your next changing call so that a call sent twice is applied once.
 10. When a notice says an end condition is reached, or you judge the game decided, call `end_game` with the result and your verdict. `get_log` returns the game's records as JSON.
+11. When you are unsure what a card does, read its rules text with `get_state` and `card` rather than relying on memory.

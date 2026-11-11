@@ -32,6 +32,10 @@ _Avoid_: Card info, oracle data
 One named, castable side of a card; a single-faced card has exactly one.
 _Avoid_: Side, half
 
+**Slash separator**:
+In a requested card name, a `//`, or a `/` that is not part of one, with the spaces around it, read as the boundary between two face names of one card.
+_Avoid_: Slash reading, split name
+
 **Card definition**:
 An agent-supplied description of a card that replaces the fetched card data for that card within one loaded deck.
 _Avoid_: Card override, custom card
@@ -189,6 +193,10 @@ _Avoid_: Queue, chain, pending plays
 **Stack item**:
 One play or effect on the stack, with its controller and the delta that controller stated.
 _Avoid_: Stack entry, spell object
+
+**Cast trigger**:
+A triggered ability of the casting seat's own that triggers on its casting a spell, stated by that seat together with the spell and resolving before it.
+_Avoid_: Cast window, on-cast ability
 
 **Resolve**:
 To apply the delta of the newest item on the stack, once every other seat has passed on it.

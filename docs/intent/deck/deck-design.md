@@ -31,7 +31,7 @@ Each line is `<count> <name>`, `<count>x <name>`, or a bare `<name>` (count 1). 
 
 When a commander also appears in `cards`, one listed copy of it is the commander; any further copies stay entries, and the singleton check judges them. The deck is the commander or commanders plus every other entry.
 
-A card named on more than one line — in any letter case, by its full name or by a face name — has its counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
+Names are resolved by the card catalog's name-matching rule (see `card-data`): a card's full name or a face name, in any letter case, and a multi-face card's full name written with `/` in place of ` // `, as deck sites often export it (`1 Fire/Ice`). A card named on more than one line — in any letter case, by its full name, by a face name, or by its full name written with `/` — is one entry under the card's full name, with the counts added together. A count of zero or less is an error naming the line. Because any text is a possible card name, a stray line such as a section heading is caught as an unresolved name rather than as a format error.
 
 ### Card definitions
 
@@ -51,7 +51,7 @@ CardDefinition {
 }
 ```
 
-A definition replaces fetched card data field by field for that card within this loaded deck: fields the definition gives are used, the rest come from Scryfall. For a name Scryfall does not have, `type_line` is required and other missing fields are empty. Definitions are accepted for any card, found or not; it is the agent's simulation. They live with the loaded deck and never change the shared card cache.
+A definition replaces fetched card data field by field for that card within this loaded deck: fields the definition gives are used, the rest come from Scryfall. For a name Scryfall does not have, `type_line` is required and other missing fields are empty. Definitions are accepted for any card, found or not; it is the agent's simulation. They live with the loaded deck and never change the shared card cache. A definition's `name` is matched to a card in the deck by the same name-matching rule as the list, so a definition named `Fire/Ice` applies to `Fire // Ice`.
 
 `produces` given as a list is a choice between the options. A card with `produces` is treated as a mana source that taps for that mana at no other cost.
 
@@ -80,6 +80,8 @@ These are rule checks: each failure is reported, and the load is refused unless 
 | Legality | Every card is legal in Commander. A card supplied only by definition passes. |
 | Commander eligibility | Each commander is a legendary creature, or its rules text says it can be your commander. |
 
+The legality check names every card in the deck that is not legal in Commander, commanders included. A card banned in Commander is not legal in it, so every banned card is named, and one `override` loads the deck with all of them.
+
 Pairings between two commanders (partner, background, and similar) are not checked.
 
 ## Deck Id
@@ -107,6 +109,12 @@ On success the response states the id, card count and commanders, then, when non
 OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.
 Mana read with assumptions: Nimbus Maze (ignores activation condition), Shrine of the Forsaken Gods (ignores conditional bonus)
 Mana not read: Mana Flare
+```
+
+A load refused by its deck checks is answered `REJECTED`, naming each failure, and says that the same call with `override` and a reason loads the deck anyway:
+
+```
+REJECTED Not legal in Commander: Dockside Extortionist, Mana Crypt. Resubmit with override to load the deck anyway.
 ```
 
 ## Decisions & Alternatives

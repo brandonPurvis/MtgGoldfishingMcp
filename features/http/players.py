@@ -19,8 +19,9 @@ from tests.support.responses import digest_lines, headline
 STARTED = re.compile(r"^OK Started contested game (g\w+) with seed (\d+)\. Seats in turn order:$")
 SEAT_LINE = re.compile(r"^S(\d+) (g\w+): deck (\w+), life (\d+)(, the tested seat)?\.$")
 TURN = re.compile(r"^(?:Out · )?T(\d+) (\w+) \(S(\d+)\) · ")
-ACT = re.compile(r" · Act (you|S\d+) (\w+) · ")
-MULLIGAN_ACT = re.compile(r"^Mulligan \d+ · Hand \d+ · Act ([^#]+) · #\d+$")
+ACT = re.compile(r" · Act (you|S\d+) (\w+)(?: \([^)]*\))? · ")
+MULLIGAN_ACT = re.compile(r"^Mulligan \d+ · Hand \d+ · Act ([^#(]+?)(?: \([^)]*\))? · #\d+$")
+"""`Act` and the seats it names; a time asked may follow them in parentheses."""
 CHANGE = re.compile(r"#(\d+)$")
 CHOICE = re.compile(r"Choice (x\d+) \((\w+)\) for S(\d+)")
 SEAT_HEADER = re.compile(r"^S(\d+)(?: \(you\))? · Life ")

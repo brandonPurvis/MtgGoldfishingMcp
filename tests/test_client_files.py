@@ -93,7 +93,7 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
     assert all(words in given for words in ("seat id", "which seat you play")), given
 
 
-# @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055, TOOL-080
+# @spec TOOL-053, TOOL-072, TOOL-073, TOOL-054, TOOL-055, TOOL-080, TOOL-088, TOOL-089
 @pytest.mark.parametrize(
     ("instruction", "words"),
     [
@@ -130,12 +130,82 @@ def test_the_player_brief_says_a_subagent_may_be_given_a_seat_id_and_its_seat_in
             ),
         ),
         ("TOOL-073: attack not declared", ("not declared", "`wait`", "same `attack`")),
+        pytest.param(
+            "TOOL-088: state cast triggers in the play",
+            ("`cast_triggers`", "`play` that casts the spell", "never in a later `effect`"),
+        ),
+        pytest.param(
+            "TOOL-089: give a named card, guess or number as text",
+            ("name a card, guess or choose a number", "`text`"),
+        ),
         ("TOOL-054: the tested seat's verdict", ("tested seat", "what the opposition did")),
         ("TOOL-054: an opposing seat concedes", ("concede", "until the game ends")),
         ("TOOL-055: return the seat, the id and the verdict", ("Seat:", "Id:", "Verdict:")),
     ],
 )
 def test_the_player_brief_has_a_section_on_contested_games(
+    instruction: str, words: tuple[str, ...]
+) -> None:
+    contested = _section(CONTESTED_SECTION)
+
+    assert all(word in contested for word in words), instruction
+
+
+# @spec TOOL-104, TOOL-105
+@pytest.mark.parametrize(
+    ("instruction", "words"),
+    [
+        (
+            "TOOL-104: read rules text rather than rely on memory",
+            ("`get_state` with `card`", "rules text", "rather than relying on memory"),
+        ),
+        (
+            "TOOL-105: apply the legend rule, which the service does not",
+            (
+                "legend rule",
+                "the service does not",
+                "two legendary permanents with the same name",
+                "owner's graveyard with `effect`",
+            ),
+        ),
+    ],
+)
+def test_the_player_brief_gives_every_game_its_rules_reminders(
+    instruction: str, words: tuple[str, ...]
+) -> None:
+    how_to_play = _section("## How to play")
+
+    assert all(word in how_to_play for word in words), instruction
+
+
+# @spec TOOL-103, TOOL-106
+@pytest.mark.parametrize(
+    ("instruction", "words"),
+    [
+        (
+            "TOOL-103: keep calling wait until the game ends or the seat is eliminated",
+            (
+                "Keep calling `wait`",
+                "still waiting",
+                "however long",
+                "Never report the game as stalled",
+                "timed out, failed or came back empty",
+                "Stop only when the game ends or your seat is eliminated",
+            ),
+        ),
+        (
+            "TOOL-106: several seats' triggers go on the stack in turn order",
+            (
+                "triggers of several seats",
+                "turn order starting with the active seat",
+                "the last seat's resolve first",
+                "As the active seat",
+                "when you are asked to respond",
+            ),
+        ),
+    ],
+)
+def test_the_player_brief_s_contested_section_says_how_to_wait_and_order_triggers(
     instruction: str, words: tuple[str, ...]
 ) -> None:
     contested = _section(CONTESTED_SECTION)

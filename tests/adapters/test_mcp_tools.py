@@ -6,6 +6,7 @@ import pytest
 
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
+from mtg_goldfishing.domain.game.calls import SERVICE_TOOLS
 from tests.support.builders import a_game
 from tests.support.service import ServiceHarness, a_service
 
@@ -106,6 +107,11 @@ def test_after_on_a_changing_call_answers_a_resend_once() -> None:
         ("play", {"card": "Grizzly Bears", "choices": {"notes": "first threat"}}, "choices"),
         ("play", {"card": "Grizzly Bears", "pay": {"with": ["Forest"]}}, "pay"),
         ("play", {"card": "Grizzly Bears", "expect": {"hand": 1}}, "expect"),
+        pytest.param(
+            "play",
+            {"card": "Grizzly Bears", "cast_triggers": [{"source": "x", "delta": {"draw": 1}}]},
+            "cast_triggers",
+        ),
     ],
 )
 def test_an_object_parameter_sent_as_a_json_string_is_decoded(
@@ -118,6 +124,19 @@ def test_an_object_parameter_sent_as_a_json_string_is_decoded(
     surface.call(tool, sent)
 
     assert harness.last_call().arguments[encoded] == arguments[encoded]
+
+
+# @spec TOOL-010
+def test_a_value_inside_a_list_parameter_is_not_decoded_again() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    triggers = [{"source": "x", "delta": json.dumps({"draw": 1})}]
+
+    response = surface.call(
+        "play", {"game_id": game_id, "card": "Grizzly Bears", "cast_triggers": triggers}
+    )
+
+    assert response.text.startswith("ERROR Argument cast_triggers[0].delta is malformed.")
 
 
 # @spec TOOL-010
@@ -167,6 +186,31 @@ def test_a_json_string_that_does_not_decode_is_answered_as_an_error() -> None:
     response = surface.call("effect", {"game_id": game_id, "source": "x", "delta": "{draw: 1"})
 
     assert response.text.startswith("ERROR Argument delta is malformed.")
+
+
+# @spec TOOL-107
+def test_get_state_s_card_sent_as_a_json_list_in_a_string_is_decoded_as_that_list() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call(
+        "get_state", {"game_id": game_id, "card": json.dumps(["Forest", "Grizzly Bears"])}
+    )
+
+    assert response.text.splitlines()[0] == "OK Rules text of 2 cards."
+    assert harness.last_call().arguments["card"] == ["Forest", "Grizzly Bears"]
+
+
+# @spec TOOL-107
+@pytest.mark.parametrize("card", ["Grizzly Bears", "[Grizzly Bears"])
+def test_get_state_s_card_sent_as_any_other_text_is_taken_as_one_name(card: str) -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("get_state", {"game_id": game_id, "card": card})
+
+    assert harness.last_call().arguments["card"] == card
+    assert response.text.startswith(("OK Rules text of 1 card.", "ERROR [Grizzly Bears"))
 
 
 # @spec TOOL-027
@@ -321,3 +365,31 @@ def test_a_malformed_call_changes_nothing() -> None:
     surface.call("play", {"game_id": game_id, "card": ["Forest"]})
 
     assert harness.game(game_id).change == change
+
+
+# @spec TOOL-010, REC-090
+def test_get_log_s_tools_sent_as_a_json_string_is_decoded() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    surface.call("play", {"game_id": game_id, "card": "Forest"})
+
+    response = surface.call("get_log", {"game_id": game_id, "tools": json.dumps(["advance"])})
+
+    assert json.loads(response.text)["entries"] == []
+
+
+# @spec TOOL-010, TOOL-028
+def test_get_log_s_tools_sent_as_bare_text_is_answered_as_an_error() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("get_log", {"game_id": game_id, "tools": "play"})
+
+    assert response.text.startswith("ERROR Argument tools is malformed.")
+
+
+# @spec REC-095, TOOL-007
+def test_the_tools_get_log_errors_list_are_the_tools_the_surface_offers_in_its_order() -> None:
+    surface, _ = _surface()
+
+    assert tuple(surface.names) == SERVICE_TOOLS == TOOLS

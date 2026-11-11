@@ -2,6 +2,7 @@
 
 # @spec APP-025
 
+import json
 import re
 from typing import Any
 
@@ -29,6 +30,11 @@ def step_impl(context: Any, card: str) -> None:
 def step_impl(context: Any, card: str) -> None:
     response = context.agent.call("play", card=card)
     assert headline(response.text).startswith("OK"), response.text
+
+
+@when('I cast "{card:Quoted}" with cast triggers {triggers}')
+def step_impl(context: Any, card: str, triggers: str) -> None:
+    context.agent.call("play", card=card, cast_triggers=json.loads(triggers))
 
 
 @when('I play "{card:Quoted}"')

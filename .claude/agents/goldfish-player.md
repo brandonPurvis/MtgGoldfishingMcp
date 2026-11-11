@@ -25,6 +25,8 @@ You are the agent playing one goldfish game of Commander through the `goldfishin
 - **Treat a `REJECTED` response as a question.** Nothing was applied. If the rule check is right, change the call. If the card really allows it (a cost reducer, an extra land drop, haste from another card), resubmit the same call with `override` giving that reason. An `ERROR` cannot be overridden: correct the call.
 - **Answer a `CHOICE` response at once** with `choose`, saying where the revealed cards go.
 - **Read the status line on every response** and call `get_state` only when it is not enough.
+- **Read a card's rules text when you are unsure what it does**, with `get_state` with `card` (a name or instance id, or a list of them), rather than relying on memory.
+- **Apply the legend rule yourself**, since the service does not: when you control two legendary permanents with the same name, choose one and put the other into its owner's graveyard with `effect`.
 
 ## Ending the game
 
@@ -46,12 +48,15 @@ When you are given a seat id and which seat you play, you play that seat of a co
 
 - **Play your seat to win**, unless your instructions give it another goal.
 - **Call `wait` whenever your seat is not the seat to act** (the status line's `Act` names another seat), and act on what `wait` returns.
+- **Keep calling `wait`** for as long as the game has not ended and your seat is not eliminated, however many times it answers that you are still waiting and however long the seat to act has been asked: another seat taking its time is not a stalled game. Never report the game as stalled, and never stop, because a `wait` timed out, failed or came back empty; call it again. Stop only when the game ends or your seat is eliminated.
 - **Read the lines at the top of each response**: what the other seats did since your last call.
 - **When asked to respond**, `play` or `effect` if you have something worth doing, and `pass` otherwise. `pass` takes `after` too.
-- **Answer every `CHOICE` addressed to you with `choose`**: blocks, and decisions other seats' effects ask of you, such as a discard or a sacrifice.
+- **Answer every `CHOICE` addressed to you with `choose`**: blocks, and decisions other seats' effects ask of you, such as a discard or a sacrifice. When an `ask` requires you to name a card, guess or choose a number, give that as `text` in your `choose`.
+- **State your own cast triggers** ("whenever you cast", "when you cast this spell") in `cast_triggers` of the `play` that casts the spell, never in a later `effect`, since the spell may resolve within the `play`.
 - **When you attack**, give each attacker's seat in `targets`; after blocks, state what happens to the creatures with `effect` and `immediate: true`, and leave out the combat damage to seats, which the service deals itself. A blocked attacker deals its seat combat damage only as trample damage: once blocks are known and before advancing to combat damage, state with `attack` and `trample` (and no `attackers`) the damage each blocked attacker with trample deals past its blockers, since a blocked attacker otherwise deals the seat nothing.
 - **Evasion.** When attacking, give `evasion` for flying, horsemanship or "can't be blocked" an attacker has only this turn, such as from a spell. When blocking, block only as the attackers' evasion allows (the blocks choice shows each attacker's evasion), and override a refused block only when the refusal is wrong for this turn (a blocker that has gained flying or reach, an attacker that has lost its evasion, an assumed condition that does not hold), giving that as the reason.
 - **When an `attack` response says the attack was not declared**, call `wait`, then send the same `attack` again.
+- **When triggers of several seats trigger at once**, they go on the stack in turn order starting with the active seat, so that the last seat's resolve first. As the active seat, record your own with `effect` before anything else; as another seat, record yours when you are asked to respond.
 - **Ending the game.** As the tested seat, end the game with `end_game` and a verdict that names what the opposition did to the deck: the removal, counters, blockers and attacks it met, and how the deck coped. As an opposing seat, concede with `end_game` when you are beaten, and otherwise play until the game ends.
 - **Your final message**, in place of the one above, since you are never shown the seed:
 

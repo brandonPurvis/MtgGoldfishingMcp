@@ -60,11 +60,29 @@ ANSWERED_WITH: dict[str, tuple[str, ...]] = {
     "look": ("selections", "rest_order"),
     "search": ("selections",),
     "hand": ("selections", "delta"),
-    "ask": ("delta",),
+    "ask": ("delta", "text"),
     "resolve": ("restate",),
     "blocks": ("blocks",),
 }
 """The arguments each kind of pending choice is answered with."""
+
+ANSWER_TEXT_LIMIT = 200
+"""The most characters (Unicode code points) the answer text of an `ask` answer may hold."""
+
+
+# @spec PLAY-139, PLAY-140
+def held_answer_text(text: object) -> str | Error | None:
+    """The answer text as the game holds it: surrounding whitespace removed and each run of
+    whitespace within it, line breaks included, made one space. None when there is none; an
+    error when it is not text or is longer than the limit once so held."""
+    if text is None:
+        return None
+    if not isinstance(text, str):
+        return Error(ErrorKind.MALFORMED_ARGUMENT, subject="text")
+    held = " ".join(text.split())
+    if len(held) > ANSWER_TEXT_LIMIT:
+        return Error(ErrorKind.ANSWER_TEXT_TOO_LONG, number=len(held), expected=ANSWER_TEXT_LIMIT)
+    return held or None
 
 
 def _among(
@@ -94,11 +112,12 @@ def _among(
 
 
 def _placements(events: Sequence[Event]) -> tuple[Placement, ...]:
-    """Where each revealed card went; in a contested game also whose it is and where from."""
+    """Where each revealed card went; in a contested game also whose it is, where from, and
+    the seats of other seats' zones it left or entered."""
     return tuple(
         Placement(e.card, e.to)
         if e.owner is None
-        else Placement(e.card, e.to, e.owner, e.from_zone)
+        else Placement(e.card, e.to, e.owner, e.from_zone, e.from_seat, e.to_seat)
         for e in events
         if isinstance(e, CardMoved)
     )
@@ -185,7 +204,7 @@ def _controllers(
     return controllers
 
 
-# @spec PLAY-103, PLAY-111, PLAY-112, PLAY-113, GAME-155
+# @spec PLAY-103, PLAY-111, PLAY-112, PLAY-113, GAME-155, PLAY-146, PLAY-147
 def _answer_hand(
     changed: Game, decks: Decks, pending: PendingChoice, selections: object, delta: object
 ) -> Applied | Error:
@@ -219,17 +238,28 @@ def _answer_hand(
                     destination,
                     decks=decks,
                     arriving_under=controllers.get(card.id),
+                    mover=pending.seat,
                 )
             )
     return Applied(changed, ChoiceResolved(_placements(events)), tuple(_shown(events)))
 
 
-# @spec PLAY-099, PLAY-100, PLAY-101, PLAY-121, PLAY-122
+# @spec PLAY-099, PLAY-100, PLAY-101, PLAY-121, PLAY-122, PLAY-138, PLAY-141
 def _answer_ask(
-    changed: Game, decks: Decks, seat: SeatNumber, pending: PendingChoice, delta: object
+    changed: Game,
+    decks: Decks,
+    seat: SeatNumber,
+    pending: PendingChoice,
+    delta: object,
+    *,
+    text: object,
 ) -> Applied | Error:
     """The answering seat's own delta, applied at once as that seat's; it may not create a
-    pending choice, and is never judged against what was asked."""
+    pending choice. Its answer text, held on one line, is only shown and recorded. Neither is
+    judged against what was asked or against the other."""
+    held = held_answer_text(text)
+    if isinstance(held, Error):
+        return held
     read = read_delta(delta, contested=True)
     if isinstance(read, Error):
         return read
@@ -238,7 +268,7 @@ def _answer_ask(
     applied = apply_delta(changed, decks.of(seat), seat, read, source=pending.source, decks=decks)
     if isinstance(applied, Error):
         return applied
-    return Applied(changed, AskAnswered(pending.choice_id, seat), tuple(applied))
+    return Applied(changed, AskAnswered(pending.choice_id, seat, held), tuple(applied))
 
 
 def _blocker_error(error: Error) -> Error:
@@ -373,12 +403,14 @@ def choose(
     override: str | None = None,
     decks: Decks | None = None,
     restate: object = None,
+    text: object = None,
 ) -> Result:
     """Answer the oldest waiting pending choice, as the seat it is addressed to.
 
     A look's or search's selected cards are placed, a look's rest going to its destination;
     a hand's selected cards go to their owners' zones; an `ask` is answered with the
-    answering seat's own delta; blocks are recorded on the declared attack. Then every seat
+    answering seat's own delta and its answer text; blocks are recorded on the declared
+    attack. Then every seat
     is checked for elimination, a look at a hand that waited for answers opens, and the game
     waits on the next choice, if any. `decks` gives each seat's deck; omitted, every seat
     plays `deck`.
@@ -398,6 +430,7 @@ def choose(
         "delta": delta,
         "blocks": blocks,
         "restate": restate,
+        "text": text,
     }
     allowed = ANSWERED_WITH[pending.kind]
     wrong = next(
@@ -416,7 +449,7 @@ def choose(
         case "hand":
             answered = _answer_hand(changed, every, pending, selections, delta)
         case "ask":
-            answered = _answer_ask(changed, every, seat, pending, delta)
+            answered = _answer_ask(changed, every, seat, pending, delta, text=text)
         case "resolve":
             answered = _answer_resolve(changed, every, pending, restate)
         case _:

@@ -14,10 +14,13 @@ from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.game.seeing import as_seen_by
 from mtg_goldfishing.domain.play.choosing import choose
 from mtg_goldfishing.domain.play.playing import effect
-from tests.support.acting import S1, S2, S3, acted, error_kinds, events_named
+from tests.support.acting import S1, S2, S3, acted, error_kinds, events_named, passed
 from tests.support.builders import Situation, a_game
+from tests.support.combat import a_duel, at_blocks, blocking
+from tests.support.tables import two_seats
 
 DISCARD = "discard a card"
+NAME_A_CARD = "name a card"
 
 
 def table_of(seats: int = 3, *, third_out: bool = False) -> Situation:
@@ -114,16 +117,48 @@ def test_an_ask_is_answered_with_the_answering_seat_s_own_delta_applied_at_once(
     assert situation.game.status is GameStatus.ACTIVE
 
 
-# @spec PLAY-121, PLAY-101
-@pytest.mark.parametrize("answer", [{}, {"delta": {}}], ids=["no delta", "an empty delta"])
-def test_an_ask_answered_with_nothing_is_accepted_and_changes_nothing_else(
+# @spec PLAY-121
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {},
+        {"delta": {}},
+        pytest.param({"text": "Island"}),
+        pytest.param({"delta": {}, "text": "Island"}),
+    ],
+    ids=["no delta", "an empty delta", "answer text alone", "answer text and an empty delta"],
+)
+def test_an_ask_answered_with_no_delta_is_accepted_and_changes_nothing_else(
     answer: dict[str, object],
 ) -> None:
     situation = table_of()
-    asking(situation, {"seats": [2], "text": DISCARD})
+    asking(situation, {"seats": [2], "text": NAME_A_CARD})
     before = [(c.id, c.zone, c.tapped) for c in situation.game.cards]
+    lives = [seat.life for seat in situation.game.seats]
     acted(situation, answered(situation, S2, **answer))
     assert [(c.id, c.zone, c.tapped) for c in situation.game.cards] == before
+    assert [seat.life for seat in situation.game.seats] == lives
+    assert situation.game.pending == []
+
+
+# @spec PLAY-101
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"delta": {"life": 1}},
+        pytest.param({"text": "7"}),
+        pytest.param({"delta": {"discard": ["Island"]}, "text": "Lightning Bolt"}),
+    ],
+    ids=[
+        "a delta unlike the ask",
+        "answer text unlike the ask",
+        "answer text unlike its delta",
+    ],
+)
+def test_an_ask_answer_is_never_judged_against_what_was_asked(answer: dict[str, object]) -> None:
+    situation = table_of()
+    asking(situation, {"seats": [2], "text": NAME_A_CARD})
+    acted(situation, answered(situation, S2, **answer))
     assert situation.game.pending == []
 
 
@@ -177,7 +212,7 @@ def test_a_seat_may_not_answer_a_pending_choice_addressed_to_another_seat() -> N
     ("argument", "value"),
     [("selections", {"graveyard": ["Island"]}), ("rest_order", ["Island"]), ("blocks", {})],
 )
-def test_an_ask_is_answered_only_with_a_delta(argument: str, value: object) -> None:
+def test_an_ask_is_answered_only_with_a_delta_and_answer_text(argument: str, value: object) -> None:
     situation = table_of()
     asking(situation, {"seats": [2], "text": DISCARD})
     assert error_kinds(answered(situation, S2, **{argument: value})) == ["wrong_answer"]
@@ -190,8 +225,16 @@ def test_an_ask_is_answered_only_with_a_delta(argument: str, value: object) -> N
         ({"look": {"n": 1, "rest": "library_top"}}, "delta", {}),
         ({"look": {"n": 1, "rest": "library_top"}}, "blocks", {}),
         ({"search": {}}, "rest_order", ["Forest"]),
+        pytest.param({"look": {"n": 1, "rest": "library_top"}}, "text", "Forest"),
+        pytest.param({"search": {}}, "text", ""),
     ],
-    ids=["look with delta", "look with blocks", "search with rest_order"],
+    ids=[
+        "look with delta",
+        "look with blocks",
+        "search with rest_order",
+        "look with answer text",
+        "search with empty answer text",
+    ],
 )
 def test_a_look_or_search_is_answered_only_with_its_own_arguments(
     reveal: object, argument: str, value: object
@@ -302,11 +345,118 @@ def test_a_hand_answer_s_delta_holds_only_control_of_cards_it_puts_onto_the_batt
 
 
 # @spec PLAY-107
-def test_a_hand_choice_takes_no_rest_order() -> None:
+@pytest.mark.parametrize(
+    ("argument", "value"),
+    [
+        ("rest_order", ["Island"]),
+        pytest.param("text", "Island"),
+        pytest.param("text", ""),
+    ],
+    ids=["rest_order", "answer text", "empty answer text"],
+)
+def test_a_hand_choice_takes_no_rest_order_and_no_answer_text(argument: str, value: object) -> None:
     situation = table_of()
     acted(situation, recorded(situation, {"look_at_hand": 2}))
-    result = answered(situation, S1, selections={}, rest_order=["Island"])
+    result = answered(situation, S1, selections={}, **{argument: value})
     assert error_kinds(result) == ["wrong_answer"]
+
+
+# @spec PLAY-107
+@pytest.mark.parametrize("text", ["the first one", ""], ids=["answer text", "empty answer text"])
+def test_a_resolve_choice_takes_no_answer_text(text: str) -> None:
+    situation = two_seats(
+        lambda b: b.with_spell_on_stack("Grizzly Bears", delta={"life": 1}, disturbed=True),
+        lambda b: b.with_window("stack", asking=2),
+    )
+    passed(situation, S2)
+    assert error_kinds(answered(situation, S1, text=text)) == ["wrong_answer"]
+
+
+# @spec PLAY-107
+def test_a_blocks_choice_takes_no_answer_text() -> None:
+    situation = at_blocks(a_duel(attackers=("Grizzly Bears",)), attackers=["Grizzly Bears"])
+    assert error_kinds(blocking(situation, S2, {}, text="no blocks")) == ["wrong_answer"]
+
+
+# ------------------------------------------------------------------ answer text
+
+
+def text_answer(situation: Situation, text: object, **more: object) -> Any:
+    """Seat 2 answers seat 1's ask to name a card with `text`; the answer is applied."""
+    asking(situation, {"seats": [2], "text": NAME_A_CARD})
+    return acted(situation, answered(situation, S2, text=text, **more))
+
+
+def answer_event(result: Any) -> Any:
+    (event,) = events_named(result, "AskAnswered")
+    return event
+
+
+# @spec PLAY-138
+@pytest.mark.parametrize("delta", [None, {"life": -1}], ids=["alone", "with a delta"])
+def test_an_ask_answer_s_event_holds_its_answer_text(delta: object) -> None:
+    situation = table_of()
+    result = text_answer(situation, "Lightning Bolt", delta=delta)
+    event = answer_event(result)
+    assert (event.seat, event.choice_id, event.text) == (S2, "x1", "Lightning Bolt")
+
+
+# @spec PLAY-138
+@pytest.mark.parametrize("text", [None, "", " \n\t "], ids=["null", "empty", "whitespace only"])
+def test_an_ask_answer_without_answer_text_holds_none(text: object) -> None:
+    situation = table_of()
+    assert answer_event(text_answer(situation, text)).text is None
+
+
+# @spec PLAY-139
+@pytest.mark.parametrize(
+    ("text", "held"),
+    [
+        ("  Lightning Bolt  ", "Lightning Bolt"),
+        ("Lightning\n\t  Bolt", "Lightning Bolt"),
+        ("Lightning\u2003\u3000Bolt\u00a0", "Lightning Bolt"),
+    ],
+    ids=["surrounding whitespace", "line breaks and tabs", "Unicode whitespace"],
+)
+def test_answer_text_is_held_on_one_line_with_single_spaces(text: str, held: str) -> None:
+    situation = table_of()
+    assert answer_event(text_answer(situation, text)).text == held
+
+
+# @spec PLAY-140
+def test_answer_text_longer_than_200_characters_is_an_error() -> None:
+    situation = table_of()
+    asking(situation, {"seats": [2], "text": NAME_A_CARD})
+    assert error_kinds(answered(situation, S2, text="x" * 201)) == ["answer_text_too_long"]
+
+
+# @spec PLAY-140
+@pytest.mark.parametrize(
+    "text",
+    ["x" * 200, "   " + "x" * 200 + "   ", "\U0001f525" * 200],
+    ids=["200 characters", "200 once held", "200 code points outside the basic plane"],
+)
+def test_answer_text_of_200_characters_as_held_is_accepted(text: str) -> None:
+    situation = table_of()
+    text_answer(situation, text)
+    assert situation.game.pending == []
+
+
+# @spec PLAY-141
+def test_answer_text_changes_nothing_its_delta_does_not() -> None:
+    situation = table_of()
+    hand = situation.names_in(Zone.HAND, S2)
+    text_answer(situation, "discard Island and lose 3 life", delta={"life": -1})
+    assert (situation.names_in(Zone.HAND, S2), situation.game.seat(S2).life) == (hand, 39)
+
+
+# @spec GAME-179
+def test_the_public_form_of_an_ask_answer_holds_its_whole_answer_text() -> None:
+    situation = table_of()
+    result = text_answer(situation, "Lightning Bolt")
+    seen = as_seen_by((result.summary, *result.events), S3)
+    (public,) = [e for e in seen if type(e).__name__ == "AskAnswered"]
+    assert (public.seat, public.choice_id, public.text) == (S2, "x1", "Lightning Bolt")
 
 
 # @spec GAME-090

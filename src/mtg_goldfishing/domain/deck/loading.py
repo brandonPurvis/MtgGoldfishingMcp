@@ -470,9 +470,9 @@ class DeckLoad:
     events: tuple[Event, ...] = ()
 
 
-# @spec DECK-006, DECK-008, DECK-010, DECK-012, DECK-018, DECK-019, DECK-020
+# @spec DECK-004, DECK-006, DECK-008, DECK-010, DECK-012, DECK-018, DECK-019, DECK-020
 # @spec DECK-027, DECK-028, DECK-029, DECK-030, DECK-031, DECK-032, DECK-033, DECK-034
-# @spec DECK-035, DECK-036, DECK-038
+# @spec DECK-035, DECK-036, DECK-038, DECK-043
 def load_deck(
     request: DeckRequest,
     lookups: Mapping[str, CardLookup],

@@ -22,6 +22,16 @@ Feature: Effects that reach other seats in a contested game
     And seat S2's graveyard holds 1 card
     And the status line shows "Act S1 turn"
 
+  # @spec PLAY-138, GAME-179, TOOL-087
+  Scenario: An answer naming a card shows its answer text to every seat
+    Given a started contested game against 2 Omnath decks with the tested seat first
+    When seat S1 records an effect with delta {"ask": [{"seats": [2], "text": "name a card"}]}
+    And seat S2 answers its ask choice with text "Lightning Bolt"
+    Then the response is OK
+    And the response says "(ask): "Lightning Bolt"."
+    When seat S3 asks for the state
+    Then the digest says "(ask): "Lightning Bolt""
+
   # @spec PLAY-102, PLAY-103, GAME-090
   Scenario: Looking at another seat's hand shows those cards to the looking seat only
     Given a started contested game against 2 Omnath decks with the tested seat first
@@ -76,3 +86,14 @@ Feature: Effects that reach other seats in a contested game
     And the response says the card is in a hidden zone of S2
     And the response says "Other seats' hands and libraries are reached through ask."
     And the game did not change
+
+  # @spec PLAY-144, TOOL-094
+  Scenario: A move that takes a card from another seat's zone names that seat
+    Given a started contested game against 1 Omnath deck with the tested seat first
+    And seat S1 puts "Sol Ring" onto the battlefield
+    And seat S1 has recorded an effect with delta {"control": {"2": ["Sol Ring"]}}
+    When seat S1 records an immediate effect with delta {"move": {"hand": ["Sol Ring"]}}
+    Then the response is OK
+    And the response says "Moved Sol Ring: S2's battlefield → hand."
+    When seat S2 asks for the state
+    Then the digest says "Moved Sol Ring: S2's battlefield → hand"

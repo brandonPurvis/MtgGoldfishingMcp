@@ -78,7 +78,14 @@ PORTS: tuple[type, ...] = (
 OPERATIONS: dict[type, set[str]] = {
     ports.GameRepository: {"get", "find_seat", "add", "save"},
     ports.DeckRepository: {"get", "add"},
-    ports.RecordStore: {"append_entry", "add_snapshot", "add_call", "read", "digest_baseline"},
+    ports.RecordStore: {
+        "append_entry",
+        "add_snapshot",
+        "add_call",
+        "read",
+        "digest_baseline",
+        "change_time",
+    },
     ports.CardCatalog: {"look_up"},
     ports.CardCache: {"get", "put"},
     ports.UnitOfWork: {"begin", "commit", "rollback"},

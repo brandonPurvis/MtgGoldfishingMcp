@@ -119,8 +119,12 @@ class _Fitted:
     value: object
 
 
+# @spec TOOL-010, TOOL-107
 def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
-    """The value as its parameter takes it, or None when it does not have the kind's shape."""
+    """The value as its parameter takes it, or None when it does not have the kind's shape.
+
+    Text that parses as a JSON list is a list where a parameter takes text or a list; any
+    other text is taken as text."""
     if kind is Kind.TEXT:
         return _Fitted(value) if isinstance(value, str) else None
     if kind is Kind.WHOLE_NUMBER:
@@ -137,10 +141,10 @@ def _value_is_shaped(kind: Kind, value: object) -> _Fitted | None:
         decoded = _decoded(value)
         return _Fitted(decoded) if isinstance(decoded, list) else None
     if kind is Kind.TEXT_OR_LIST:
-        if isinstance(value, str) and value.lstrip().startswith("["):
-            decoded = _decoded(value)
-            return _Fitted(decoded) if isinstance(decoded, list) else None
-        return _Fitted(value) if isinstance(value, str | list) else None
+        decoded = _decoded(value) if isinstance(value, str) else value
+        if isinstance(decoded, list):
+            return _Fitted(decoded)
+        return _Fitted(value) if isinstance(value, str) else None
     decoded = _decoded(value)
     if kind is Kind.WHOLE_NUMBER_OR_LIST:
         return _Fitted(decoded) if _is_whole_number(decoded) or isinstance(decoded, list) else None
