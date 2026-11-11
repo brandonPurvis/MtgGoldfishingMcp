@@ -87,7 +87,7 @@ class DeckRepository(ABC):
         ...
 
 
-# @spec APP-046, APP-092
+# @spec APP-046, APP-092, APP-093
 class RecordStore(ABC):
     """Keeps a game's log entries, turn snapshots and call records.
 
@@ -113,6 +113,13 @@ class RecordStore(ABC):
     def digest_baseline(self, game_id: str, seat: SeatNumber) -> int | None:
         """A seat's digest baseline: the change number on its latest call record for a tool
         other than `get_log`, or None when it has no such call record."""
+        ...
+
+    @abstractmethod
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        """The time a game's change was made: the time on the earliest-stored call record of
+        that game holding that change number, which is the record of the call that made it;
+        None when the game has no such call record."""
         ...
 
 

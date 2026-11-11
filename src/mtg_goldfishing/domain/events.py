@@ -54,6 +54,9 @@ class ErrorKind(Enum):
     TOO_FEW_MATCHING = "too_few_matching"
     INSTANCE_REPEATED = "instance_repeated"
     HIDDEN_ZONE = "hidden_zone"
+    NO_CARD_SEEN = "no_card_seen"
+    LIBRARY_CARD_BY_ID = "library_card_by_id"
+    CARD_WITH_DETAIL = "card_with_detail"
     # arguments
     MALFORMED_ARGUMENT = "malformed_argument"
     UNKNOWN_DELTA_KEY = "unknown_delta_key"
@@ -393,7 +396,9 @@ class CostPaid:
 @dataclass(frozen=True)
 class CardMoved:
     """A card moved. In a contested game `owner` names the seat that owns it, whose hand or
-    library a move into or out of a hidden zone touches."""
+    library a move into or out of a hidden zone touches; `from_seat` and `to_seat` name the
+    seat whose zone the card left or entered, when a delta or an answer moved it there and
+    that seat is not the one whose delta or answer it was."""
 
     card: str
     from_zone: str
@@ -401,6 +406,8 @@ class CardMoved:
     commander_redirected: bool = False
     token_gone: bool = False
     owner: SeatNumber | None = None
+    from_seat: SeatNumber | None = None
+    to_seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -572,12 +579,15 @@ class NothingRevealed:
 @dataclass(frozen=True)
 class Placement:
     """Where a revealed card went. In a contested game `owner` names the seat that owns it,
-    and `from_zone` is the zone it came from."""
+    and `from_zone` is the zone it came from; `from_seat` and `to_seat` name the seat whose
+    zone it left or entered when that seat is not the answering seat."""
 
     card: str
     to: str
     owner: SeatNumber | None = None
     from_zone: str = ""
+    from_seat: SeatNumber | None = None
+    to_seat: SeatNumber | None = None
 
 
 @dataclass(frozen=True)
@@ -899,9 +909,11 @@ class SeatToAct:
 @dataclass(frozen=True)
 class StillWaiting:
     """`wait` timed out: the seats the game is still waiting on and what they are asked, or
-    None when it waits on no seat."""
+    None when it waits on no seat, and in a contested game how long, in whole seconds, they
+    have been asked it, when that is known."""
 
     asked: Asked | None
+    time_asked: int | None = None
 
 
 @dataclass(frozen=True)
@@ -919,6 +931,14 @@ class GameHasEnded:
 @dataclass(frozen=True)
 class SnapshotWritten:
     turn: int
+
+
+@dataclass(frozen=True)
+class RulesTextGiven:
+    """`get_state` with `card`: the rules text of `cards` cards is carried in the outcome's
+    payload."""
+
+    cards: int
 
 
 @dataclass(frozen=True)
@@ -1011,6 +1031,7 @@ Event = (
     | GameHasEnded
     | SnapshotWritten
     | StateListed
+    | RulesTextGiven
     | LogExported
     | Refused
 )

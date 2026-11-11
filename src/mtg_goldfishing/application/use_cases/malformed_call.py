@@ -13,6 +13,7 @@ from mtg_goldfishing.application.use_cases.handling import (
     decks_of,
     find_seat,
     refused,
+    with_time_asked,
 )
 from mtg_goldfishing.domain.events import Error, ErrorKind
 from mtg_goldfishing.domain.game.results import Refusal
@@ -55,7 +56,8 @@ def malformed_call(
                 call.seat = found.seat
             call.about(stored.game)
             decks = decks_of(ports.decks, stored.game)
-            call.game = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
+            summary = summarize(stored.game, decks.of(found.seat), found.seat, decks=decks)
+            call.game = with_time_asked(call, stored.game, summary)
         return call.finish(refused(refusal, call.game))
 
     return call.guarded(answer)

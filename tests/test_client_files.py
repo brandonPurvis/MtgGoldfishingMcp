@@ -151,11 +151,7 @@ def test_the_player_brief_has_a_section_on_contested_games(
     assert all(word in contested for word in words), instruction
 
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
-
 # @spec TOOL-104, TOOL-105
-@M3
 @pytest.mark.parametrize(
     ("instruction", "words"),
     [
@@ -183,7 +179,6 @@ def test_the_player_brief_gives_every_game_its_rules_reminders(
 
 
 # @spec TOOL-103, TOOL-106
-@M3
 @pytest.mark.parametrize(
     ("instruction", "words"),
     [

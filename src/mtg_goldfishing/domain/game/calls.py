@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from mtg_goldfishing.domain.events import AlreadyApplied, Error, ErrorKind
+from mtg_goldfishing.domain.game.asking import follow_asked_since
 from mtg_goldfishing.domain.game.model import Game, GameStatus, LastChange, arguments_without_after
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -87,15 +88,23 @@ def follow_change(
     return Refusal.error(Error(ErrorKind.STALE_CHANGE, number=game.change))
 
 
-# @spec GAME-033
+# @spec GAME-033, GAME-180, GAME-182
 def accept_change(
-    applied: Applied, seat: SeatNumber, tool: str, arguments: Mapping[str, object]
+    applied: Applied,
+    seat: SeatNumber,
+    tool: str,
+    arguments: Mapping[str, object],
+    *,
+    before: Game | None = None,
 ) -> Applied:
-    """Count an applied call as the game's next change, whichever seat made it, and remember
-    it as the calling seat's most recent change."""
+    """Count an applied call as the game's next change, whichever seat made it, remember it
+    as the calling seat's most recent change, and keep the change since which the seats to
+    act have been asked. `before` is the game the call was applied to; None for the call
+    that creates the game."""
     game = applied.game
     game.change += 1
     game.seat(seat).last_change = LastChange(
         tool, arguments_without_after(arguments), applied.summary, applied.events, game.change
     )
+    follow_asked_since(before, game)
     return applied

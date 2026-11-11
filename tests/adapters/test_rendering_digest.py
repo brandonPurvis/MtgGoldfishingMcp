@@ -6,8 +6,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application import outcome as outcomes
 from mtg_goldfishing.application.outcome import Outcome, Status
@@ -33,7 +31,6 @@ from tests.support.builders import a_game
 
 RENDERER = TextRenderer()
 S1, S2, S3, S4 = SeatNumber(1), SeatNumber(2), SeatNumber(3), SeatNumber(4)
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
 
 
 def contested_summary(seat: SeatNumber = S3, **options: Any) -> Any:
@@ -159,7 +156,6 @@ def test_a_wait_that_timed_out_during_mulligans_names_every_seat_still_to_keep()
 
 
 # @spec TOOL-063, APP-096
-@M3
 def test_a_wait_that_timed_out_says_how_long_the_seat_to_act_has_been_asked() -> None:
     asked = Asked((S3,), AskedKind.RESPOND, window="stack", item="s4", source="Opt", controller=S1)
     timed_out = event("StillWaiting", asked, 240)
@@ -168,7 +164,6 @@ def test_a_wait_that_timed_out_says_how_long_the_seat_to_act_has_been_asked() ->
 
 
 # @spec TOOL-063, APP-096
-@M3
 def test_a_wait_that_timed_out_during_mulligans_says_how_long_every_seat_has_been_asked() -> None:
     timed_out = event("StillWaiting", Asked((S1, S3), AskedKind.KEEP), 125)
     lines = response(summary=timed_out, seat=S2)

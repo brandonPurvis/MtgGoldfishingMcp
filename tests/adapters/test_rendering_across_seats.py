@@ -200,8 +200,6 @@ def test_the_elimination_notices_read_on_every_later_response() -> None:
 
 # ------------------------------------------------------------------ moves that name a seat
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 
 def a_move(card: str, from_zone: str, to: str, **seats: SeatNumber) -> Any:
     made: Any = events.CardMoved
@@ -213,7 +211,6 @@ def event_text(event: Any) -> list[str]:
 
 
 # @spec TOOL-094
-@M3
 @pytest.mark.parametrize(
     ("move", "seats", "line"),
     [
@@ -251,7 +248,6 @@ def test_a_move_names_the_seat_of_each_zone_the_event_names_one_for(
 
 
 # @spec TOOL-094
-@M3
 def test_a_digest_line_names_the_reading_seat_s_own_zone_like_any_other_seat_s() -> None:
     moved = a_move("Sol Ring", "graveyard", "battlefield", from_seat=S2)
 
@@ -261,7 +257,6 @@ def test_a_digest_line_names_the_reading_seat_s_own_zone_like_any_other_seat_s()
 
 
 # @spec TOOL-094, PLAY-144
-@M3
 def test_a_seat_that_moves_another_seat_s_card_reads_that_seat_in_its_response() -> None:
     situation = three_seats()
     situation.game.cards[-1].zone = Zone.GRAVEYARD
@@ -274,7 +269,6 @@ def test_a_seat_that_moves_another_seat_s_card_reads_that_seat_in_its_response()
 
 
 # @spec TOOL-094, PLAY-146
-@M3
 def test_a_card_placed_from_another_seat_s_hand_reads_both_seats_zones() -> None:
     situation = three_seats()
     acted(situation, recorded(situation, {"look_at_hand": 2}))

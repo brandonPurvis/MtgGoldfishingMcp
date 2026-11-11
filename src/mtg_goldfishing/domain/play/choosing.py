@@ -112,11 +112,12 @@ def _among(
 
 
 def _placements(events: Sequence[Event]) -> tuple[Placement, ...]:
-    """Where each revealed card went; in a contested game also whose it is and where from."""
+    """Where each revealed card went; in a contested game also whose it is, where from, and
+    the seats of other seats' zones it left or entered."""
     return tuple(
         Placement(e.card, e.to)
         if e.owner is None
-        else Placement(e.card, e.to, e.owner, e.from_zone)
+        else Placement(e.card, e.to, e.owner, e.from_zone, e.from_seat, e.to_seat)
         for e in events
         if isinstance(e, CardMoved)
     )
@@ -203,7 +204,7 @@ def _controllers(
     return controllers
 
 
-# @spec PLAY-103, PLAY-111, PLAY-112, PLAY-113, GAME-155
+# @spec PLAY-103, PLAY-111, PLAY-112, PLAY-113, GAME-155, PLAY-146, PLAY-147
 def _answer_hand(
     changed: Game, decks: Decks, pending: PendingChoice, selections: object, delta: object
 ) -> Applied | Error:
@@ -237,6 +238,7 @@ def _answer_hand(
                     destination,
                     decks=decks,
                     arriving_under=controllers.get(card.id),
+                    mover=pending.seat,
                 )
             )
     return Applied(changed, ChoiceResolved(_placements(events)), tuple(_shown(events)))

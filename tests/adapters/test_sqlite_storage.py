@@ -291,11 +291,8 @@ def test_a_cached_card_has_a_lookup_row_for_each_face_name(
 
 # ------------------------------------------------------------------ since when seats are asked
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 
 # @spec STOR-041
-@M3
 def test_a_game_stored_without_an_asked_since_change_reads_as_holding_none(
     stores: SqliteStores, path: Path
 ) -> None:
@@ -317,7 +314,6 @@ def test_a_game_stored_without_an_asked_since_change_reads_as_holding_none(
 
 
 # @spec STOR-042
-@M3
 def test_the_time_of_a_change_is_read_from_the_lowest_keyed_calls_row_of_that_change(
     stores: SqliteStores,
 ) -> None:

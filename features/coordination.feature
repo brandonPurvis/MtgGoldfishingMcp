@@ -49,7 +49,6 @@ Feature: Coordinating the seats of a contested game
     Then seat S2's wait returns "OK You are asked to take your turn."
 
   # @spec APP-066, APP-096, TOOL-063
-  @wip
   Scenario: wait times out and names the seat the game is waiting on and for how long
     Given a started contested game against 1 Omnath deck with the tested seat first
     When 2 minutes pass

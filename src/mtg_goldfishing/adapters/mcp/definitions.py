@@ -307,20 +307,24 @@ MULLIGAN = ToolDefinition(
     ),
 )
 
-# @spec TOOL-075
+# @spec TOOL-075, TOOL-098
 GET_STATE = ToolDefinition(
     name="get_state",
-    purpose="List the hand, battlefield and other zones when the status line is not enough.",
+    purpose=(
+        "List the hand, battlefield and other zones when the status line is not enough,"
+        " or give cards' rules text."
+    ),
     automatic=(
         "Changes nothing. The summary lists the hand, the battlefield (each permanent with"
         " its instance id, tapped state, counters, the mana it makes, haste or vigilance and"
         " its step triggers), the graveyard, the command zone and notices; full adds exile,"
         " the number of cards in the library, each commander's casts and damage, and this"
-        " turn's payments. The library's order is never shown. Accepted in every game"
-        " status. Contested games: shows every seat's battlefield, graveyard and command zone"
-        " with its life and its hand and library sizes, the stack and who is asked; of the"
-        " hands, only yours. It ends with the pending choices your seat owes, with the cards"
-        " each reveals to you or what it asks of you."
+        " turn's payments. The library's order is never shown. With `card`, the response"
+        " gives the rules text of the cards named in place of the listing. Accepted in every"
+        " game status. Contested games: shows every seat's battlefield, graveyard and command"
+        " zone with its life and its hand and library sizes, the stack and who is asked; of"
+        " the hands, only yours. It ends with the pending choices your seat owes, with the"
+        " cards each reveals to you or what it asks of you."
     ),
     parameters=(
         _game_id(),
@@ -329,6 +333,16 @@ GET_STATE = ToolDefinition(
             Kind.TEXT,
             '"summary" (the default) or "full".',
             "full",
+        ),
+        Parameter(
+            "card",
+            Kind.TEXT_OR_LIST,
+            "A card name or instance id, or a list of them: the response gives each card's"
+            " rules text (each face's name, mana cost, type line, rules text, and power and"
+            " toughness) in place of the listing, or a token's description. Only cards you"
+            " may see are answered; ask for a card in your library by name. Not given"
+            " together with detail.",
+            ["Sol Ring", "c12"],
         ),
     ),
     overridable="Nothing; it changes nothing.",
@@ -730,7 +744,7 @@ PASS = ToolDefinition(
     ),
 )
 
-# @spec APP-072, APP-090
+# @spec APP-072, APP-090, TOOL-099
 WAIT = ToolDefinition(
     name="wait",
     purpose="Wait until your seat has something to do, then say what it is (contested games).",
@@ -738,9 +752,11 @@ WAIT = ToolDefinition(
         "Changes nothing. Returns at once when your seat is the seat to act, has been"
         " eliminated, or the game has ended; otherwise holds the call until another seat's"
         " change makes it so, or the timeout passes, and then says who the game is still"
-        " waiting on. Like every response to a seat, it begins with what the other seats did"
-        " since your last call. In a goldfish game your seat is always the seat to act, so it"
-        " returns at once."
+        " waiting on and for how long. Like every response to a seat, it begins with what"
+        " the other seats did since your last call. In a goldfish game your seat is always"
+        " the seat to act, so it returns at once. Contested games: an answer that says your"
+        " seat is still waiting means only that the seat to act has not yet acted; call wait"
+        " again."
     ),
     parameters=(
         _game_id(),

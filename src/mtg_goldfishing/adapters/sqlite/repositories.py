@@ -206,6 +206,19 @@ class SqliteRecordStore(RecordStore):
         )
         return None if row is None or row[0] is None else int(row[0])
 
+    # @spec STOR-042
+    def change_time(self, game_id: str, change: int) -> datetime | None:
+        """The time on the lowest-keyed row of `calls` holding the game's change number."""
+        row = (
+            self._database.connection()
+            .execute(
+                "SELECT time FROM calls WHERE game_id = ? AND change = ? ORDER BY id LIMIT 1",
+                (game_id, change),
+            )
+            .fetchone()
+        )
+        return None if row is None else datetime.fromisoformat(str(row[0]))
+
     def read(self, game_id: str, *, since: int | None = None) -> GameRecords:
         """Entries with seq > since, calls with change > since, snapshots written after since."""
         connection = self._database.connection()

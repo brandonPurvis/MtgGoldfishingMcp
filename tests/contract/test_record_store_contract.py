@@ -200,8 +200,6 @@ def test_a_contested_log_entry_with_its_public_events_is_read_back_equal(
 
 # ------------------------------------------------------------------ the time of a change
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 
 def a_call_at(game_id: str, change: int | None, minute: int, *, tool: str = "advance") -> Any:
     return replace(
@@ -215,7 +213,6 @@ def change_time(records: RecordStore, game_id: str, change: int) -> object:
 
 
 # @spec APP-093
-@M3
 def test_the_time_of_a_change_is_the_time_on_the_earliest_call_record_holding_it(
     records: RecordStore,
 ) -> None:
@@ -228,7 +225,6 @@ def test_the_time_of_a_change_is_the_time_on_the_earliest_call_record_holding_it
 
 
 # @spec APP-093
-@M3
 def test_a_change_no_call_record_of_the_game_holds_has_no_time(records: RecordStore) -> None:
     records.add_call(a_call_at(GAME, 3, 1))
     records.add_call(a_call_at(OTHER, 4, 2))

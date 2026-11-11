@@ -14,7 +14,7 @@ from behave import given, then, when
 from tests.support.responses import headline
 
 from mtg_goldfishing.adapters.mcp.tools import ToolResponse
-from mtg_goldfishing.domain.game.acting import seats_to_act
+from mtg_goldfishing.domain.game.asking import seats_to_act
 from mtg_goldfishing.domain.game.model import Game, Zone
 from mtg_goldfishing.domain.game.seats import SeatNumber
 

@@ -6,6 +6,7 @@ import json
 from typing import assert_never
 
 from mtg_goldfishing.adapters.mcp.refusal_lines import error_text
+from mtg_goldfishing.domain.cards import Card, Face
 from mtg_goldfishing.domain.events import DeckReport, Evasion, RevealedCard
 from mtg_goldfishing.domain.game.listing import (
     ChoiceListing,
@@ -14,6 +15,8 @@ from mtg_goldfishing.domain.game.listing import (
     SeatListing,
     StateListing,
 )
+from mtg_goldfishing.domain.game.model import TokenSpec
+from mtg_goldfishing.domain.game.rules_text import RulesText
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
@@ -319,3 +322,47 @@ def _why_not_automatic(card: str, ability: ManaAbility) -> str:
         [ability.other_cost] if ability.other_cost else []
     )
     return f"{card} ({'; '.join(reasons)})" if reasons else card
+
+
+# --------------------------------------------------------------------- rules text
+
+
+def _face_head(face: Face) -> str:
+    """A face's first line: its name, mana cost, type line, and power and toughness."""
+    cost = f" {face.mana_cost}" if face.has_mana_cost else ""
+    power = (
+        f" {face.power}/{face.toughness}"
+        if face.power is not None and face.toughness is not None
+        else ""
+    )
+    return f"{face.name}{cost} · {face.type_line}{power}"
+
+
+def _card_text(card: Card) -> list[str]:
+    lines: list[str] = []
+    for index, face in enumerate(card.faces):
+        lines.append(("// " if index else "") + _face_head(face))
+        lines.extend(f"  {line}" for line in face.oracle_text.splitlines() if line.strip())
+    return lines
+
+
+def _token_text(token: TokenSpec) -> str:
+    parts = [f"{token.name} token", token.types + (f" {token.pt}" if token.pt else "")]
+    if token.produces:
+        parts.append("makes " + " or ".join(str(mana) for mana in token.produces))
+    parts.append("no rules text held")
+    return " · ".join(parts)
+
+
+# @spec TOOL-095, TOOL-096
+def rules_text_lines(text: RulesText) -> list[str]:
+    """`get_state`'s answer for `card`: each card's faces, the first face first and each
+    further face marked `//`, each with its rules text indented beneath; each token on one
+    line. Nothing says where a card is."""
+    lines: list[str] = []
+    for card in text.cards:
+        if isinstance(card, TokenSpec):
+            lines.append(_token_text(card))
+        else:
+            lines.extend(_card_text(card))
+    return lines

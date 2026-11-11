@@ -18,8 +18,6 @@ from tests.support.builders import Situation, a_game
 from tests.support.library import LIBRARY
 from tests.support.service import ServiceHarness, a_service
 
-pytestmark = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
 VALKI = "Valki, God of Lies // Tibalt, Cosmic Impostor"
 
 
@@ -61,8 +59,9 @@ def held(situation: Situation) -> tuple[ServiceHarness, str]:
 
 
 def asked(harness: ServiceHarness, game_id: str, card: object, **more: object) -> list[str]:
+    """The response's lines, leaving out the line telling the seat to act what it is asked."""
     answer = harness.service.get_state({"game_id": game_id, "card": card, **more})
-    return answer.response.splitlines()
+    return [line for line in answer.response.splitlines() if not line.startswith("You are asked")]
 
 
 def instance(situation: Situation, name: str, owner: SeatNumber) -> CardInstance:

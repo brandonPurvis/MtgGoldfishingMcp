@@ -187,11 +187,7 @@ def test_a_json_string_that_does_not_decode_is_answered_as_an_error() -> None:
     assert response.text.startswith("ERROR Argument delta is malformed.")
 
 
-M3 = pytest.mark.xfail(strict=True, reason="M3: not implemented yet")
-
-
 # @spec TOOL-107
-@M3
 def test_get_state_s_card_sent_as_a_json_list_in_a_string_is_decoded_as_that_list() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -205,7 +201,6 @@ def test_get_state_s_card_sent_as_a_json_list_in_a_string_is_decoded_as_that_lis
 
 
 # @spec TOOL-107
-@M3
 @pytest.mark.parametrize("card", ["Grizzly Bears", "[Grizzly Bears"])
 def test_get_state_s_card_sent_as_any_other_text_is_taken_as_one_name(card: str) -> None:
     surface, harness = _surface()
