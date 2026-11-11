@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
 from typing import Any
 
-from mtg_goldfishing.domain.cards import Card, CardLookup, LookupStatus, same_name
+from mtg_goldfishing.domain.cards import Card, CardLookup, LookupStatus, resolve_name, same_name
 from mtg_goldfishing.domain.deck.loading import DeckLoad, load_deck, read_deck_request
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.results import Refusal
@@ -62,12 +62,11 @@ def catalog_answers(
     down = tuple(unavailable)
     answers: dict[str, CardLookup] = {}
     for name in names:
-        exact = [card for card in known if same_name(card.name, name)]
-        matching = exact or [card for card in known if card.matches(name)]
+        card = resolve_name(name, known)
         if any(same_name(name, gone) for gone in down):
             answers[name] = CardLookup(LookupStatus.UNAVAILABLE)
-        elif matching:
-            answers[name] = CardLookup(LookupStatus.FOUND, matching[0])
+        elif card is not None:
+            answers[name] = CardLookup(LookupStatus.FOUND, card)
         else:
             answers[name] = CardLookup(LookupStatus.NOT_FOUND)
     return answers

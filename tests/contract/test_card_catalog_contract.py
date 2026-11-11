@@ -151,12 +151,6 @@ def test_a_catalog_finds_a_card_on_a_refresh_lookup(new_catalog: CatalogFactory)
     assert catalog.look_up(["Cultivate"], refresh=True)["Cultivate"].status is LookupStatus.FOUND
 
 
-def _not_yet_on(request: pytest.FixtureRequest, *catalogs: str) -> None:
-    """Mark the test as expected to fail, until M4's code lands, on the named catalogs."""
-    if request.node.callspec.id.split("-")[0] in catalogs:
-        request.applymarker(pytest.mark.xfail(strict=True, reason="M4: not implemented yet"))
-
-
 # @spec CARD-006, CARD-023
 @pytest.mark.parametrize(
     "full_name",
@@ -167,16 +161,14 @@ def _not_yet_on(request: pytest.FixtureRequest, *catalogs: str) -> None:
     ],
 )
 def test_a_catalog_finds_a_multi_faced_card_by_its_full_name(
-    new_catalog: CatalogFactory, full_name: str, request: pytest.FixtureRequest
+    new_catalog: CatalogFactory, full_name: str
 ) -> None:
-    _not_yet_on(request, "scryfall")
     result = new_catalog(()).look_up([full_name])[full_name]
 
     assert (result.status, result.card and result.card.name) == (LookupStatus.FOUND, full_name)
 
 
 # @spec CARD-021
-@pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
 @pytest.mark.parametrize(
     ("requested", "full_name"),
     [

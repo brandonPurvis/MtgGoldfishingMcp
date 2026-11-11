@@ -7,7 +7,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-001**: When parsing the `cards` text given to `load_deck`, the deck parser shall read each non-ignored line as `<count> <name>`, `<count>x <name>`, or a bare `<name>` with a count of one.
 - [x] **DECK-002**: When parsing the `cards` text given to `load_deck`, the deck parser shall ignore blank lines and lines that start with `#` or `//`.
 - [x] **DECK-003**: When a deck list line carries a set code in parentheses after the card name, the deck parser shall drop the set code and everything after it.
-- [ ] **DECK-004**: When more than one deck list line names the same card, by its full name, by a face name, or by its full name written with slash separators (CARD-021), in any letter case and with any surrounding whitespace, `load_deck` shall hold one entry for that card under the card's full name with the lines' counts added together.
+- [x] **DECK-004**: When more than one deck list line names the same card, by its full name, by a face name, or by its full name written with slash separators (CARD-021), in any letter case and with any surrounding whitespace, `load_deck` shall hold one entry for that card under the card's full name with the lines' counts added together.
 - [x] **DECK-005**: If a deck list line gives a count of zero or less, then `load_deck` shall return an error naming the line and create nothing.
 - [x] **DECK-006**: When a card named in the `commander` parameter of `load_deck` also appears in `cards`, `load_deck` shall treat one listed copy of that card as the commander.
 
@@ -29,7 +29,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-040**: When a card definition's `keywords` includes `Flying`, `Horsemanship` or `Reach`, the loaded deck shall treat that keyword as the card's own.
 - [x] **DECK-017**: The loaded deck shall hold readings made from each card's data after card definitions have been applied.
 - [x] **DECK-018**: `load_deck` shall never change the shared card cache on account of a card definition.
-- [ ] **DECK-043**: When a card definition's `name` matches a card in the deck under the card catalog's name-matching rule (CARD-006, CARD-021), `load_deck` shall apply the definition to that card, on the face DECK-011 gives.
+- [x] **DECK-043**: When a card definition's `name` matches a card in the deck under the card catalog's name-matching rule (CARD-006, CARD-021), `load_deck` shall apply the definition to that card, on the face DECK-011 gives.
 - [x] **DECK-039**: If a card definition names a face the card does not have, or two definitions describe the same face of one card, then `load_deck` shall return an error and create nothing.
 
 ## Resolution errors
@@ -44,7 +44,7 @@ Design: `deck-design.md`. Prefix: `DECK`.
 - [x] **DECK-023**: If a card whose rules text allows a stated number of copies appears more times than that number, then `load_deck` shall fail the singleton check.
 - [x] **DECK-024**: If a card's color identity is not within the combined color identity of the commanders, then `load_deck` shall fail the color identity check.
 - [x] **DECK-025**: If a card obtained from Scryfall is not legal in Commander, then `load_deck` shall fail the legality check.
-- [ ] **DECK-042**: When `load_deck` fails the legality check, the failure shall name, once each, every card in the deck obtained from Scryfall whose Commander legality is not `legal` (DECK-025), commanders included.
+- [x] **DECK-042**: When `load_deck` fails the legality check, the failure shall name, once each, every card in the deck obtained from Scryfall whose Commander legality is not `legal` (DECK-025), commanders included.
 - [x] **DECK-026**: If a commander is not a legendary creature and its rules text does not say it can be your commander, then `load_deck` shall fail the commander eligibility check.
 - [x] **DECK-027**: If any deck check fails and `load_deck` was given no `override`, then `load_deck` shall respond `REJECTED`, list every failed deck check, and create nothing.
 - [x] **DECK-028**: When deck checks fail and `load_deck` was given an `override` reason, `load_deck` shall create the loaded deck and record the failed checks and the reason on it.

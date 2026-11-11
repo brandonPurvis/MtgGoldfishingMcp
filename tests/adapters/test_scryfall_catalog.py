@@ -17,8 +17,6 @@ from mtg_goldfishing.domain.cards import Card, CardLookup, Face, LookupStatus
 from tests.support.card_data import recorded_card, recorded_scryfall_card
 from tests.support.fake_scryfall import FakeScryfall, FakeTime, refusal
 
-M4 = pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
-
 
 @dataclass
 class Setup:
@@ -127,7 +125,6 @@ def test_a_lookup_of_cached_cards_only_makes_no_request(setup: Setup) -> None:
 
 
 # @spec CARD-023
-@M4
 @pytest.mark.parametrize(
     ("requested", "identifiers"),
     [
@@ -152,7 +149,6 @@ def test_a_name_whose_first_part_is_empty_is_requested_only_as_given(setup: Setu
 
 
 # @spec CARD-008, CARD-023
-@M4
 def test_both_spellings_of_a_name_go_in_the_same_request(setup: Setup) -> None:
     setup.catalog.look_up([*_invented_names(74), "Fire/Ice"])
 
@@ -160,7 +156,6 @@ def test_both_spellings_of_a_name_go_in_the_same_request(setup: Setup) -> None:
 
 
 # @spec CARD-008, CARD-023
-@M4
 def test_each_spelling_counts_toward_the_75_identifiers_of_a_request(setup: Setup) -> None:
     setup.catalog.look_up([f"Invented {number}/Card" for number in range(40)])
 
@@ -168,7 +163,6 @@ def test_each_spelling_counts_toward_the_75_identifiers_of_a_request(setup: Setu
 
 
 # @spec CARD-011, CARD-021, CARD-023
-@M4
 def test_a_multi_faced_card_written_with_a_slash_is_found(setup: Setup) -> None:
     result = setup.catalog.look_up(["Gallifrey Falls/No More"])["Gallifrey Falls/No More"]
 
@@ -176,7 +170,6 @@ def test_a_multi_faced_card_written_with_a_slash_is_found(setup: Setup) -> None:
 
 
 # @spec CARD-006, CARD-023
-@M4
 def test_a_multi_faced_card_asked_for_by_its_full_name_is_found(setup: Setup) -> None:
     result = setup.catalog.look_up(["Fire // Ice"])["Fire // Ice"]
 
@@ -210,7 +203,6 @@ def test_a_card_with_a_slash_in_its_own_name_is_found_by_that_name(setup: Setup)
 
 
 # @spec CARD-020, CARD-021
-@M4
 def test_a_card_written_with_a_slash_that_the_card_model_cannot_hold_is_unavailable(
     setup: Setup,
 ) -> None:
@@ -221,7 +213,6 @@ def test_a_card_written_with_a_slash_that_the_card_model_cannot_hold_is_unavaila
 
 
 # @spec CARD-024
-@M4
 def test_a_cached_card_is_supplied_for_its_full_name_written_with_a_slash_without_a_request(
     setup: Setup,
 ) -> None:
@@ -232,7 +223,6 @@ def test_a_cached_card_is_supplied_for_its_full_name_written_with_a_slash_withou
 
 
 # @spec CARD-024
-@M4
 def test_a_cached_card_is_supplied_for_its_full_name_written_with_a_slash(setup: Setup) -> None:
     setup.cache.put(recorded_card("Fire // Ice"))
     result = setup.catalog.look_up(["Fire/Ice"])["Fire/Ice"]
@@ -491,7 +481,6 @@ def _http_date(moment: datetime) -> str:
 
 
 # @spec CARD-014
-@M4
 @pytest.mark.parametrize("status", [429, 500, 502, 503])
 def test_a_rate_limited_or_server_failed_request_is_retried_up_to_three_times(
     setup: Setup, status: int
@@ -511,7 +500,6 @@ def test_a_request_failing_on_every_attempt_leaves_its_names_unavailable(setup: 
 
 
 # @spec CARD-014
-@M4
 def test_a_request_is_retried_no_more_than_three_times(setup: Setup) -> None:
     setup.scryfall.fail_next(503, 503, 503, 503, 503)
     setup.catalog.look_up(["Cultivate"])
@@ -520,7 +508,6 @@ def test_a_request_is_retried_no_more_than_three_times(setup: Setup) -> None:
 
 
 # @spec CARD-026
-@M4
 def test_retries_wait_one_then_two_then_four_seconds(setup: Setup) -> None:
     setup.scryfall.fail_next(503, 503, 503)
     setup.catalog.look_up(["Cultivate"])
@@ -529,7 +516,6 @@ def test_retries_wait_one_then_two_then_four_seconds(setup: Setup) -> None:
 
 
 # @spec CARD-026, CARD-027
-@M4
 def test_a_retry_waits_the_seconds_retry_after_asks_for_when_longer_than_the_backoff(
     setup: Setup,
 ) -> None:
@@ -540,7 +526,6 @@ def test_a_retry_waits_the_seconds_retry_after_asks_for_when_longer_than_the_bac
 
 
 # @spec CARD-026
-@M4
 def test_a_retry_waits_the_backoff_when_retry_after_asks_for_less(setup: Setup) -> None:
     setup.scryfall.fail_next(503, refusal(503, "1"))
     setup.catalog.look_up(["Cultivate"])
@@ -549,7 +534,6 @@ def test_a_retry_waits_the_backoff_when_retry_after_asks_for_less(setup: Setup) 
 
 
 # @spec CARD-027
-@M4
 def test_a_retry_after_given_as_an_http_date_is_waited_for_by_the_service_s_clock(
     setup: Setup,
 ) -> None:
@@ -579,7 +563,6 @@ def test_a_retry_after_that_is_neither_seconds_nor_a_date_is_ignored(
 
 
 # @spec CARD-029
-@M4
 def test_a_retry_after_holds_back_the_requests_of_every_catalog_in_the_process(
     setup: Setup,
 ) -> None:
@@ -602,7 +585,6 @@ def test_a_request_due_after_a_retry_after_has_passed_is_sent(setup: Setup) -> N
 
 
 # @spec CARD-029, CARD-030
-@M4
 def test_a_request_due_while_a_long_retry_after_holds_is_not_sent(setup: Setup) -> None:
     other = setup.new_catalog()
     setup.scryfall.fail_next(refusal(429, "30"))
@@ -613,7 +595,6 @@ def test_a_request_due_while_a_long_retry_after_holds_is_not_sent(setup: Setup) 
 
 
 # @spec CARD-029, CARD-030
-@M4
 def test_a_request_due_while_a_long_retry_after_holds_leaves_its_names_unavailable(
     setup: Setup,
 ) -> None:
@@ -625,7 +606,6 @@ def test_a_request_due_while_a_long_retry_after_holds_leaves_its_names_unavailab
 
 
 # @spec CARD-030
-@M4
 def test_a_retry_after_longer_than_20_seconds_leaves_the_names_unavailable(setup: Setup) -> None:
     setup.scryfall.fail_next(refusal(429, "21"))
 
@@ -633,7 +613,6 @@ def test_a_retry_after_longer_than_20_seconds_leaves_the_names_unavailable(setup
 
 
 # @spec CARD-030
-@M4
 def test_a_retry_after_longer_than_20_seconds_is_not_retried(setup: Setup) -> None:
     setup.scryfall.fail_next(refusal(429, "21"))
     setup.catalog.look_up(["Cultivate"])
@@ -642,7 +621,6 @@ def test_a_retry_after_longer_than_20_seconds_is_not_retried(setup: Setup) -> No
 
 
 # @spec CARD-030
-@M4
 def test_a_retry_after_longer_than_20_seconds_is_not_waited_for(setup: Setup) -> None:
     setup.scryfall.fail_next(refusal(429, "21"))
     setup.catalog.look_up(["Cultivate"])
@@ -651,7 +629,6 @@ def test_a_retry_after_longer_than_20_seconds_is_not_waited_for(setup: Setup) ->
 
 
 # @spec CARD-030
-@M4
 def test_a_retry_after_of_exactly_20_seconds_is_waited_for(setup: Setup) -> None:
     setup.scryfall.fail_next(refusal(429, "20"))
     setup.catalog.look_up(["Cultivate"])
@@ -691,7 +668,6 @@ def test_a_request_that_fails_to_complete_is_not_retried(setup: Setup) -> None:
 
 
 # @spec CARD-031
-@M4
 def test_a_retry_that_fails_to_complete_ends_the_request(setup: Setup) -> None:
     setup.scryfall.fail_next(503, 503, httpx.ReadTimeout("timed out"))
     setup.catalog.look_up(["Cultivate"])
@@ -700,7 +676,6 @@ def test_a_retry_that_fails_to_complete_ends_the_request(setup: Setup) -> None:
 
 
 # @spec CARD-031
-@M4
 def test_a_retry_refused_for_another_reason_ends_the_request(setup: Setup) -> None:
     setup.scryfall.fail_next(503, 503, 400)
     setup.catalog.look_up(["Cultivate"])

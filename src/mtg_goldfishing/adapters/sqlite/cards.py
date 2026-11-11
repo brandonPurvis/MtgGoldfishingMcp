@@ -6,7 +6,7 @@ from mtg_goldfishing.adapters.sqlite.codec import decode, encode
 from mtg_goldfishing.adapters.sqlite.database import SqliteDatabase
 from mtg_goldfishing.adapters.sqlite.repositories import Now, utc_now
 from mtg_goldfishing.application.ports import CardCache
-from mtg_goldfishing.domain.cards import Card
+from mtg_goldfishing.domain.cards import Card, NameMatch, split_at_slash_separators
 
 
 def _key(name: str) -> str:
@@ -14,11 +14,13 @@ def _key(name: str) -> str:
     return name.strip().casefold()
 
 
-# @spec STOR-001, CARD-006, CARD-007, CARD-017, CARD-018
+# @spec STOR-001, CARD-006, CARD-007, CARD-017, CARD-018, CARD-021, CARD-022, CARD-024
 class SqliteCardCache(CardCache):
     """Cached cards keyed by lower-cased full name, with a `card_names` row per face name.
 
     A face name that several cards share resolves to the card whose full name sorts first.
+    A name matching no full name or face name is split at its slash separators and finds
+    the card whose faces, in order, have those names.
     """
 
     def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
@@ -37,7 +39,36 @@ class SqliteCardCache(CardCache):
                 " ORDER BY card_cache.key, card_cache.name LIMIT 1",
                 (key,),
             ).fetchone()
-        return None if row is None else decode(row[0], Card)
+        if row is not None:
+            card: Card = decode(row[0], Card)
+            return card
+        return self._by_face_names(name)
+
+    def _by_face_names(self, name: str) -> Card | None:
+        """The cached card whose faces a name written with slash separators names, if any."""
+        parts = split_at_slash_separators(name)
+        if len(parts) < 2 or not parts[0]:
+            return None
+        rows = (
+            self._database.connection()
+            .execute(
+                "SELECT card_cache.card FROM card_names"
+                " JOIN card_cache ON card_cache.key = card_names.card_key"
+                " WHERE card_names.face_key = ?"
+                " ORDER BY card_cache.key, card_cache.name",
+                (_key(parts[0]),),
+            )
+            .fetchall()
+        )
+        cards: list[Card] = [decode(row[0], Card) for row in rows]
+        return next(
+            (
+                card
+                for card in cards
+                if card.name_match(name) is NameMatch.FACE_NAMES_WITH_SLASH_SEPARATORS
+            ),
+            None,
+        )
 
     def put(self, card: Card) -> None:
         """Store a card, replacing the cached card with the same full name and its face rows."""

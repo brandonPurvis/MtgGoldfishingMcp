@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from mtg_goldfishing.application.outcome import Status
 from mtg_goldfishing.domain.cards import LookupStatus
 from mtg_goldfishing.domain.events import CheckKind, DeckLoaded, ErrorKind, Refused
@@ -97,7 +95,6 @@ def test_a_refresh_that_is_not_true_or_false_is_a_malformed_argument() -> None:
 
 
 # @spec DECK-004, CARD-021
-@pytest.mark.xfail(strict=True, reason="M4: not implemented yet")
 def test_a_deck_listing_a_split_card_written_with_one_slash_loads_with_no_definition() -> None:
     cards = a_deck_list().of_size(99).text() + "\nGallifrey Falls/No More"
     answer = a_service().service.load_deck(
