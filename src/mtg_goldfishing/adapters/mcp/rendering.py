@@ -25,6 +25,7 @@ from mtg_goldfishing.adapters.mcp.listing_lines import report_lines, state_lines
 from mtg_goldfishing.adapters.mcp.refusal_lines import (
     asked_to,
     check_text,
+    error_text,
     refusal_lines,
     seats_asked,
 )
@@ -40,6 +41,8 @@ from mtg_goldfishing.domain.events import (
     AssumptionKind,
     AssumptionMade,
     AttackDeclared,
+    AttackNotDeclared,
+    AutomaticPass,
     BlocksDeclared,
     BlocksRequested,
     CardMoved,
@@ -72,6 +75,10 @@ from mtg_goldfishing.domain.events import (
     HiddenHandKept,
     HiddenMulliganTaken,
     InstanceChosen,
+    ItemCountered,
+    ItemRemoved,
+    ItemResolved,
+    ItemStacked,
     LibraryShuffled,
     LifeChanged,
     LogExported,
@@ -81,8 +88,10 @@ from mtg_goldfishing.domain.events import (
     NothingRevealed,
     NoticeKind,
     NoticeRaised,
+    Passed,
     Refused,
     ReminderIssued,
+    ResolveAsked,
     SeatDamaged,
     SeatEliminated,
     SeatOut,
@@ -200,12 +209,18 @@ def digest_texts(event: Event) -> list[str]:
 # ------------------------------------------------------------------------- the status line
 
 
+# @spec TOOL-040, TOOL-061
 def asked_lines(game: GameSummary) -> list[str]:
-    """In a contested game, what the calling seat is asked to do, when it is a seat to act."""
+    """In a contested game, what the calling seat is asked to do, when it is a seat to act;
+    asked about a stack item, its source and controller too."""
     table = game.table
     if table is None or table.asked is None or table.seat not in table.asked.seats:
         return []
-    return [f"You are asked to {asked_to(table.asked, yourself=True)}."]
+    asked = table.asked
+    about = ""
+    if asked.kind is AskedKind.RESPOND and asked.item is not None:
+        about = f": {asked.source} from {asked.controller}"
+    return [f"You are asked to {asked_to(asked, yourself=True)}{about}."]
 
 
 # @spec TOOL-017, TOOL-018, TOOL-019, TOOL-020, TOOL-021
@@ -350,10 +365,13 @@ def _place_in_order(event: Event) -> int:
             | StillWaiting()
             | SeatOut()
             | GameHasEnded()
+            | Passed()
+            | AttackNotDeclared()
         ):
             return 4
         case (
             CardsRevealed()
+            | ResolveAsked()
             | ChoiceRevealedTo()
             | ChoiceAsked()
             | BlocksRequested()
@@ -370,10 +388,16 @@ def _place_in_order(event: Event) -> int:
             return 9
         case ExpectationMismatched():
             return 10
-        case SeatEliminated():
+        case ItemStacked():
             return 11
-        case NoticeRaised():
+        case AutomaticPass():
             return 12
+        case ItemResolved() | ItemCountered() | ItemRemoved():
+            return 13
+        case SeatEliminated():
+            return 14
+        case NoticeRaised():
+            return 15
         case _:
             assert_never(event)
 
@@ -615,7 +639,7 @@ def _contested_start(event: ContestedGameStarted) -> list[str]:
     ]
 
 
-# @spec TURN-046
+# @spec TURN-046, TURN-057
 def _stopped(event: AdvanceStopped, after: int | None) -> str:
     """Why the advance stopped, and the call to send next, with the change number to pass."""
     to = f'to="{event.to.value}"' if event.to is not None else ""
@@ -643,8 +667,60 @@ def _stopped(event: AdvanceStopped, after: int | None) -> str:
                 f" Once they have, send {again} again, with the change number then shown as"
                 " after."
             )
+        case StopReason.END_WINDOW:
+            again = f"advance({to})" if to else "advance"
+            return (
+                f"Stopped at {event.step.value}: the other seats are being asked whether they"
+                f" respond; {event.seat} is asked now. Once the window closes, send {again}"
+                " again, with the change number then shown as after."
+            )
         case _:
             assert_never(event.reason)
+
+
+def _window_words(item: str | None, window: str | None) -> str:
+    """What a pass was made on: a stack item, the attack, or the end step."""
+    if item is not None:
+        return f"on {item}"
+    return "in the end step" if window == "end" else "on the attack"
+
+
+# @spec STACK-047, TOOL-040
+def _automatic_pass(event: AutomaticPass) -> str:
+    where = _window_words(event.item, event.window)
+    return f"{event.seat} passed automatically {where}: no untapped permanents."
+
+
+def _passed(event: Passed) -> str:
+    if event.reminder:
+        step = event.step.value if event.step is not None else "step"
+        return f"{event.seat} passed on its {step} reminders."
+    return f"{event.seat} passed {_window_words(event.item, event.window)}."
+
+
+def _resolve_asked(event: ResolveAsked) -> str:
+    held = json.dumps(event.delta, separators=(", ", ": "))
+    to = event.to or "its default destination"
+    line = (
+        f"Choice {event.choice_id} (resolve) for {event.seat}: {event.item} {event.source}"
+        f" holds delta {held} and goes to {to}."
+    )
+    if event.error is not None:
+        line += f" It cannot resolve as held: {error_text(event.error)}"
+    else:
+        line += " Something resolved above it since it was put on the stack."
+    return (
+        line + f' Confirm it with choose(choice_id="{event.choice_id}"), or say what it does now'
+        " with restate."
+    )
+
+
+def _not_declared(event: AttackNotDeclared) -> str:
+    return (
+        f"Attack not declared: stopped at {event.step.value} for another seat's reminder;"
+        " nothing was declared or tapped. Send attack again once your seat is asked to take"
+        " its turn, with the change number then shown as after."
+    )
 
 
 _INTO_HIDDEN = {
@@ -853,5 +929,23 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
             ]
         case Refused():
             return refusal_lines(event, tool)
+        case AttackNotDeclared():
+            return [_not_declared(event)]
+        case ItemStacked():
+            return [f"Put {event.item} on the stack: {event.source} from {event.controller}."]
+        case Passed():
+            return [_passed(event)]
+        case AutomaticPass():
+            return [_automatic_pass(event)]
+        case ItemResolved():
+            return [f"{event.item} resolved: {event.source} from {event.controller}."]
+        case ItemCountered():
+            return [f"{event.item} was countered: {event.source} from {event.controller}."]
+        case ItemRemoved():
+            return [
+                f"{event.item} left the stack unresolved: {event.source} from {event.controller}."
+            ]
+        case ResolveAsked():
+            return [_resolve_asked(event)]
         case _:
             assert_never(event)

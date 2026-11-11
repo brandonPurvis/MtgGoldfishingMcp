@@ -15,8 +15,6 @@ from tests.support.acting import S1, S2, S3, acted, events_named, passed, record
 from tests.support.builders import a_game
 from tests.support.tables import a_table, bolt_at
 
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
-
 
 def at_untap(*describers: Any) -> Any:
     """Seat 1's untap step; the next step entered is its upkeep."""
@@ -77,7 +75,6 @@ def test_the_active_seat_is_not_reminded_of_a_trigger_on_opponents_turns_only() 
 
 
 # @spec TURN-048
-@NOT_BUILT
 def test_another_seat_is_reminded_of_its_triggers_on_each_turn_and_on_opponents_turns() -> None:
     situation = vise_and_vortex()
 
@@ -96,7 +93,6 @@ def test_another_seat_is_not_reminded_of_a_trigger_on_its_own_turn_only() -> Non
 
 
 # @spec TURN-050
-@NOT_BUILT
 def test_a_reminder_goes_to_the_seat_that_controls_the_permanent() -> None:
     situation = at_untap(
         none(), none(), lambda b: b.with_battlefield("Black Vise").controlled_by("Black Vise", 2)
@@ -108,7 +104,6 @@ def test_a_reminder_goes_to_the_seat_that_controls_the_permanent() -> None:
 
 
 # @spec TURN-055
-@NOT_BUILT
 def test_permanents_of_one_name_under_different_controllers_are_reminded_to_each() -> None:
     situation = at_untap(
         none(),
@@ -125,7 +120,6 @@ def test_permanents_of_one_name_under_different_controllers_are_reminded_to_each
 
 
 # @spec TURN-051
-@NOT_BUILT
 def test_an_advance_stops_where_another_seat_is_reminded_and_that_seat_acts() -> None:
     situation = vise_and_vortex()
 
@@ -136,7 +130,6 @@ def test_an_advance_stops_where_another_seat_is_reminded_and_that_seat_acts() ->
 
 
 # @spec TURN-052, TURN-063
-@NOT_BUILT
 def test_the_game_waits_until_each_reminder_of_the_seat_is_answered() -> None:
     situation = in_upkeep_reminded(vise_and_vortex())
 
@@ -149,7 +142,6 @@ def test_the_game_waits_until_each_reminder_of_the_seat_is_answered() -> None:
 
 
 # @spec TURN-063
-@NOT_BUILT
 def test_an_effect_naming_a_reminded_permanent_goes_on_the_stack_and_answers_it() -> None:
     situation = in_upkeep_reminded(vise_and_vortex())
 
@@ -161,7 +153,6 @@ def test_an_effect_naming_a_reminded_permanent_goes_on_the_stack_and_answers_it(
 
 
 # @spec TURN-064, STACK-051
-@NOT_BUILT
 def test_a_pass_declines_every_reminder_of_the_step_still_unanswered() -> None:
     situation = in_upkeep_reminded(vise_and_vortex())
 
@@ -171,7 +162,6 @@ def test_a_pass_declines_every_reminder_of_the_step_still_unanswered() -> None:
 
 
 # @spec TURN-065, STACK-079
-@NOT_BUILT
 @pytest.mark.parametrize("call", ["play", "immediate effect", "unnamed effect"])
 def test_other_calls_from_a_reminded_seat_are_applied_and_its_reminders_wait(call: str) -> None:
     situation = in_upkeep_reminded(vise_and_vortex())
@@ -195,7 +185,6 @@ def test_other_calls_from_a_reminded_seat_are_applied_and_its_reminders_wait(cal
 
 
 # @spec TURN-066
-@NOT_BUILT
 def test_while_another_seat_is_reminded_nothing_on_the_stack_resolves() -> None:
     situation = at_untap(
         lambda b: b.with_battlefield("Forest", tapped=True),
@@ -212,7 +201,6 @@ def test_while_another_seat_is_reminded_nothing_on_the_stack_resolves() -> None:
 
 
 # @spec TURN-053
-@NOT_BUILT
 def test_reminded_seats_are_waited_on_one_at_a_time_in_turn_order() -> None:
     situation = at_untap(
         none(),
@@ -228,7 +216,6 @@ def test_reminded_seats_are_waited_on_one_at_a_time_in_turn_order() -> None:
 
 
 # @spec TURN-054
-@NOT_BUILT
 def test_once_every_reminded_seat_has_answered_the_active_seat_continues() -> None:
     situation = in_upkeep_reminded(vise_and_vortex())
 
@@ -240,7 +227,6 @@ def test_once_every_reminded_seat_has_answered_the_active_seat_continues() -> No
 
 
 # @spec TURN-067
-@NOT_BUILT
 def test_a_reminder_for_the_active_seat_does_not_make_the_game_wait() -> None:
     situation = at_untap(lambda b: b.with_battlefield("Mystic Remora"), none())
 

@@ -18,6 +18,7 @@ Feature: Elimination and the end of a contested game
     And seat S3 has ended its turn
     And seat S1 has recorded an effect with delta {"control": {"1": ["Elvish Mystic"]}}
     When seat S1 records an effect with delta {"damage": {"2": 40}}
+    And seat S2 passes
     Then the response is OK
     And the response says "S2 is eliminated: its life is 0 or less."
     And seat S2 is eliminated

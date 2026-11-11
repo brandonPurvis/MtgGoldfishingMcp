@@ -40,7 +40,6 @@ async def test_the_server_gives_its_instructions_to_a_connecting_client() -> Non
 
 
 # @spec TOOL-007
-@pytest.mark.xfail(strict=True, reason="M4: not built")
 async def test_the_server_lists_the_thirteen_tools() -> None:
     client, _ = _client()
 

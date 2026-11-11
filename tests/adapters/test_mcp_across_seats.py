@@ -68,7 +68,6 @@ def test_attack_says_a_blocked_attacker_s_damage_entry_is_dealt_in_full() -> Non
 
 
 # @spec TOOL-071
-@pytest.mark.xfail(strict=True, reason="M4: not built")
 def test_attack_says_it_may_stop_undeclared_where_another_seat_has_a_reminder() -> None:
     description = DEFINITIONS["attack"].description
     contested = description[description.index("Contested games:") :]

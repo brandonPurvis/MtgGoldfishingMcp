@@ -123,8 +123,10 @@ def _permanent(permanent: PermanentListing) -> str:
         details.append("haste")
     if permanent.vigilance:
         details.append("vigilance")
-    if permanent.triggers:
-        details.append("trigger in " + ", ".join(step.value for step in permanent.triggers))
+    steps = [step.value for step in permanent.triggers]
+    steps.extend(f"{step.value} (opp)" for step in permanent.opponent_triggers)
+    if steps:
+        details.append("trigger in " + ", ".join(steps))
     described = f": {'; '.join(details)}" if details else ""
     owner = f" (owner {permanent.owner})" if permanent.owner is not None else ""
     return f"  {permanent.instance_id} {permanent.name}{owner}{described}"
@@ -166,7 +168,7 @@ def _seat_lines(each: SeatListing, calling: SeatNumber, everyone: list[SeatNumbe
     return lines
 
 
-# @spec TOOL-051, TOOL-066
+# @spec TOOL-051, TOOL-066, GAME-122
 def contested_state_lines(listing: StateListing, seats: tuple[SeatListing, ...]) -> list[str]:
     """A contested game's listing: the calling seat's hand, then every seat in turn order."""
     calling = listing.seat
@@ -175,6 +177,12 @@ def contested_state_lines(listing: StateListing, seats: tuple[SeatListing, ...])
     lines = [f"Hand ({len(listing.hand)}): {_names(listing.hand)}"]
     for each in seats:
         lines.extend(_seat_lines(each, calling, everyone))
+    if listing.stack:
+        items = "; ".join(f"{i.item} {i.source} from {i.controller}" for i in listing.stack)
+        lines.append(f"Stack ({len(listing.stack)}): {items}")
+    if listing.window is not None:
+        asking = f"asking {listing.window.asking}" if listing.window.asking else "waiting"
+        lines.append(f"Response window ({listing.window.kind}): {asking}")
     return [*lines, *_payments(listing)]
 
 

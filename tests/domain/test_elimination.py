@@ -36,7 +36,9 @@ def a_table(seats: int = 3, *, active: int = 1) -> Situation:
 
 
 def recorded(situation: Situation, delta: object, seat: SeatNumber = S1) -> Any:
-    result = effect(situation.game, situation.deck, seat, source="a test effect", delta=delta)
+    result = effect(
+        situation.game, situation.deck, seat, source="a test effect", delta=delta, immediate=True
+    )
     return acted(situation, result)
 
 

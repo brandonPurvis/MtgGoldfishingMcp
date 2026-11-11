@@ -119,7 +119,14 @@ def step_impl(context: Any, number: int) -> None:
 
 @given(f"seat {SEAT} has recorded an effect with delta {{delta}}")
 def step_impl(context: Any, number: int, delta: str) -> None:
-    response = _as_seat(context, number, "effect", source="a test effect", delta=json.loads(delta))
+    response = _as_seat(
+        context,
+        number,
+        "effect",
+        source="a test effect",
+        delta=json.loads(delta),
+        immediate=True,
+    )
     assert headline(response.text).startswith("OK"), response.text
 
 
@@ -168,7 +175,14 @@ def step_impl(context: Any, number: int) -> None:
 def step_impl(context: Any, number: int, other: int) -> None:
     hand = _game(context).hand_of(SeatNumber(other))
     context.hidden_card = hand[0].id
-    _as_seat(context, number, "effect", source="a test effect", delta={"discard": [hand[0].id]})
+    _as_seat(
+        context,
+        number,
+        "effect",
+        source="a test effect",
+        delta={"discard": [hand[0].id]},
+        immediate=True,
+    )
 
 
 @when(f"seat {SEAT} attacks with targets {{targets}}")

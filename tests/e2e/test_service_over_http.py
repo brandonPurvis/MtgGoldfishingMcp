@@ -134,7 +134,7 @@ def test_uv_run_mtg_goldfishing_starts_the_service(tmp_path: Path) -> None:
 async def test_a_short_game_is_played_over_http(service: RunningService) -> None:
     async with Client(service.url) as client:
         tools = await client.list_tools()
-        assert len(tools.tools) == 12
+        assert len(tools.tools) == 13
 
         loaded = await client.call_tool(
             "load_deck", {"cards": a_deck_list().text(), "commander": ATRAXA}

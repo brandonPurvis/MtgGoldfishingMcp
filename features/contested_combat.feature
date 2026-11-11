@@ -20,7 +20,9 @@ Feature: Combat in a contested game
     When seat S1 attacks with targets {"Grizzly Bears": 2, "Llanowar Elves": 3}
     Then the response is OK
     And the response says "Attacking S2 with Grizzly Bears; S3 with Llanowar Elves."
-    When seat S1 advances to "combat_damage"
+    When seat S2 passes
+    And seat S3 passes
+    And seat S1 advances to "combat_damage"
     Then the response is OK
     And the response says "(blocks) for S2: attacked by Grizzly Bears."
     And the status line shows "Act S2 blocks"
@@ -43,6 +45,7 @@ Feature: Combat in a contested game
     And seat S2 puts "Elvish Mystic" onto the battlefield
     And seat S2 has ended its turn
     When seat S1 attacks with ["Atraxa, Praetors' Voice", "Grizzly Bears"]
+    And seat S2 passes
     And seat S1 advances to "declare_blockers"
     Then the status line shows "Act S2 blocks"
     When seat S2 answers its blocks choice with blocks {"Elvish Mystic": "Grizzly Bears"}

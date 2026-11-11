@@ -127,6 +127,40 @@ def add_seats(connection: sqlite3.Connection) -> None:
         )
 
 
+def _with_trigger_turns(data: Any) -> Any:
+    """A stored document with every step trigger reading written before triggers were read
+    with whose turns they happen on (a bare step) rewritten as a trigger on its controller's
+    turn, the turns every such reading was reminded on."""
+    if isinstance(data, list):
+        return [_with_trigger_turns(item) for item in data]
+    if not isinstance(data, dict):
+        return data
+    rewritten = {key: _with_trigger_turns(value) for key, value in data.items()}
+    triggers = rewritten.get("step_triggers")
+    if rewritten.get("__type__") == "FaceReading" and isinstance(triggers, list):
+        rewritten["step_triggers"] = [
+            _tagged("StepTrigger", step=trigger, whose="controller")
+            if isinstance(trigger, str)
+            else trigger
+            for trigger in triggers
+        ]
+    return rewritten
+
+
+def add_step_trigger_turns(connection: sqlite3.Connection) -> None:
+    """Rewrite the step trigger readings of every stored loaded deck and game, which named a
+    step alone, as triggers on their controller's turn. A game's version counter is left as
+    it was."""
+    for table, key, column in (("decks", "deck_id", "deck"), ("games", "game_id", "state")):
+        rows = connection.execute(f"SELECT {key}, {column} FROM {table}").fetchall()
+        for row_key, document in rows:
+            rewritten = _with_trigger_turns(json.loads(document))
+            connection.execute(
+                f"UPDATE {table} SET {column} = ? WHERE {key} = ?",
+                (json.dumps(rewritten, ensure_ascii=False, separators=(",", ":")), row_key),
+            )
+
+
 def sqlite_statements(script: str) -> list[str]:
     """The SQL statements of a script, one at a time, so that each can run inside an open
     transaction (`executescript` would commit it first)."""
@@ -201,6 +235,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     CREATE INDEX calls_by_game ON calls (game_id, change);
     """,
     add_seats,
+    add_step_trigger_turns,
 )
 """A database at version n has had the first n migrations applied."""
 

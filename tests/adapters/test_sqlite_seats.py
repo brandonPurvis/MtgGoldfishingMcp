@@ -34,7 +34,8 @@ STORED: dict[str, Any] = json.loads(
 )
 STORED_GAME: str = STORED["game_id"]
 STORED_STATE: dict[str, Any] = json.loads(STORED["tables"]["games"][0]["state"])
-SEATS_SCHEMA = 2
+SEATS_SCHEMA = len(MIGRATIONS)
+"""The current schema, which a database stored before seats is migrated to."""
 
 
 @pytest.fixture

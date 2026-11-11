@@ -36,6 +36,7 @@ from mtg_goldfishing.application.use_cases import (
     malformed_call,
     mulligan,
     new_game,
+    passing,
     play,
     wait,
 )
@@ -101,7 +102,8 @@ class Service:
         return effect.effect(self._ports, arguments)
 
     def choose(self, arguments: Arguments) -> Answer:
-        """`game_id, choice_id, selections, rest_order?, after?`"""
+        """`game_id, choice_id, selections?, rest_order?, delta?, blocks?, restate?,
+        override?, after?`"""
         return choose.choose(self._ports, arguments)
 
     def attack(self, arguments: Arguments) -> Answer:
@@ -112,6 +114,10 @@ class Service:
     def advance(self, arguments: Arguments) -> Answer:
         """`game_id, to?, discard?, override?, after?`"""
         return advance.advance(self._ports, arguments)
+
+    def pass_(self, arguments: Arguments) -> Answer:
+        """`game_id, after?`"""
+        return passing.pass_(self._ports, arguments)
 
     def wait(self, arguments: Arguments) -> Answer:
         """`game_id, timeout?`"""

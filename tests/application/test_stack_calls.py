@@ -5,14 +5,11 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Answer, Status
 from tests.support.builders import a_game
+from tests.support.responses import headline
 from tests.support.service import GAME_ID, ServiceHarness, a_service
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 
 
 def holding_two_seats() -> ServiceHarness:
@@ -35,7 +32,6 @@ def bolt(harness: ServiceHarness) -> Answer:
 
 
 # @spec STACK-055, TOOL-032
-@NOT_BUILT
 def test_a_pass_with_a_stale_after_is_an_error() -> None:
     harness = holding_two_seats()
     bolt(harness)
@@ -48,7 +44,6 @@ def test_a_pass_with_a_stale_after_is_an_error() -> None:
 
 
 # @spec STACK-055, TOOL-032
-@NOT_BUILT
 def test_a_pass_with_the_current_after_is_applied() -> None:
     harness = holding_two_seats()
     bolt(harness)
@@ -62,7 +57,6 @@ def test_a_pass_with_the_current_after_is_applied() -> None:
 
 
 # @spec STACK-055
-@NOT_BUILT
 def test_a_pass_sent_twice_is_applied_once() -> None:
     harness = holding_two_seats()
     bolt(harness)
@@ -72,11 +66,10 @@ def test_a_pass_sent_twice_is_applied_once() -> None:
     again = call_as(harness, 2, "pass", after=change)
 
     assert harness.game().change == change + 1
-    assert again.response.splitlines()[0] == first.response.splitlines()[0]
+    assert headline(again.response) == headline(first.response)
 
 
 # @spec REC-032, REC-034, REC-035
-@NOT_BUILT
 def test_the_entry_that_stacked_an_item_stays_as_it_was_when_another_call_resolves_it() -> None:
     harness = holding_two_seats()
     bolt(harness)

@@ -144,6 +144,7 @@ def test_a_pending_choice_is_shown_by_act_and_never_as_choice_pending() -> None:
         S2,
         source="a look",
         delta={"look": {"n": 1, "rest": "library_bottom"}},
+        immediate=True,
     )
     situation.game = looked.game
     assert line_of(situation, S2).endswith(" · Act you look · #0")

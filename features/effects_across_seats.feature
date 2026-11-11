@@ -45,6 +45,7 @@ Feature: Effects that reach other seats in a contested game
     And seat S2 has ended its turn
     And seat S3 has ended its turn
     When seat S1 records an effect with delta {"move": {"graveyard": ["Elvish Mystic"], "exile": ["Birds of Paradise"]}, "damage": {"2": 3}, "life": {"3": -2, "1": 1}}
+    And seat S2 passes
     Then the response is OK
     And "Elvish Mystic" is in seat S2's graveyard
     And "Birds of Paradise" is in seat S2's exile
@@ -59,6 +60,7 @@ Feature: Effects that reach other seats in a contested game
     And seat S2 puts "Elvish Mystic" onto the battlefield
     And seat S2 has ended its turn
     When seat S1 records an effect with delta {"control": {"1": ["Elvish Mystic"]}}
+    And seat S2 passes
     Then the response is OK
     And seat S1 controls "Elvish Mystic" owned by seat S2
     When seat S1 asks for the state

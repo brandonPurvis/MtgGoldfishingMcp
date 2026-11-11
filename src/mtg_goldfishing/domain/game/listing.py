@@ -22,7 +22,7 @@ from mtg_goldfishing.domain.game.model import (
     Zone,
 )
 from mtg_goldfishing.domain.game.seats import SeatNumber
-from mtg_goldfishing.domain.reading.model import ManaAbility
+from mtg_goldfishing.domain.reading.model import ManaAbility, Whose
 from mtg_goldfishing.domain.steps import Step
 
 
@@ -38,6 +38,8 @@ class PermanentListing:
     triggers: tuple[Step, ...]
     owner: SeatNumber | None = None
     """In a contested game, the seat that owns the permanent when it is not its controller."""
+    opponent_triggers: tuple[Step, ...] = ()
+    """In a contested game, the steps it has a trigger in on opponents' turns only."""
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,23 @@ class SeatListing:
 
 
 @dataclass(frozen=True)
+class StackListing:
+    """One item on the stack as any seat may see it."""
+
+    item: str
+    source: str
+    controller: SeatNumber
+
+
+@dataclass(frozen=True)
+class WindowListing:
+    """The open response window: what opened it and the seat it is asking, if any."""
+
+    kind: str
+    asking: SeatNumber | None
+
+
+@dataclass(frozen=True)
 class StateListing:
     """The listing; the fields after `notices` are present only for the full detail.
 
@@ -86,12 +105,23 @@ class StateListing:
     seats: tuple[SeatListing, ...] | None = None
     seat: SeatNumber | None = None
     """The calling seat, in a contested game."""
+    stack: tuple[StackListing, ...] = ()
+    """In a contested game, the items on the stack, top first."""
+    window: WindowListing | None = None
+    """In a contested game, the open response window."""
 
 
 DETAILS = ("summary", "full")
 
 
+# @spec GAME-030, GAME-123
 def _permanent(game: Game, deck: LoadedDeck, card: CardInstance) -> PermanentListing:
+    """A permanent as listed: its triggers on its controller's turn or each turn, and, in a
+    contested game, apart from them, those on opponents' turns only; a goldfish game, which
+    has no opponents' turns, lists none of those."""
+    triggers = reading_of(deck, card).step_triggers
+    own = tuple(dict.fromkeys(t.step for t in triggers if t.whose is not Whose.OPPONENTS))
+    others = tuple(dict.fromkeys(t.step for t in triggers if t.whose is Whose.OPPONENTS))
     return PermanentListing(
         instance_id=card.id,
         name=face_name(deck, card),
@@ -100,8 +130,9 @@ def _permanent(game: Game, deck: LoadedDeck, card: CardInstance) -> PermanentLis
         mana=reading_of(deck, card).mana_abilities,
         haste=has_haste(game, deck, card),
         vigilance=has_vigilance(game, deck, card),
-        triggers=reading_of(deck, card).step_triggers,
+        triggers=own,
         owner=card.owner if game.contested and card.owner != card.controller else None,
+        opponent_triggers=others if game.contested else (),
     )
 
 
@@ -167,6 +198,12 @@ def list_state(
         if game.contested
         else None,
         seat=seat if game.contested else None,
+        stack=tuple(
+            StackListing(item.id, item.source, item.controller) for item in reversed(game.stack)
+        ),
+        window=WindowListing(game.window.kind.value, game.window.asking)
+        if game.window is not None
+        else None,
     )
     if not full:
         return listing

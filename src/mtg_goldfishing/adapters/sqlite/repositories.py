@@ -35,7 +35,7 @@ def utc_now() -> datetime:
 
 
 # @spec STOR-001, STOR-004, STOR-005, STOR-008, STOR-016, STOR-017, STOR-018, STOR-019
-# @spec STOR-020
+# @spec STOR-020, STOR-015
 class SqliteGameRepository(GameRepository):
     """Each game is one row: its state as one JSON document and a version counter.
 

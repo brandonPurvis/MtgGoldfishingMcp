@@ -9,7 +9,7 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-003**: When the service starts and the configured database file or its directory does not exist, the SQLite adapter shall create them.
 - [x] **STOR-004**: The SQLite adapter shall store the current state of a game, goldfish or contested, as one JSON document and treat that document as authoritative over any other column of the game's row.
 - [x] **STOR-005**: The SQLite adapter shall return from `GameRepository` a game, goldfish or contested, equal to the one last saved, including after the service has been restarted.
-- [ ] **STOR-015**: When a contested game is saved and loaded again, the SQLite adapter shall return every seat's state, every card instance's owner and controller, the stack, any open response window and every pending choice equal to what was saved.
+- [x] **STOR-015**: When a contested game is saved and loaded again, the SQLite adapter shall return every seat's state, every card instance's owner and controller, the stack, any open response window and every pending choice equal to what was saved.
 
 ## Seats
 

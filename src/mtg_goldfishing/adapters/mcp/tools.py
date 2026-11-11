@@ -30,6 +30,7 @@ USE_CASES: dict[str, UseCase] = {
     "choose": Service.choose,
     "attack": Service.attack,
     "advance": Service.advance,
+    "pass": Service.pass_,
     "wait": Service.wait,
     "end_game": Service.end_game,
     "get_log": Service.get_log,

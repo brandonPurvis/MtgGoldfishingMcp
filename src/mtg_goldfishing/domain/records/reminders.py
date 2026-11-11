@@ -60,7 +60,7 @@ def _answers(entry: LogEntry, issued_by: LogEntry, reminder: ReminderRecord) -> 
     )
 
 
-# @spec REC-009, REC-010, REC-043
+# @spec REC-009, REC-010, REC-043, REC-044
 def judge_reminders(entries: Sequence[LogEntry]) -> list[JudgedReminder]:
     """Every reminder recorded in the entries, in order, judged answered or unanswered.
 

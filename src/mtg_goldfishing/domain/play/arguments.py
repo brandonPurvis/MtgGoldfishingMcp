@@ -35,6 +35,7 @@ DELTA_KEYS: tuple[str, ...] = (
     "search",
 )
 CONTESTED_DELTA_KEYS: tuple[str, ...] = (
+    "counter",
     "untap",
     "tap",
     "mana",
@@ -184,10 +185,11 @@ class AskEntry:
 class Delta:
     """The outcome of a play or effect, applied in the fixed order of its fields.
 
-    `life_by_seat`, `damage_by_seat`, `control`, `ask` and `look_at_hand` belong to a
-    contested game; `damage` to a goldfish game.
+    `counter`, `life_by_seat`, `damage_by_seat`, `control`, `ask` and `look_at_hand`
+    belong to a contested game; `damage` to a goldfish game.
     """
 
+    counter: Names = ()
     untap: Names = ()
     tap: Names = ()
     mana: ManaString | None = None
@@ -406,6 +408,16 @@ def _read_ask(value: object) -> tuple[AskEntry, ...] | Error:
     return tuple(entries)
 
 
+# @spec PLAY-125
+def _read_counter(value: object) -> Names | Error:
+    """`counter`: a list of stack item ids or names of spells' cards on the stack."""
+    if not isinstance(value, list) or not all(
+        isinstance(entry, str) and entry.strip() for entry in value
+    ):
+        return _malformed("counter")
+    return tuple(entry.strip() for entry in value)
+
+
 def _read_look_at_hand(value: object) -> SeatNumber | Error:
     seat = None if isinstance(value, str) else _seat_number(value)
     return _malformed("look_at_hand") if seat is None else seat
@@ -457,6 +469,7 @@ def read_delta(data: object, *, contested: bool = False) -> Delta | Error:
         "look": _read_look,
         "search": _read_search,
         "control": _read_control,
+        "counter": _read_counter,
         "ask": _read_ask,
         "look_at_hand": _read_look_at_hand,
     }

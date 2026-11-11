@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from mtg_goldfishing.domain.cards import Card
-from mtg_goldfishing.domain.events import Event, NoticeKind
+from mtg_goldfishing.domain.events import Error, Event, NoticeKind
 from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from mtg_goldfishing.domain.mana import ManaPool, ManaString
 from mtg_goldfishing.domain.reading.model import CardReading
@@ -176,7 +176,11 @@ class StackItemKind(Enum):
 @dataclass(frozen=True)
 class StackItem:
     """A play or effect of a contested game made and not yet resolved, holding the delta its
-    controller stated, as stated."""
+    controller stated, as stated (its `counter` entries held as stack item ids).
+
+    A spell has its card on the stack and may hold the destination `to`; an ability has no
+    card. `disturbed` says an item above it resolved while it waited.
+    """
 
     id: str
     controller: SeatNumber
@@ -188,6 +192,18 @@ class StackItem:
     to: Destination | None = None
     choices: dict[str, object] | None = None
     disturbed: bool = False
+
+    # @spec APP-032
+    def __post_init__(self) -> None:
+        number = self.id[1:]
+        if not (self.id.startswith("s") and number.isdigit() and int(number) >= 1):
+            raise ValueError(f"a stack item id is s1, s2, ..., not {self.id!r}")
+        if self.tool not in ("play", "effect"):
+            raise ValueError(f"a stack item is made by play or effect, not {self.tool!r}")
+        if self.kind is StackItemKind.SPELL and self.card is None:
+            raise ValueError("a spell on the stack has its card")
+        if self.kind is StackItemKind.ABILITY and (self.card is not None or self.to is not None):
+            raise ValueError("an ability on the stack has no card and no destination")
 
 
 class WindowKind(Enum):
@@ -213,12 +229,13 @@ class Window:
 class PendingChoice:
     """A decision the game waits on from one seat: `seat` is the seat that answers it.
 
-    Its `kind` is `look`, `search`, `hand`, `ask` or `blocks`.
+    Its `kind` is `look`, `search`, `hand`, `ask`, `resolve` or `blocks`.
 
     `revealed` holds the cards a look, a search or a look at a hand shows; `asked_by` is the
     seat whose effect asked (for a `hand` choice, the looking seat), `hand_of` the seat whose
     hand a `hand` choice shows, `text` what an `ask` requires, and `attackers` the attackers
-    a `blocks` choice may block.
+    a `blocks` choice may block. A `resolve` choice names the stack `item` its seat confirms
+    or restates, and the `error` that kept the item from resolving as held, if any.
     """
 
     choice_id: str
@@ -232,6 +249,8 @@ class PendingChoice:
     hand_of: SeatNumber | None = None
     text: str = ""
     attackers: list[str] = field(default_factory=list)
+    item: str | None = None
+    error: Error | None = None
 
 
 @dataclass
@@ -266,7 +285,9 @@ class Reminder:
 
     `name` is the name of the permanent's face in play when reminded; `card_name` its card
     name, kept so the reminder can be answered after the permanent has left the battlefield;
-    `turn` the table turn it was issued in, within which it may be answered.
+    `turn` the table turn it was issued in, within which it may be answered. A seat other
+    than the active seat that passes on its reminders has `declined` them: the game no
+    longer waits on them, though a later `effect` still answers them.
     """
 
     instance_id: str
@@ -275,6 +296,7 @@ class Reminder:
     answered: bool = False
     card_name: str = ""
     turn: int = 0
+    declined: bool = False
 
 
 @dataclass
@@ -348,7 +370,7 @@ class ImaginaryOpponents:
     commander_damage: dict[str, list[int]] = field(default_factory=dict)
 
 
-# @spec APP-030, GAME-100
+# @spec APP-029, APP-030, GAME-100
 @dataclass
 class Game:
     """The table: what every seat shares, the seats in turn order, and every seat's cards.

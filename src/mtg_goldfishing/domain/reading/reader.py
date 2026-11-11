@@ -46,7 +46,9 @@ from mtg_goldfishing.domain.reading.model import (
     Produces,
     ReadAbility,
     ReadingReport,
+    StepTrigger,
     UnreadAbility,
+    Whose,
 )
 from mtg_goldfishing.domain.steps import STEPS, Step
 
@@ -93,7 +95,8 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
                 listed = read_exactly if ability.is_exact else read_with_assumptions
                 listed.append(ReadAbility(name, ability))
             unread.extend(UnreadAbility(name, text) for text in face_reading.unread_mana_abilities)
-            step_triggers.extend((name, step) for step in face_reading.step_triggers)
+            steps = dict.fromkeys(trigger.step for trigger in face_reading.step_triggers)
+            step_triggers.extend((name, step) for step in steps)
             for keyword, keyword_reading in (
                 ("haste", face_reading.haste),
                 ("vigilance", face_reading.vigilance),
@@ -206,7 +209,7 @@ _OPTION_SEPARATOR = re.compile(r",\s*(?:or\s+)?|\s+or\s+")
 _LIST_SEPARATOR = re.compile(r",\s*(?:or\s+|and\s+)?|\s+or\s+|\s+and\s+")
 
 
-# @spec READ-003, READ-015, READ-016, READ-024, READ-025, READ-026
+# @spec READ-003, READ-015, READ-016, READ-024, READ-025, READ-026, READ-045
 def read_mana_abilities(text: _FaceText) -> tuple[tuple[ManaAbility, ...], tuple[str, ...]]:
     """The face's mana abilities, each read separately, and those that add mana unread.
 
@@ -421,30 +424,60 @@ def _one_mana_of_produced_colors(effect: str, card: Card) -> Produces | None:
 
 # Step triggers
 
-_WHOSE = r"(?:your next |your |each player's |each |the next |the )"
-_STEP_PHRASES: tuple[tuple[Step, re.Pattern[str]], ...] = tuple(
-    (step, re.compile(r"\bat the beginning of " + phrase, re.IGNORECASE))
-    for step, phrase in (
-        (Step.UPKEEP, rf"{_WHOSE}upkeep"),
-        (Step.DRAW, rf"{_WHOSE}draw step"),
-        (Step.MAIN1, rf"{_WHOSE}(?:precombat|first) main phase"),
-        (Step.BEGIN_COMBAT, r"(?:combat on your turn|each combat)"),
-        (Step.MAIN2, rf"{_WHOSE}(?:postcombat|second) main phase"),
-        (Step.END, rf"{_WHOSE}end step"),
-    )
+_WHOSE_PREFIXES: tuple[tuple[str, Whose], ...] = (
+    ("your next ", Whose.CONTROLLER),
+    ("your ", Whose.CONTROLLER),
+    ("each opponent's ", Whose.OPPONENTS),
+    ("each player's ", Whose.EACH),
+    ("each ", Whose.EACH),
+    ("the next ", Whose.EACH),
+    ("the ", Whose.EACH),
 )
+_STEP_NAMES: tuple[tuple[Step, str], ...] = (
+    (Step.UPKEEP, "upkeep"),
+    (Step.DRAW, "draw step"),
+    (Step.MAIN1, "(?:precombat|first) main phase"),
+    (Step.MAIN2, "(?:postcombat|second) main phase"),
+    (Step.END, "end step"),
+)
+_OPPONENTS_STEPS = (Step.UPKEEP, Step.DRAW, Step.END)
+
+
+def _phrase(text: str) -> re.Pattern[str]:
+    return re.compile(r"\bat the beginning of " + text + r"\b", re.IGNORECASE)
+
+
+_STEP_PHRASES: tuple[tuple[Step, Whose, re.Pattern[str]], ...] = (
+    *(
+        (step, whose, _phrase(re.escape(prefix) + name))
+        for step, name in _STEP_NAMES
+        for prefix, whose in _WHOSE_PREFIXES
+        if whose is not Whose.OPPONENTS or step in _OPPONENTS_STEPS
+    ),
+    (Step.BEGIN_COMBAT, Whose.CONTROLLER, _phrase("combat on your turn")),
+    (Step.BEGIN_COMBAT, Whose.EACH, _phrase("each combat")),
+)
+_WHOSE_ORDER = (Whose.CONTROLLER, Whose.EACH, Whose.OPPONENTS)
 
 
 # @spec READ-028, READ-029, READ-030, READ-031, READ-032, READ-033, READ-034, READ-035
-def read_step_triggers(text: _FaceText) -> tuple[Step, ...]:
-    """The steps the face has a beginning-of-step trigger in, each once, in step order.
+# @spec READ-046, READ-047, READ-048, READ-052, READ-053, READ-054
+def read_step_triggers(text: _FaceText) -> tuple[StepTrigger, ...]:
+    """The face's beginning-of-step triggers, each step and `whose` pair once, in step order.
 
-    Phrases that name only opponents match none of the patterns, since a goldfish game has
-    no opponent turns.
+    `your` (and `your next`) reads as the controller's turn; `each`, `each player's`, `the`
+    and `the next` as each turn; `each opponent's` as opponents' turns, for the upkeep, the
+    draw step and the end step only. Any other wording naming opponents or other players
+    matches no pattern and is no trigger.
     """
     rules_text = "\n".join(text.lines)
-    found = {step for step, phrase in _STEP_PHRASES if phrase.search(rules_text)}
-    return tuple(step for step in STEPS if step in found)
+    found = {(step, whose) for step, whose, phrase in _STEP_PHRASES if phrase.search(rules_text)}
+    return tuple(
+        StepTrigger(step, whose)
+        for step in STEPS
+        for whose in _WHOSE_ORDER
+        if (step, whose) in found
+    )
 
 
 # Haste, vigilance and flash

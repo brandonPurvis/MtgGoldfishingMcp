@@ -149,6 +149,22 @@ def _contested_entry_to_data(contested: ContestedEntry) -> dict[str, object]:
             {"seat": record.seat.value, "cause": record.cause} for record in contested.eliminated
         ],
         "no_blocks": [seat.value for seat in contested.no_blocks],
+        "stacked": contested.stacked,
+        "resolved": [
+            {
+                "item": record.item,
+                "controller": record.controller.value,
+                "source": record.source,
+                "delta": _value_to_data(record.delta),
+                "to": record.to,
+            }
+            for record in contested.resolved
+        ],
+        "countered": list(contested.countered),
+        "removed": list(contested.removed),
+        "auto_passes": [
+            {"seat": record.seat.value, "item": record.item} for record in contested.auto_passes
+        ],
         "public": [event_to_data(event) for event in contested.public],
         "private": {
             str(shown.seat.value): [event_to_data(event) for event in shown.events]

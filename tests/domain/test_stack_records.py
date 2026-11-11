@@ -6,8 +6,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game.calls import accept_change
 from mtg_goldfishing.domain.game.ending import end_game
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -22,8 +20,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, acted
 from tests.support.builders import Situation
 from tests.support.tables import a_table, bolt_at, three_seats, two_seats
-
-NOT_BUILT = pytest.mark.xfail(strict=True, reason="M4: not built")
 
 
 def logged(
@@ -67,7 +63,6 @@ def an_effect(situation: Situation, seat: SeatNumber, delta: object, **arguments
 
 
 # @spec REC-032
-@NOT_BUILT
 def test_an_entry_names_the_item_its_call_put_on_the_stack() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
 
@@ -78,7 +73,6 @@ def test_an_entry_names_the_item_its_call_put_on_the_stack() -> None:
 
 
 # @spec REC-033
-@NOT_BUILT
 def test_a_stacking_entry_records_what_was_stated_and_paid_when_it_was_cast() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
 
@@ -90,7 +84,6 @@ def test_a_stacking_entry_records_what_was_stated_and_paid_when_it_was_cast() ->
 
 
 # @spec REC-034
-@NOT_BUILT
 def test_the_entry_of_the_call_that_resolved_an_item_records_its_resolution() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     a_cast(situation, S1, "Lightning Bolt", delta=bolt_at(2))
@@ -108,7 +101,6 @@ def test_the_entry_of_the_call_that_resolved_an_item_records_its_resolution() ->
 
 
 # @spec REC-034
-@NOT_BUILT
 def test_a_resolved_ability_records_no_destination() -> None:
     situation = two_seats()
     an_effect(situation, S1, {"life": 1})
@@ -119,7 +111,6 @@ def test_a_resolved_ability_records_no_destination() -> None:
 
 
 # @spec REC-034, REC-074
-@NOT_BUILT
 def test_a_restated_resolution_records_the_restated_delta_and_the_choose_has_no_outcome() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Grizzly Bears", delta={"life": 1}, disturbed=True),
@@ -150,7 +141,6 @@ def test_a_choose_answering_an_ask_has_no_outcome() -> None:
 
 
 # @spec REC-035
-@NOT_BUILT
 def test_resolving_an_item_leaves_the_entry_that_stacked_it_as_it_was() -> None:
     situation = two_seats(lambda b: b.with_hand("Lightning Bolt"))
     cast = data(a_cast(situation, S1, "Lightning Bolt", delta=bolt_at(2)))
@@ -163,7 +153,6 @@ def test_resolving_an_item_leaves_the_entry_that_stacked_it_as_it_was() -> None:
 
 
 # @spec REC-036
-@NOT_BUILT
 def test_the_entry_of_the_call_whose_delta_countered_an_item_records_it() -> None:
     situation = two_seats(
         lambda b: b.with_spell_on_stack("Lightning Bolt", delta=bolt_at(2)),
@@ -178,7 +167,6 @@ def test_the_entry_of_the_call_whose_delta_countered_an_item_records_it() -> Non
 
 
 # @spec REC-066
-@NOT_BUILT
 def test_items_an_elimination_takes_off_the_stack_are_recorded_as_removed() -> None:
     situation = three_seats(
         second=lambda b: b.with_ability_on_stack(
@@ -195,7 +183,6 @@ def test_items_an_elimination_takes_off_the_stack_are_recorded_as_removed() -> N
 
 
 # @spec REC-066
-@NOT_BUILT
 def test_items_the_end_of_the_game_takes_off_the_stack_are_recorded_as_removed() -> None:
     situation = two_seats(
         second=lambda b: b.with_ability_on_stack("a trick", delta={"life": 1}).with_window(
@@ -210,7 +197,6 @@ def test_items_the_end_of_the_game_takes_off_the_stack_are_recorded_as_removed()
 
 
 # @spec REC-037
-@NOT_BUILT
 def test_automatic_passes_are_recorded_with_the_item_passed_on() -> None:
     situation = three_seats(
         lambda b: b.with_hand("Grizzly Bears"),
@@ -225,7 +211,6 @@ def test_automatic_passes_are_recorded_with_the_item_passed_on() -> None:
 
 
 # @spec REC-037
-@NOT_BUILT
 def test_an_automatic_pass_in_an_end_window_with_an_empty_stack_names_no_item() -> None:
     situation = two_seats(step=Step.MAIN2, lands=False)
 
@@ -236,7 +221,6 @@ def test_an_automatic_pass_in_an_end_window_with_an_empty_stack_names_no_item() 
 
 
 # @spec REC-044
-@NOT_BUILT
 def test_a_pass_on_a_reminder_does_not_answer_it() -> None:
     situation = a_table(lambda b: b, lambda b: b.with_battlefield("Black Vise"), step=Step.UNTAP)
     entries = [logged(situation, S1, "advance", {}, advance(situation.game, situation.deck, S1))]
@@ -248,7 +232,6 @@ def test_a_pass_on_a_reminder_does_not_answer_it() -> None:
 
 
 # @spec REC-044
-@NOT_BUILT
 def test_an_effect_after_a_pass_on_a_reminder_still_answers_it() -> None:
     situation = a_table(lambda b: b, lambda b: b.with_battlefield("Black Vise"), step=Step.UNTAP)
     entries = [logged(situation, S1, "advance", {}, advance(situation.game, situation.deck, S1))]

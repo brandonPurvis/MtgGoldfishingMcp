@@ -32,7 +32,8 @@ def test_choices_addressed_to_seats_and_a_waiting_look_at_a_hand_are_stored_whol
     situation = three_seats()
     delta = {"ask": [{"seats": "opponents", "text": "discard a card"}], "look_at_hand": 3}
     result = acted(
-        situation, effect(situation.game, situation.deck, S1, source="Mind Rot", delta=delta)
+        situation,
+        effect(situation.game, situation.deck, S1, source="Mind Rot", delta=delta, immediate=True),
     )
     accept_change(result, S1, "effect", {"delta": delta})
     assert situation.game.hand_looks

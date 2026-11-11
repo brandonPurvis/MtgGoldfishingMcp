@@ -15,6 +15,7 @@ from mtg_goldfishing.domain.game.results import Applied
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.play.choosing import choose
 from mtg_goldfishing.domain.play.playing import effect
+from mtg_goldfishing.domain.stack.passing import pass_
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
 from tests.support.acting import S1, S2, S3, acted, check_kinds, error_kinds, events_named
@@ -67,7 +68,7 @@ def recorded(situation: Situation, delta: object, seat: SeatNumber = S1, **more:
         seat,
         source="a test effect",
         delta=delta,
-        **more,  # type: ignore[arg-type]
+        **{"immediate": True, **more},  # type: ignore[arg-type]
     )
     return acted(situation, result)
 
@@ -250,7 +251,10 @@ def test_attacking_in_declare_blockers_is_an_error() -> None:
 
 
 def attacked(situation: Situation, **arguments: object) -> Situation:
+    """The attack is declared, and every seat its window asks passes."""
     acted(situation, attacking(situation, **arguments))
+    while situation.game.window is not None and situation.game.window.asking is not None:
+        acted(situation, pass_(situation.game, situation.deck, situation.game.window.asking))
     return situation
 
 
