@@ -6,6 +6,7 @@ import pytest
 
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
+from mtg_goldfishing.domain.game.calls import SERVICE_TOOLS
 from tests.support.builders import a_game
 from tests.support.service import ServiceHarness, a_service
 
@@ -367,7 +368,6 @@ def test_a_malformed_call_changes_nothing() -> None:
 
 
 # @spec TOOL-010, REC-090
-@pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
 def test_get_log_s_tools_sent_as_a_json_string_is_decoded() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -386,3 +386,10 @@ def test_get_log_s_tools_sent_as_bare_text_is_answered_as_an_error() -> None:
     response = surface.call("get_log", {"game_id": game_id, "tools": "play"})
 
     assert response.text.startswith("ERROR Argument tools is malformed.")
+
+
+# @spec REC-095, TOOL-007
+def test_the_tools_get_log_errors_list_are_the_tools_the_surface_offers_in_its_order() -> None:
+    surface, _ = _surface()
+
+    assert tuple(surface.names) == SERVICE_TOOLS == TOOLS

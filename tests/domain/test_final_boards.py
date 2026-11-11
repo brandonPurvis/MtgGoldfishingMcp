@@ -7,8 +7,6 @@ import json
 from dataclasses import replace
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.events import EliminationCause
 from mtg_goldfishing.domain.game.calls import accept_change
 from mtg_goldfishing.domain.game.decks import Decks
@@ -27,7 +25,6 @@ THRASIOS = "Thrasios, Triton Hero"
 TYMNA = "Tymna the Weaver"
 VALKI = "Valki, God of Lies // Tibalt, Cosmic Impostor"
 ENDING = {"result": "stalled", "notes": "even"}
-NOT_YET = pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
 
 
 def a_table() -> Situation:
@@ -97,14 +94,12 @@ def per_seat_decks(situation: Situation) -> Decks:
 
 
 # @spec REC-097
-@NOT_YET
 def test_the_tested_seat_s_end_game_records_every_seat_in_ascending_seat_number() -> None:
     entry = ended(a_table())
     assert [each["seat"] for each in entry["outcome"]["final"]] == [1, 2, 3]
 
 
 # @spec REC-097
-@NOT_YET
 def test_final_sits_beside_the_result_and_notes() -> None:
     entry = ended(a_table())
     assert set(entry["outcome"]) == {"result", "notes", "final"}
@@ -112,7 +107,6 @@ def test_final_sits_beside_the_result_and_notes() -> None:
 
 
 # @spec REC-097, REC-100
-@NOT_YET
 def test_an_eliminated_seat_is_listed_in_final() -> None:
     situation = a_table()
     eliminate(situation.game, S3, EliminationCause.CONCEDE)
@@ -124,7 +118,6 @@ def test_an_eliminated_seat_is_listed_in_final() -> None:
 
 
 # @spec REC-098
-@NOT_YET
 def test_a_seat_s_final_object_holds_exactly_its_state_fields() -> None:
     assert set(final_of(ended(a_table()), 2)) == {
         "seat",
@@ -138,21 +131,18 @@ def test_a_seat_s_final_object_holds_exactly_its_state_fields() -> None:
 
 
 # @spec REC-098
-@NOT_YET
 def test_final_records_each_seat_s_life_and_whether_it_is_eliminated() -> None:
     seat = final_of(ended(a_table()), 2)
     assert (seat["life"], seat["eliminated"]) == (33, False)
 
 
 # @spec REC-098
-@NOT_YET
 def test_final_records_a_seat_s_hand_and_graveyard_by_card_name() -> None:
     seat = final_of(ended(a_table()), 1)
     assert (seat["hand"], seat["graveyard"]) == (["Sol Ring", "Island"], ["Cultivate"])
 
 
 # @spec REC-098
-@NOT_YET
 def test_final_records_each_permanent_with_its_tapped_state_and_counters() -> None:
     seat = final_of(ended(a_table()), 1)
     assert seat["battlefield"] == [
@@ -162,7 +152,6 @@ def test_final_records_each_permanent_with_its_tapped_state_and_counters() -> No
 
 
 # @spec REC-098
-@NOT_YET
 def test_a_permanent_is_recorded_under_the_seat_that_controls_it() -> None:
     builder: Any = a_table_builder_with_a_stolen_elf()
     entry = ended(builder.build())
@@ -184,7 +173,6 @@ def a_table_builder_with_a_stolen_elf() -> Any:
 
 
 # @spec REC-098
-@NOT_YET
 def test_final_names_and_lists_a_seat_s_cards_as_a_snapshot_of_that_seat_does() -> None:
     builder: Any = (
         a_game()
@@ -211,21 +199,18 @@ def test_final_names_and_lists_a_seat_s_cards_as_a_snapshot_of_that_seat_does() 
 
 
 # @spec REC-099
-@NOT_YET
 def test_commander_damage_taken_maps_every_other_seat_to_each_of_its_commanders() -> None:
     seat = final_of(ended(a_table()), 1)
     assert seat["commander_damage_taken"] == {"2": {THRASIOS: 6, TYMNA: 0}, "3": {}}
 
 
 # @spec REC-099
-@NOT_YET
 def test_commander_damage_taken_includes_commanders_that_dealt_no_damage() -> None:
     seat = final_of(ended(a_table()), 3)
     assert seat["commander_damage_taken"] == {"1": {ATRAXA: 2}, "2": {THRASIOS: 0, TYMNA: 0}}
 
 
 # @spec REC-099
-@NOT_YET
 def test_commander_damage_taken_includes_an_eliminated_seat_s_commanders() -> None:
     situation = a_table()
     eliminate(situation.game, S2, EliminationCause.CONCEDE)
@@ -237,7 +222,6 @@ def test_commander_damage_taken_includes_an_eliminated_seat_s_commanders() -> No
 
 
 # @spec REC-100
-@NOT_YET
 def test_an_eliminated_seat_s_final_object_holds_empty_zones_and_the_life_it_left_at() -> None:
     situation = a_table()
     acted(
@@ -304,7 +288,6 @@ def test_a_concession_s_entry_holds_no_final() -> None:
 
 
 # @spec REC-102
-@NOT_YET
 def test_final_is_held_in_the_outcome_and_in_no_public_or_private_event() -> None:
     entry = ended(a_table())
     events = json.dumps({"public": entry["public"], "private": entry["private"]})
@@ -316,7 +299,6 @@ def test_final_is_held_in_the_outcome_and_in_no_public_or_private_event() -> Non
 
 
 # @spec REC-103
-@NOT_YET
 def test_a_spell_left_on_the_stack_is_in_no_zone_of_final_and_its_item_is_removed() -> None:
     builder: Any = (
         a_game()

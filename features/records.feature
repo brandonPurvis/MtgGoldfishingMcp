@@ -22,7 +22,6 @@ Feature: Records
     And the log's game has the result "win"
 
   # @spec REC-090, TOOL-010
-  @wip
   Scenario: The log can be narrowed to the calls of some tools
     Given "Forest" is in my hand
     And I have played "Forest"
@@ -33,7 +32,6 @@ Feature: Records
     And the log has an entry for "play"
 
   # @spec REC-095
-  @wip
   Scenario: A log filter naming something that is not a tool is refused
     When I ask for the game's log of only the "plya" calls
     Then the response says "plya, which are not tools"

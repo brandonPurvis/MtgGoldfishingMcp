@@ -6,8 +6,6 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.records.export import export
@@ -21,7 +19,6 @@ from tests.support.stored import (
 )
 
 S1, S2 = SeatNumber(1), SeatNumber(2)
-NOT_YET = pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
 
 
 def a_contested_game() -> Game:
@@ -92,19 +89,16 @@ def seqs(document: dict[str, Any]) -> list[int]:
 
 
 # @spec REC-089
-@NOT_YET
 def test_seat_keeps_only_the_log_entries_of_calls_that_seat_made() -> None:
     assert seqs(exported(since=None, seat=S2)) == [3, 5]
 
 
 # @spec REC-089
-@NOT_YET
 def test_the_new_game_entry_is_kept_by_no_seat() -> None:
     assert seqs(exported(since=None, seat=S1)) == [2, 4]
 
 
 # @spec REC-089
-@NOT_YET
 def test_seat_keeps_only_the_call_records_of_calls_that_seat_made() -> None:
     document = exported(since=None, seat=S2)
     assert [(call["tool"], call["seat"]) for call in document["calls"]] == [
@@ -114,7 +108,6 @@ def test_seat_keeps_only_the_call_records_of_calls_that_seat_made() -> None:
 
 
 # @spec REC-089
-@NOT_YET
 def test_seat_keeps_only_the_snapshots_of_that_seat_s_turns() -> None:
     document = exported(since=None, seat=S1)
     assert [snapshot["seat"] for snapshot in document["snapshots"]] == [1]
@@ -124,13 +117,11 @@ def test_seat_keeps_only_the_snapshots_of_that_seat_s_turns() -> None:
 
 
 # @spec REC-090
-@NOT_YET
 def test_tools_keeps_only_the_log_entries_of_calls_to_those_tools() -> None:
     assert seqs(exported(since=None, tools={"play", "advance"})) == [2, 4, 5]
 
 
 # @spec REC-090
-@NOT_YET
 def test_tools_keeps_only_the_call_records_of_calls_to_those_tools() -> None:
     document = exported(since=None, tools={"get_state"})
     assert [call["tool"] for call in document["calls"]] == ["get_state"]
@@ -145,13 +136,11 @@ def test_tools_keeps_the_snapshots_the_same_call_without_it_keeps() -> None:
 
 
 # @spec REC-091
-@NOT_YET
 def test_since_and_seat_keep_only_the_log_entries_both_keep() -> None:
     assert seqs(exported(since=3, seat=S2)) == [5]
 
 
 # @spec REC-091
-@NOT_YET
 def test_since_and_seat_keep_a_snapshot_written_after_since_that_describes_the_seat() -> None:
     document = exported(since=4, seat=S1)
     assert document["snapshots"] == []
@@ -159,7 +148,6 @@ def test_since_and_seat_keep_a_snapshot_written_after_since_that_describes_the_s
 
 
 # @spec REC-091
-@NOT_YET
 def test_seat_and_tools_keep_only_the_records_both_keep() -> None:
     document = exported(since=None, seat=S2, tools={"play"})
     assert seqs(document) == [5]
@@ -176,7 +164,6 @@ def test_the_game_object_is_whole_under_every_filter() -> None:
 
 
 # @spec REC-092
-@NOT_YET
 def test_a_kept_log_entry_is_exported_as_the_unfiltered_export_gives_it() -> None:
     whole = {entry["seq"]: entry for entry in exported(since=None)["entries"]}
     filtered = exported(since=None, seat=S2, tools={"effect"})["entries"]
@@ -190,7 +177,6 @@ def test_a_filtered_export_holds_no_field_the_unfiltered_export_does_not() -> No
 
 
 # @spec REC-092
-@NOT_YET
 def test_a_reminder_answered_by_a_call_the_filters_leave_out_reads_as_answered() -> None:
     reminder = a_contested_reminder(1, table_turn=1)
     advanced: Any = replace(

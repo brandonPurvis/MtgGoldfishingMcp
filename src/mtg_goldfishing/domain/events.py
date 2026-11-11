@@ -116,6 +116,9 @@ class ErrorKind(Enum):
     DEFINITION_NEEDS_TYPE_LINE = "definition_needs_type_line"
     # wait
     BAD_TIMEOUT = "bad_timeout"
+    # get_log
+    UNKNOWN_TOOL = "unknown_tool"
+    NO_TOOLS_NAMED = "no_tools_named"
     # the service itself
     CHANGED_UNDERNEATH = "changed_underneath"
     INTERNAL_FAILURE = "internal_failure"

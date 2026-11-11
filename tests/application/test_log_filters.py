@@ -20,7 +20,6 @@ TOOLS_IN_ORDER = (
     "load_deck, new_game, mulligan, get_state, play, effect, choose, attack, advance, pass,"
     " wait, end_game, get_log"
 )
-NOT_YET = pytest.mark.xfail(strict=True, reason="M5: not implemented yet")
 
 
 def contested() -> ServiceHarness:
@@ -68,7 +67,6 @@ def entry_seats(document: dict[str, Any]) -> list[tuple[str, int | None]]:
 
 
 # @spec REC-089
-@NOT_YET
 def test_seat_keeps_the_records_of_the_seat_it_names_whichever_seat_calls() -> None:
     harness = contested()
     document = exported(call_as(harness, 1, "get_log", seat=2))
@@ -76,7 +74,6 @@ def test_seat_keeps_the_records_of_the_seat_it_names_whichever_seat_calls() -> N
 
 
 # @spec REC-055, REC-089, REC-090
-@NOT_YET
 def test_every_seat_reads_the_same_filtered_record_with_the_same_arguments() -> None:
     harness = contested()
     arguments: dict[str, object] = {"seat": 1, "tools": ["mulligan", "new_game"]}
@@ -87,7 +84,6 @@ def test_every_seat_reads_the_same_filtered_record_with_the_same_arguments() -> 
 
 
 # @spec REC-090
-@NOT_YET
 def test_tools_keeps_the_records_of_the_tools_it_names_in_a_goldfish_game() -> None:
     harness, game_id = goldfish()
     document = exported(harness.service.get_log({"game_id": game_id, "tools": ["play"]}))
@@ -110,7 +106,6 @@ def test_a_filter_given_as_null_is_no_filter() -> None:
 
 
 # @spec REC-091
-@NOT_YET
 def test_since_seat_and_tools_together_keep_only_what_each_keeps() -> None:
     harness = contested()
     document = exported(call_as(harness, 1, "get_log", since=2, seat=2, tools=["mulligan"]))
@@ -118,7 +113,6 @@ def test_since_seat_and_tools_together_keep_only_what_each_keeps() -> None:
 
 
 # @spec REC-089
-@NOT_YET
 def test_a_seat_that_made_no_call_gives_empty_sections_and_is_no_error() -> None:
     harness = a_service(game_ids=IDS, seeds=(77,), renderer=TextRenderer())
     harness.started_contested_game(1, position=1, seed=11)
@@ -130,7 +124,6 @@ def test_a_seat_that_made_no_call_gives_empty_sections_and_is_no_error() -> None
 
 
 # @spec REC-093
-@NOT_YET
 def test_seat_in_a_goldfish_game_is_an_error() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "seat": 1})
@@ -138,7 +131,6 @@ def test_seat_in_a_goldfish_game_is_an_error() -> None:
 
 
 # @spec REC-093
-@NOT_YET
 def test_the_error_for_seat_in_a_goldfish_game_says_it_is_for_contested_games() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "seat": 1})
@@ -146,7 +138,6 @@ def test_the_error_for_seat_in_a_goldfish_game_says_it_is_for_contested_games() 
 
 
 # @spec REC-094
-@NOT_YET
 @pytest.mark.parametrize("seat", [0, 3, -1])
 def test_a_seat_naming_none_of_the_game_s_seats_is_an_error(seat: int) -> None:
     harness = contested()
@@ -155,7 +146,6 @@ def test_a_seat_naming_none_of_the_game_s_seats_is_an_error(seat: int) -> None:
 
 
 # @spec REC-094
-@NOT_YET
 def test_the_error_for_a_seat_naming_no_seat_lists_the_game_s_seat_numbers() -> None:
     harness = contested()
     answer = call_as(harness, 1, "get_log", seat=3)
@@ -165,7 +155,6 @@ def test_the_error_for_a_seat_naming_no_seat_lists_the_game_s_seat_numbers() -> 
 
 
 # @spec REC-094, REC-024
-@NOT_YET
 @pytest.mark.parametrize("seat", ["2", 1.5, True])
 def test_a_seat_that_is_not_a_whole_number_is_a_malformed_argument(seat: object) -> None:
     harness = contested()
@@ -174,7 +163,6 @@ def test_a_seat_that_is_not_a_whole_number_is_a_malformed_argument(seat: object)
 
 
 # @spec REC-095
-@NOT_YET
 @pytest.mark.parametrize("tools", [["plya"], ["Play"], ["play", 5], ["get_logs", "atack"]])
 def test_tools_naming_anything_but_a_tool_of_the_service_is_an_error(tools: list[object]) -> None:
     harness, game_id = goldfish()
@@ -183,7 +171,6 @@ def test_tools_naming_anything_but_a_tool_of_the_service_is_an_error(tools: list
 
 
 # @spec REC-095
-@NOT_YET
 def test_the_error_for_unknown_tools_names_each_one_and_lists_the_tools_in_order() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "tools": ["play", "plya", "atack"]})
@@ -193,7 +180,6 @@ def test_the_error_for_unknown_tools_names_each_one_and_lists_the_tools_in_order
 
 
 # @spec REC-095
-@NOT_YET
 def test_tools_that_is_not_a_list_is_a_malformed_argument() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "tools": "play"})
@@ -201,7 +187,6 @@ def test_tools_that_is_not_a_list_is_a_malformed_argument() -> None:
 
 
 # @spec REC-096
-@NOT_YET
 def test_an_empty_tools_is_an_error() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "tools": []})
@@ -209,7 +194,6 @@ def test_an_empty_tools_is_an_error() -> None:
 
 
 # @spec REC-096
-@NOT_YET
 def test_the_error_for_an_empty_tools_lists_the_tools() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "tools": []})
@@ -219,7 +203,6 @@ def test_the_error_for_an_empty_tools_lists_the_tools() -> None:
 
 
 # @spec REC-093, REC-095
-@NOT_YET
 def test_every_filter_that_cannot_be_applied_is_named_in_one_error_response() -> None:
     harness, game_id = goldfish()
     answer = harness.service.get_log({"game_id": game_id, "seat": 2, "tools": ["plya"]})

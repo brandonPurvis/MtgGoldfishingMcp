@@ -10,6 +10,23 @@ from mtg_goldfishing.domain.game.model import Game, GameStatus, LastChange, argu
 from mtg_goldfishing.domain.game.results import Applied, Refusal, Resent
 from mtg_goldfishing.domain.game.seats import SeatNumber
 
+SERVICE_TOOLS = (
+    "load_deck",
+    "new_game",
+    "mulligan",
+    "get_state",
+    "play",
+    "effect",
+    "choose",
+    "attack",
+    "advance",
+    "pass",
+    "wait",
+    "end_game",
+    "get_log",
+)
+"""Every tool of the service, in the order the service lists them."""
+
 GAME_TOOLS = (
     "mulligan",
     "get_state",
