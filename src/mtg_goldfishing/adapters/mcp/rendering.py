@@ -6,6 +6,9 @@ A text response is
     <event lines, in a fixed order>
     <status line, for a response about an existing game>
 
+In a contested game the event lines begin by saying what the calling seat is asked to do
+when it is a seat to act, and the status line is the calling seat's.
+
 Each event type has one rendering here, and each kind of error and rule check one
 wording in `refusal_lines`; no other code in the service builds response text.
 """
@@ -16,7 +19,7 @@ import json
 from typing import assert_never
 
 from mtg_goldfishing.adapters.mcp.listing_lines import report_lines, state_lines
-from mtg_goldfishing.adapters.mcp.refusal_lines import check_text, refusal_lines
+from mtg_goldfishing.adapters.mcp.refusal_lines import asked_to, check_text, refusal_lines
 from mtg_goldfishing.application.outcome import Outcome, Status
 from mtg_goldfishing.application.ports import Rendered, Renderer
 from mtg_goldfishing.domain.events import (
@@ -24,6 +27,7 @@ from mtg_goldfishing.domain.events import (
     AlreadyApplied,
     AlreadySo,
     AlreadySoKind,
+    AskedKind,
     AssumptionKind,
     AssumptionMade,
     AttackDeclared,
@@ -35,6 +39,7 @@ from mtg_goldfishing.domain.events import (
     ChecksOverridden,
     ChoiceResolved,
     CombatDamageDealt,
+    ContestedGameStarted,
     CostPaid,
     CountersChanged,
     DamageAdded,
@@ -45,6 +50,7 @@ from mtg_goldfishing.domain.events import (
     GameEnded,
     GameStarted,
     HandKept,
+    HiddenCardsDrawn,
     InstanceChosen,
     LibraryShuffled,
     LifeChanged,
@@ -72,16 +78,20 @@ from mtg_goldfishing.domain.game.model import (
     GameStatus,
 )
 from mtg_goldfishing.domain.game.mulligan import cards_to_bottom
-from mtg_goldfishing.domain.game.summary import GameSummary
+from mtg_goldfishing.domain.game.seats import SeatNumber
+from mtg_goldfishing.domain.game.summary import GameSummary, TableSummary
 from mtg_goldfishing.domain.steps import Step
 
 GET_LOG = "get_log"
+NEW_GAME = "new_game"
+"""A contested game's `new_game` answers whoever starts the game, who is asked nothing."""
 
 
 class TextRenderer(Renderer):
     """Implements the `Renderer` port with the plain-text response format."""
 
     # @spec TOOL-014, TOOL-015, TOOL-016, TOOL-022, TOOL-024, TOOL-025, TOOL-026, REC-018, REC-024
+    # @spec TOOL-040, TOOL-051
     def render(self, tool: str, outcome: Outcome) -> Rendered:
         summary = outcome.summary
         if tool == GET_LOG and outcome.status is Status.OK and isinstance(summary, LogExported):
@@ -99,6 +109,8 @@ def response_lines(tool: str, outcome: Outcome) -> list[str]:
     """Status and summary, the summary's own detail, event lines, then the status line."""
     headline, *detail = summary_lines(outcome.summary, tool)
     lines = [f"{outcome.status.value} {headline}", *detail]
+    if outcome.game is not None and outcome.status is not Status.ERROR and tool != NEW_GAME:
+        lines.extend(asked_lines(outcome.game))
     if isinstance(outcome.payload, StateListing):
         lines.extend(state_lines(outcome.payload))
     raised: list[NoticeKind] = []
@@ -125,8 +137,18 @@ def summary_lines(summary: Event, tool: str | None = None) -> list[str]:
 # ------------------------------------------------------------------------- the status line
 
 
+def asked_lines(game: GameSummary) -> list[str]:
+    """In a contested game, what the calling seat is asked to do, when it is a seat to act."""
+    table = game.table
+    if table is None or table.asked is None or table.seat not in table.asked.seats:
+        return []
+    return [f"You are asked to {asked_to(table.asked, yourself=True)}."]
+
+
 # @spec TOOL-017, TOOL-018, TOOL-019, TOOL-020, TOOL-021
 def status_line(game: GameSummary) -> str:
+    if game.table is not None:
+        return contested_status_line(game, game.table)
     if game.step is None:
         line = f"Mulligan {game.mulligans} · Hand {game.hand} · #{game.change}"
     else:
@@ -149,6 +171,64 @@ def status_line(game: GameSummary) -> str:
         line = f"Ended ({game.result}) · {line}"
     if game.status is GameStatus.PENDING_CHOICE:
         line += " · CHOICE pending"
+    return line
+
+
+def _commander_groups(game: GameSummary) -> list[str]:
+    """`Cmdr` and `Tax`, a group per commander in name order separated by `|`."""
+    commanders = sorted(game.commanders, key=lambda commander: commander.name)
+    if not commanders:
+        return []
+    damage = "|".join("/".join(str(n) for n in c.damage) for c in commanders)
+    return [f"Cmdr {damage}", f"Tax {'|'.join(str(c.tax) for c in commanders)}"]
+
+
+def _act(table: TableSummary) -> str:
+    """Who is to act, `you` for the calling seat, and the word for what it is asked."""
+    asked = table.asked
+    assert asked is not None
+    who = " ".join("you" if seat == table.seat else str(seat) for seat in asked.seats)
+    if asked.kind is AskedKind.KEEP:
+        return f"Act {who}"
+    word = asked.choice if asked.kind is AskedKind.CHOICE else asked.kind.value
+    return f"Act {who} {word}"
+
+
+def _standing(table: TableSummary) -> list[str]:
+    """One `S<n> <life>` group per other seat, `out` for an eliminated one."""
+    return [f"{o.seat} {'out' if o.eliminated else o.life}" for o in table.others]
+
+
+# @spec TOOL-041, TOOL-042, TOOL-043, TOOL-044, TOOL-045, TOOL-047, TOOL-048, TOOL-049
+# @spec TOOL-058, TOOL-059, TOOL-062
+def contested_status_line(game: GameSummary, table: TableSummary) -> str:
+    """The status line of a contested game as the calling seat sees it: its own figures,
+    every other seat's life, and who is to act."""
+    ended = game.status is GameStatus.ENDED
+    if game.step is None:
+        parts = [f"Mulligan {game.mulligans}", f"Hand {game.hand}"]
+    else:
+        active = f" ({table.active})" if table.active is not None else ""
+        parts = [
+            f"T{game.turn} {game.step.value}{active}",
+            f"You {table.seat}",
+            f"Hand {game.hand}",
+            f"Lands {game.lands} ({game.untapped_lands} untapped)",
+            f"Pool {game.pool}",
+            f"Life {game.life}",
+            *_standing(table),
+            *_commander_groups(game),
+        ]
+        if table.stack and not ended:
+            parts.append(f"Stack {table.stack}")
+    if table.asked is not None and not ended:
+        parts.append(_act(table))
+    parts.append(f"#{game.change}")
+    line = " · ".join(parts)
+    if table.eliminated:
+        line = f"Out · {line}"
+    if ended:
+        line = f"Ended ({game.result}) · {line}"
     return line
 
 
@@ -185,6 +265,8 @@ def _place_in_order(event: Event) -> int:
             | SnapshotWritten()
             | DeckLoaded()
             | GameStarted()
+            | ContestedGameStarted()
+            | HiddenCardsDrawn()
             | MulliganTaken()
             | HandKept()
             | CardPlayed()
@@ -255,12 +337,15 @@ def _steps(event: StepsEntered) -> list[str]:
     if not event.steps:
         return []
     named = [
-        f"T{entered.turn} {entered.step.value}"
-        if entered.step is Step.UNTAP
-        else entered.step.value
+        _untap(entered.turn, entered.seat) if entered.step is Step.UNTAP else entered.step.value
         for entered in event.steps
     ]
     return [" → ".join(named)]
+
+
+def _untap(turn: int, seat: SeatNumber | None) -> str:
+    """The untap that begins a turn: `T7 untap`, or in a contested game `S2 T7 untap`."""
+    return (f"{seat} " if seat is not None else "") + f"T{turn} untap"
 
 
 def _played(event: CardPlayed) -> str:
@@ -368,7 +453,22 @@ def _assumption(event: AssumptionMade) -> str:
 
 def _reminder(event: ReminderIssued) -> str:
     named = [name if count == 1 else f"{name} ×{count}" for name, count in event.cards]
-    return f"Reminder ({event.step.value}): {', '.join(named)}"
+    seat = f" for {event.seat}" if event.seat is not None else ""
+    return f"Reminder ({event.step.value}){seat}: {', '.join(named)}"
+
+
+def _contested_start(event: ContestedGameStarted) -> list[str]:
+    seats = [
+        f"{seat.number} {seat.seat_id}: deck {seat.deck_id}, life {seat.life}"
+        + (", the tested seat" if seat.tested else "")
+        + "."
+        for seat in event.seats
+    ]
+    return [
+        f"Started contested game {event.game_id} with seed {event.seed}. Seats in turn order:",
+        *seats,
+        "Each seat passes its own seat id as game_id.",
+    ]
 
 
 def _stopped(event: AdvanceStopped, after: int | None) -> str:
@@ -448,6 +548,8 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
             return [
                 f"Started game {event.game_id} with seed {event.seed}. Hand: {_listed(event.hand)}."
             ]
+        case ContestedGameStarted():
+            return _contested_start(event)
         case MulliganTaken():
             bottom = _plural(cards_to_bottom(event.mulligans), "card")
             return [
@@ -469,6 +571,9 @@ def event_lines(event: Event, tool: str | None = None, after: int | None = None)
             return [f"Created {_plural(event.count, f'{event.name} token')}."]
         case CardsDrawn():
             return [f"Drew {_listed(event.cards)}." if event.cards else "Drew no cards."]
+        case HiddenCardsDrawn():
+            drawn = "a card" if event.count == 1 else f"{event.count} cards"
+            return [f"{event.seat} drew {drawn}."]
         case CardsDiscarded():
             return [f"Discarded {_listed(event.cards)}."]
         case Tapped():

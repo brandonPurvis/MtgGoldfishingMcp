@@ -9,16 +9,16 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-003**: When the game enters `draw`, in a goldfish game or a contested game, the active seat shall draw one card, except on the first turn of the game (table turn 1), whichever seat takes it, in a game whose `draw_first_turn` is false.
 - [x] **TURN-004**: When the game enters `cleanup`, in a goldfish game or a contested game, the game shall make any discard given with the advance from the active seat's hand and then write the turn's snapshot.
 - [x] **TURN-005**: When the game leaves any step, in a goldfish game or a contested game, the game shall empty every seat's mana pool.
-- [ ] **TURN-027**: When a contested game enters `untap`, the game shall leave unchanged the tapped state of permanents controlled by seats other than the active seat, and the land drops used and turn statistics of those seats.
-- [ ] **TURN-028**: When a seat enters the `draw` step of its own first turn on a table turn later than the first, in a contested game whose `draw_first_turn` is false, that seat shall draw one card.
+- [x] **TURN-027**: When a contested game enters `untap`, the game shall leave unchanged the tapped state of permanents controlled by seats other than the active seat, and the land drops used and turn statistics of those seats.
+- [x] **TURN-028**: When a seat enters the `draw` step of its own first turn on a table turn later than the first, in a contested game whose `draw_first_turn` is false, that seat shall draw one card.
 - [ ] **TURN-029**: In every game, goldfish or contested, the game shall let the active seat stop in any step, including a step that has an automatic action, whose action has already been performed on entering it.
 - [ ] **TURN-030**: When the active seat makes changes while the game is stopped in `cleanup`, in a goldfish game or a contested game, the game shall not add those changes to the turn snapshot already written on entering `cleanup`.
 
 ## Turns and rounds
 
-- [ ] **TURN-031**: When the active seat of a contested game leaves `cleanup`, its turn shall end and the next seat in turn order that is still in the game (not eliminated) shall become the active seat and begin its turn by entering `untap`.
+- [x] **TURN-031**: When the active seat of a contested game leaves `cleanup`, its turn shall end and the next seat in turn order that is still in the game (not eliminated) shall become the active seat and begin its turn by entering `untap`.
 - [x] **TURN-032**: In a goldfish game, the tested seat shall be the active seat of every turn, and the three imaginary opponents shall take no turns.
-- [ ] **TURN-033**: When the turn of a contested game passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only seat still in the game, the game shall increase its round number by one; the first turn of the game shall begin round 1.
+- [x] **TURN-033**: When the turn of a contested game passes to a seat that comes earlier in turn order than the seat whose turn just ended, or to the same seat when it is the only seat still in the game, the game shall increase its round number by one; the first turn of the game shall begin round 1.
 - [x] **TURN-034**: In a goldfish game, the round number shall equal the turn number.
 - [ ] **TURN-036**: When the active seat of a contested game is eliminated during its turn, the game shall discard the declared attack and every waiting pending choice of kind `blocks`.
 - [ ] **TURN-037**: When the active seat of a contested game is eliminated while other seats' items remain on the stack or a pending choice waits, the game shall go on asking the remaining seats about those items, resolving them and waiting for those pending choices, and shall begin the next seat's turn only once the stack is empty and no pending choice waits.
@@ -28,10 +28,10 @@ Design: `turn-design.md`. Prefix: `TURN`.
 
 ## Beginning another seat's turn
 
-- [ ] **TURN-039**: In a contested game, an `advance` shall never move the game past the end of the calling active seat's turn: when its `to` names a step whose next occurrence lies in a later turn, the advance shall end on leaving the active seat's `cleanup`.
-- [ ] **TURN-040**: When an `advance` leaves the active seat's `cleanup` in a contested game, the next seat's turn shall proceed within the same call through its `untap`, `upkeep` and `draw` steps to its `main1`, performing each step's automatic action exactly as an `advance` to `main1` would and stopping in the step where a reminder stops it.
-- [ ] **TURN-041**: When a call begins a new seat's turn in a contested game and no pending choice, reminder for another seat or response window waits, the new active seat shall be the seat to act.
-- [ ] **TURN-042**: When a call begins another seat's turn in a contested game, the outcome of that call shall show the turn passing to the new active seat, and shall name the card the new active seat drew only to that seat, showing it to every other seat as a count.
+- [x] **TURN-039**: In a contested game, an `advance` shall never move the game past the end of the calling active seat's turn: when its `to` names a step whose next occurrence lies in a later turn, the advance shall end on leaving the active seat's `cleanup`.
+- [x] **TURN-040**: When an `advance` leaves the active seat's `cleanup` in a contested game, the next seat's turn shall proceed within the same call through its `untap`, `upkeep` and `draw` steps to its `main1`, performing each step's automatic action exactly as an `advance` to `main1` would and stopping in the step where a reminder stops it.
+- [x] **TURN-041**: When a call begins a new seat's turn in a contested game and no pending choice, reminder for another seat or response window waits, the new active seat shall be the seat to act.
+- [x] **TURN-042**: When a call begins another seat's turn in a contested game, the outcome of that call shall show the turn passing to the new active seat, and shall name the card the new active seat drew only to that seat, showing it to every other seat as a count.
 
 ## `advance`
 
@@ -40,7 +40,7 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-008**: When `advance` is called in a goldfish game with `to` naming the step the game is already in, the game shall move to that step in the following turn.
 - [x] **TURN-009**: When `advance` is accepted, in a goldfish game or a contested game, the outcome shall list the steps entered, any card drawn, any reminders and any notices raised.
 - [x] **TURN-010**: If `advance` is called with `to` naming an unknown step, in a goldfish game or a contested game, then `advance` shall return an error and the game shall not move.
-- [ ] **TURN-043**: If a seat of a contested game that is not the active seat calls `advance`, then `advance` shall return an error and the game shall not move.
+- [x] **TURN-043**: If a seat of a contested game that is not the active seat calls `advance`, then `advance` shall return an error and the game shall not move.
 - [ ] **TURN-044**: If the active seat of a contested game calls `advance` while it is not the seat to act, because a pending choice or another seat's reminder is waiting on another seat, then `advance` shall return an error and the game shall not move.
 - [ ] **TURN-046**: When an `advance` stops short of its target, in a goldfish game or a contested game, the outcome shall be `OK`, say why it stopped, and say what to send next with the change number to pass as `after`.
 
@@ -85,7 +85,7 @@ Design: `turn-design.md`. Prefix: `TURN`.
 - [x] **TURN-022**: If an advance that enters `cleanup` gives `discard` naming a number of cards different from the number by which the active seat's hand exceeds seven on entering `cleanup` and gives no `override`, in a goldfish game or a contested game, then `advance` shall fail a rule check and the game shall not move.
 - [x] **TURN-023**: If `discard` names a card that is not in the active seat's hand, in a goldfish game or a contested game, then `advance` shall return an error and the game shall not move.
 - [x] **TURN-024**: If `discard` is given on an advance that does not enter `cleanup`, whether because its target is earlier or because it stops first for a reminder or, in a contested game, for the end-step response window, then `advance` shall return an error and the game shall not move.
-- [ ] **TURN-060**: In a contested game, the game shall apply the seven-card hand limit at `cleanup` to the active seat's hand only, and shall require no discard of any other seat.
+- [x] **TURN-060**: In a contested game, the game shall apply the seven-card hand limit at `cleanup` to the active seat's hand only, and shall require no discard of any other seat.
 
 ## Other
 

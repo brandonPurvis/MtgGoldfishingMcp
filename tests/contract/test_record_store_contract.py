@@ -114,7 +114,6 @@ def test_changing_the_arguments_of_an_added_call_does_not_change_the_stored_call
 
 
 # @spec REC-052
-@pytest.mark.xfail(strict=True, reason="M3a: call records naming seats are not built")
 def test_a_call_record_s_seat_number_is_read_back(records: RecordStore) -> None:
     seated: Any = replace(a_call(GAME, 3), seat=SeatNumber(2))
     records.add_call(seated)

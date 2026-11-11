@@ -13,7 +13,6 @@ from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
 from tests.support.service import a_service
 
-M3A = "M3a: contested games are not built into the tools"
 DEFINITIONS = {definition.name: definition for definition in TOOL_DEFINITIONS}
 GAME_SCOPED = [d for d in TOOL_DEFINITIONS if d.name not in ("load_deck", "new_game")]
 
@@ -31,7 +30,6 @@ def test_no_tool_has_a_separate_seat_id_parameter(definition: Any) -> None:
 
 
 # @spec TOOL-031
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("definition", GAME_SCOPED, ids=lambda d: d.name)
 def test_game_id_is_described_as_the_id_new_game_gave_the_calling_seat(definition: Any) -> None:
     game_id = definition.parameters[0]
@@ -39,7 +37,6 @@ def test_game_id_is_described_as_the_id_new_game_gave_the_calling_seat(definitio
 
 
 # @spec TOOL-033
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_new_game_s_contested_parameters_follow_the_goldfish_ones_marked_contested_games() -> None:
     names = [p.name for p in DEFINITIONS["new_game"].parameters]
     assert names[-2:] == ["opponents", "position"]
@@ -49,7 +46,6 @@ def test_new_game_s_contested_parameters_follow_the_goldfish_ones_marked_contest
 
 
 # @spec GAME-066, GAME-067
-@pytest.mark.xfail(strict=True, reason=M3A)
 @pytest.mark.parametrize("value", [30, [40, 30], "[40, 30]"])
 def test_starting_life_is_taken_as_one_number_or_a_list(value: object) -> None:
     shaped = shape(DEFINITIONS["new_game"].parameters, {"deck_id": "d1", "starting_life": value})
@@ -57,7 +53,6 @@ def test_starting_life_is_taken_as_one_number_or_a_list(value: object) -> None:
 
 
 # @spec GAME-056
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_opponents_and_position_are_taken_by_new_game() -> None:
     shaped = shape(
         DEFINITIONS["new_game"].parameters,
@@ -68,7 +63,6 @@ def test_opponents_and_position_are_taken_by_new_game() -> None:
 
 
 # @spec GAME-056, GAME-074
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_new_game_with_opponents_answers_with_the_seats_of_a_contested_game() -> None:
     harness = a_service(
         renderer=TextRenderer(), game_ids=("abcdefghij", "seatone001", "seattwo002")

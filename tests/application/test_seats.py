@@ -88,7 +88,7 @@ def test_a_call_made_with_a_seat_id_is_recorded_under_the_game_it_names() -> Non
 # @spec APP-057
 def test_a_changing_call_acts_as_the_seat_its_id_names() -> None:
     harness = a_service()
-    two_seats: Any = a_game().and_an_opposing_seat()
+    two_seats: Any = a_game().in_turn_of(2).and_an_opposing_seat()
     harness.holding(two_seats.build())
     opposing: Any = harness.game().seat(SeatNumber(2))
 

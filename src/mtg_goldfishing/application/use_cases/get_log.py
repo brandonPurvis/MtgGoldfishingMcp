@@ -20,9 +20,10 @@ from mtg_goldfishing.domain.records.export import export
 TOOL = "get_log"
 
 
-# @spec REC-002, REC-018, REC-023
+# @spec REC-002, REC-018, REC-023, REC-055, GAME-152
 def get_log(ports: Ports, arguments: Mapping[str, object]) -> Answer:
-    """Export the game's records; the export is the outcome's payload.
+    """Export the game's records; the export is the outcome's payload. Any seat of a
+    contested game reads the same whole record, every seat's hidden zones included.
 
     The call record keeps what `Renderer` gives as the record's text, a note of the
     export's size, in place of the export itself.

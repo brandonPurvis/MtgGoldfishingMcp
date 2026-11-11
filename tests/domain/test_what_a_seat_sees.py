@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.events import NoticeKind
 from mtg_goldfishing.domain.game.listing import list_state
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -15,7 +13,6 @@ from mtg_goldfishing.domain.play.playing import play
 from mtg_goldfishing.domain.steps import Step
 from tests.support.builders import Situation, a_game
 
-M3A = "M3a: what a seat of a contested game sees is not built"
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
 ATRAXA = "Atraxa, Praetors' Voice"
 KENRITH = "Kenrith, the Returned King"
@@ -72,7 +69,6 @@ def test_a_seat_s_state_lists_its_own_hand_and_no_other_seat_s() -> None:
 
 
 # @spec GAME-121
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_s_state_lists_every_seat_s_public_zones_in_turn_order() -> None:
     listing = listed(a_table_of_three(), S3)
     assert [each.seat for each in listing.seats] == [S1, S2, S3]
@@ -91,7 +87,6 @@ def test_a_seat_s_state_lists_the_current_notices() -> None:
 
 
 # @spec GAME-089, GAME-122
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_s_state_gives_each_seat_s_life_hand_and_library_sizes_and_who_is_out() -> None:
     listing = listed(a_table_of_three(), S1)
     assert [
@@ -101,7 +96,6 @@ def test_a_seat_s_state_gives_each_seat_s_life_hand_and_library_sizes_and_who_is
 
 
 # @spec GAME-124
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_permanent_another_seat_owns_is_listed_with_its_controller_naming_its_owner() -> None:
     listing = listed(a_table_of_three(), S2)
     elves = next(p for p in seat_listing(listing, S1).battlefield if p.name == "Llanowar Elves")
@@ -110,14 +104,12 @@ def test_a_permanent_another_seat_owns_is_listed_with_its_controller_naming_its_
 
 
 # @spec GAME-125
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_full_state_adds_every_seat_s_exile() -> None:
     listing = listed(a_table_of_three(), S2, "full")
     assert [each.exile for each in listing.seats] == [("Lightning Bolt",), (), ()]
 
 
 # @spec GAME-125
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_full_state_adds_each_commander_s_casts_and_damage_to_each_other_seat() -> None:
     situation = a_table_of_three()
     situation.game.seat(S1).commander_casts["c1"] = 2
@@ -147,7 +139,6 @@ def test_the_full_state_adds_the_calling_seat_s_payments_this_turn() -> None:
 
 
 # @spec GAME-089
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_s_summary_gives_its_own_figures_and_every_other_seat_s_life() -> None:
     situation = a_table_of_three()
     summary: Any = summarize(situation.game, situation.deck, S2)

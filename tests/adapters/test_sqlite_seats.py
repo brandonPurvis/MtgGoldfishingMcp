@@ -353,7 +353,6 @@ def test_a_goldfish_game_stored_before_seats_keeps_its_change_number_and_status_
 
 
 # @spec STOR-021
-@pytest.mark.xfail(strict=True, reason="M3a: call records naming seats are not built")
 def test_a_call_record_s_seat_number_is_stored_in_the_seat_column(
     stores: SqliteStores, path: Path
 ) -> None:

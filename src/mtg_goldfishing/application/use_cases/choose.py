@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 from mtg_goldfishing.application.outcome import Answer
 from mtg_goldfishing.application.use_cases.handling import Ports, change_game
-from mtg_goldfishing.domain.deck.model import LoadedDeck
+from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import Game
 from mtg_goldfishing.domain.game.results import Result
 from mtg_goldfishing.domain.game.seats import SeatNumber
@@ -16,10 +16,10 @@ TOOL = "choose"
 
 
 def choose(ports: Ports, arguments: Mapping[str, object]) -> Answer:
-    def operation(game: Game, deck: LoadedDeck, seat: SeatNumber) -> Result:
+    def operation(game: Game, decks: Decks, seat: SeatNumber) -> Result:
         return choosing.choose(
             game,
-            deck,
+            decks.of(seat),
             seat,
             choice_id=arguments.get("choice_id"),
             selections=arguments.get("selections"),

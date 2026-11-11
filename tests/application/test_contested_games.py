@@ -5,15 +5,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.application.outcome import Answer, Status
 from mtg_goldfishing.domain.events import AlreadyApplied, Refused
 from mtg_goldfishing.domain.game.seats import SeatId, SeatNumber
 from tests.support.service import ServiceHarness, a_service
 
-M3A = "M3a: contested games are not built into the use cases"
 IDS = ("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd")
 GAME = "gaaaaaaaaaa"
 S1, S2, S3 = SeatNumber(1), SeatNumber(2), SeatNumber(3)
@@ -51,7 +48,6 @@ def error_kinds(answer: Answer) -> list[str]:
 
 
 # @spec APP-061, APP-087, GAME-077
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_new_game_takes_the_game_id_then_the_seed_then_a_seat_id_per_opponent_in_order() -> None:
     harness = a_service(game_ids=IDS, seeds=(77,))
     other = harness.loaded_opposing_deck_id()
@@ -65,7 +61,6 @@ def test_new_game_takes_the_game_id_then_the_seed_then_a_seat_id_per_opponent_in
 
 
 # @spec GAME-077
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_each_opposing_seat_id_names_its_seat_of_the_new_game() -> None:
     harness = contested(opposing=2)
     repository: Any = harness.stores.games
@@ -75,7 +70,6 @@ def test_each_opposing_seat_id_names_its_seat_of_the_new_game() -> None:
 
 
 # @spec GAME-059
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_opponent_naming_no_loaded_deck_starts_no_game() -> None:
     harness = a_service(game_ids=IDS)
     answer = harness.service.new_game(
@@ -86,7 +80,6 @@ def test_an_opponent_naming_no_loaded_deck_starts_no_game() -> None:
 
 
 # @spec GAME-075
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_new_game_outcome_of_a_contested_game_lists_seats_not_a_hand() -> None:
     harness = a_service(game_ids=IDS, seeds=(77,))
     other = harness.loaded_opposing_deck_id()
@@ -100,7 +93,6 @@ def test_the_new_game_outcome_of_a_contested_game_lists_seats_not_a_hand() -> No
 
 
 # @spec APP-034, GAME-078
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_of_a_call_made_with_a_seat_id_holds_that_seat_s_number() -> None:
     harness = contested()
     outcome: Any = call_as(harness, 2, "mulligan", keep=False).outcome
@@ -108,7 +100,6 @@ def test_the_outcome_of_a_call_made_with_a_seat_id_holds_that_seat_s_number() ->
 
 
 # @spec APP-034
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_of_a_goldfish_call_holds_no_seat_number() -> None:
     harness = a_service(game_ids=IDS)
     harness.started_game()
@@ -117,7 +108,6 @@ def test_the_outcome_of_a_goldfish_call_holds_no_seat_number() -> None:
 
 
 # @spec APP-035, GAME-078
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_outcome_s_game_summary_is_the_calling_seat_s_view() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -127,7 +117,6 @@ def test_the_outcome_s_game_summary_is_the_calling_seat_s_view() -> None:
 
 
 # @spec GAME-078
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_mulligan_made_with_an_opposing_seat_id_is_that_seat_s() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -138,7 +127,6 @@ def test_a_mulligan_made_with_an_opposing_seat_id_is_that_seat_s() -> None:
 
 
 # @spec APP-056, GAME-118
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_call_from_a_seat_that_is_not_to_act_is_an_error_that_changes_nothing() -> None:
     harness = contested()
     started(harness)
@@ -152,7 +140,6 @@ def test_a_call_from_a_seat_that_is_not_to_act_is_an_error_that_changes_nothing(
 
 
 # @spec TURN-043
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_advance_from_a_seat_that_is_not_the_active_seat_does_not_move_the_game() -> None:
     harness = contested()
     started(harness)
@@ -162,7 +149,6 @@ def test_an_advance_from_a_seat_that_is_not_the_active_seat_does_not_move_the_ga
 
 
 # @spec APP-055
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_resend_is_answered_although_the_seat_is_no_longer_to_act() -> None:
     harness = contested(draw_first_turn=False)
     started(harness)
@@ -177,7 +163,6 @@ def test_a_resend_is_answered_although_the_seat_is_no_longer_to_act() -> None:
 
 
 # @spec APP-085
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_not_to_act_with_a_stale_change_number_is_told_it_is_not_its_call() -> None:
     harness = contested()
     started(harness)
@@ -185,7 +170,6 @@ def test_a_seat_not_to_act_with_a_stale_change_number_is_told_it_is_not_its_call
 
 
 # @spec APP-086
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_to_act_with_a_stale_change_number_is_told_so_before_a_malformed_delta() -> None:
     harness = contested()
     started(harness)
@@ -197,25 +181,24 @@ def test_a_seat_to_act_with_a_stale_change_number_is_told_so_before_a_malformed_
 
 
 # @spec GAME-107, GAME-088
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_seat_whose_keep_starts_the_game_is_not_told_what_the_first_seat_drew() -> None:
     harness = contested()
     call_as(harness, 1, "mulligan", keep=True)
+    before = harness.game(GAME)
+    drawn = before.instance(before.seat(S1).library[0]).name
     answer = call_as(harness, 2, "mulligan", keep=True)
-    drawn = harness.game(GAME).hand_of(S1)[-1].name
     assert f"'{drawn}'" not in repr(answer.outcome.events)
     assert harness.game(GAME).step is not None
 
 
 # @spec TURN-042, GAME-088
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_seat_whose_advance_passes_the_turn_is_not_told_what_the_next_seat_drew() -> None:
     harness = contested()
     started(harness)
-    answer = call_as(harness, 1, "advance", to="main1")
-    game = harness.game(GAME)
-    assert game.active == S2
-    drawn = game.hand_of(S2)[-1].name
+    before = harness.game(GAME)
+    drawn = before.instance(before.seat(S2).library[0]).name
+    answer = call_as(harness, 1, "advance", to="main1", discard=[before.hand_of(S1)[0].id])
+    assert harness.game(GAME).active == S2
     assert f"'{drawn}'" not in repr((answer.outcome.summary, answer.outcome.events))
 
 
@@ -223,7 +206,6 @@ def test_the_seat_whose_advance_passes_the_turn_is_not_told_what_the_next_seat_d
 
 
 # @spec REC-052
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_contested_game_s_call_records_name_the_calling_seat() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -233,7 +215,6 @@ def test_a_contested_game_s_call_records_name_the_calling_seat() -> None:
 
 
 # @spec REC-052
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_malformed_call_of_a_contested_game_is_recorded_with_its_seat() -> None:
     harness = contested()
     harness.service.malformed_call("mulligan", {"game_id": harness.seat_id(GAME, 2)}, ["keep"])
@@ -242,7 +223,6 @@ def test_a_malformed_call_of_a_contested_game_is_recorded_with_its_seat() -> Non
 
 
 # @spec REC-051
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_call_made_with_an_opposing_seat_id_is_recorded_under_the_game_id() -> None:
     harness = contested()
     call_as(harness, 2, "mulligan", keep=False)
@@ -258,7 +238,6 @@ def test_a_goldfish_game_s_call_records_name_no_seat() -> None:
 
 
 # @spec REC-055, GAME-152
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_every_seat_reads_the_same_whole_log() -> None:
     harness = contested()
     started(harness)
@@ -273,8 +252,19 @@ def test_every_seat_reads_the_same_whole_log() -> None:
     assert len(hands) == 2
 
 
+# @spec GAME-152, REC-055
+def test_every_seat_reads_the_whole_log_after_the_game_has_ended() -> None:
+    harness = contested()
+    started(harness)
+    call_as(harness, 1, "end_game", result="stalled")
+    by_tested = call_as(harness, 1, "get_log").outcome.payload
+    answer = call_as(harness, 2, "get_log")
+    assert answer.outcome.status is Status.OK
+    assert isinstance(by_tested, dict)
+    assert answer.outcome.payload == by_tested
+
+
 # @spec GAME-079
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_no_response_but_new_game_s_names_an_opposing_seat_by_its_seat_id() -> None:
     harness = a_service(renderer=TextRenderer(), game_ids=IDS, seeds=(77,))
     harness.started_contested_game(2, position=1, seed=11)

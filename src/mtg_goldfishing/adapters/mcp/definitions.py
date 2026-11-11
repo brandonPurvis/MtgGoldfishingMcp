@@ -58,11 +58,13 @@ def _parameter_line(parameter: Parameter) -> str:
     return f"- {parameter.name}{required}: {parameter.meaning} Example: {example}"
 
 
+# @spec TOOL-031
 def _game_id() -> Parameter:
     return Parameter(
         "game_id",
         Kind.TEXT,
-        "The game id `new_game` returned.",
+        "The game id `new_game` returned. Contested games: your seat's seat id, the id"
+        " `new_game` gave your seat (the tested seat's is the game id).",
         GAME_ID_EXAMPLE,
         required=True,
     )
@@ -231,6 +233,30 @@ NEW_GAME = ToolDefinition(
             Kind.FLAG,
             "False to skip the draw on turn 1; true by default.",
             False,
+        ),
+        Parameter(
+            "starting_life",
+            Kind.WHOLE_NUMBER_OR_LIST,
+            "Starting life of every seat; 40 by default. Contested games: a list gives the"
+            " tested seat's and then each opposing seat's in `opponents` order.",
+            40,
+        ),
+        Parameter(
+            "opponents",
+            Kind.LIST,
+            "Contested games: the deck ids of one to three opposing seats, in order; a deck"
+            " may appear more than once, and may be `deck_id` itself. The response then lists"
+            " each seat in turn order with its seat number and seat id, which that seat's"
+            " agent passes as `game_id`, and shows no hand. The seed also draws the turn order"
+            " and `turn_limit` counts rounds.",
+            ["d4fa52cf065"],
+        ),
+        Parameter(
+            "position",
+            Kind.WHOLE_NUMBER,
+            "Contested games: the tested seat's place in turn order, from 1; the other seats"
+            " are ordered by the seed. Omitted, the seed orders every seat.",
+            1,
         ),
     ),
     overridable="Nothing; an unknown deck id is an error.",

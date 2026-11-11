@@ -53,14 +53,12 @@ def test_a_fixed_id_source_refuses_a_game_id_that_is_not_ten_letters_or_digits()
 
 
 # @spec APP-047, GAME-077
-@pytest.mark.xfail(strict=True, reason="M3a: seat ids are not built")
 def test_a_seat_id_has_the_form_of_a_game_id(ids: IdSource) -> None:
     source: Any = ids
     assert GAME_ID_CHARACTERS.match(source.new_seat_id())
 
 
 # @spec APP-047, GAME-077
-@pytest.mark.xfail(strict=True, reason="M3a: seat ids are not built")
 def test_seat_ids_and_game_ids_come_from_one_source_and_differ(ids: IdSource) -> None:
     source: Any = ids
     taken = [ids.new_game_id(), source.new_seat_id(), source.new_seat_id()]
@@ -68,7 +66,6 @@ def test_seat_ids_and_game_ids_come_from_one_source_and_differ(ids: IdSource) ->
 
 
 # @spec APP-047, APP-087
-@pytest.mark.xfail(strict=True, reason="M3a: seat ids are not built")
 def test_a_fixed_id_source_yields_seat_ids_from_its_one_sequence_of_ids() -> None:
     ids: Any = FixedIdSource(game_ids=["aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc"])
     assert [ids.new_game_id(), ids.new_seat_id(), ids.new_seat_id()] == [

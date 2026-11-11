@@ -43,7 +43,7 @@ def examine_end_conditions(game: Game) -> list[Event]:
     return events
 
 
-# @spec GAME-040
+# @spec GAME-040, GAME-144
 def examine_turn_limit(game: Game) -> list[Event]:
     """The turn limit counts rounds; in a goldfish game the round is the turn."""
     if game.turn_limit is not None and game.round == game.turn_limit:

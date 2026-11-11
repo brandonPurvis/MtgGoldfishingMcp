@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from mtg_goldfishing.domain.game.seats import SeatNumber
 from mtg_goldfishing.domain.steps import Step
 
 
@@ -92,7 +93,11 @@ class LogEntry:
 
 @dataclass(frozen=True)
 class CallRecord:
-    """One tool call exactly as it was made and answered."""
+    """One tool call exactly as it was made and answered.
+
+    `seat` is the calling seat's number in a contested game; a goldfish game's call records,
+    a contested game's `new_game` and a call whose id names no seat name none.
+    """
 
     time: datetime
     game_id: str | None
@@ -103,3 +108,4 @@ class CallRecord:
     is_override: bool
     change: int | None
     id: int = 0
+    seat: SeatNumber | None = None

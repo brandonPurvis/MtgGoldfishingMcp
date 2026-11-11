@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.adapters.mcp.listing_lines import state_lines
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer, status_line
 from mtg_goldfishing.application.outcome import Outcome, Status
@@ -25,7 +23,6 @@ from mtg_goldfishing.domain.turn import advance
 from tests.support.builders import GameBuilder, Situation, a_game
 from tests.support.library import LIBRARY
 
-M3A = "M3a: the text of a contested game is not built"
 RENDERER = TextRenderer()
 S1, S2, S3, S4 = SeatNumber(1), SeatNumber(2), SeatNumber(3), SeatNumber(4)
 ATRAXA = "Atraxa, Praetors' Voice"
@@ -80,7 +77,6 @@ def four_seats() -> GameBuilder:
 
 
 # @spec TOOL-041
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_status_line_of_a_started_contested_game_as_the_calling_seat_sees_it() -> None:
     situation = two_seats().with_life(35).build()
     assert line_of(situation, S1) == (
@@ -90,26 +86,22 @@ def test_the_status_line_of_a_started_contested_game_as_the_calling_seat_sees_it
 
 
 # @spec TOOL-042
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_shown_is_the_calling_seat_s_own_and_the_active_seat_is_named() -> None:
     situation = two_seats().build()
     assert line_of(situation, S2).startswith("T1 main1 (S1) · You S2 · ")
 
 
 # @spec TOOL-043
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_status_line_gives_the_calling_seat_s_number() -> None:
     assert " · You S3 · " in line_of(four_seats().build(), S3)
 
 
 # @spec TOOL-044
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_every_other_seat_s_life_is_shown_in_seat_order_with_out_for_an_eliminated_seat() -> None:
     assert " · Life 40 · S1 40 · S2 31 · S4 out · " in line_of(four_seats().build(), S3)
 
 
 # @spec TOOL-045
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_commander_damage_is_shown_to_each_other_seat_in_the_order_of_the_life_groups() -> None:
     builder: Any = (
         a_game()
@@ -123,7 +115,6 @@ def test_commander_damage_is_shown_to_each_other_seat_in_the_order_of_the_life_g
 
 
 # @spec TOOL-045, TOOL-058
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_two_commanders_show_a_group_each_in_name_order_for_damage_and_tax() -> None:
     builder: Any = (
         a_game()
@@ -138,7 +129,6 @@ def test_two_commanders_show_a_group_each_in_name_order_for_damage_and_tax() -> 
 
 
 # @spec TOOL-047
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_act_names_the_seat_to_act_as_you_or_by_seat_number_with_what_it_is_asked() -> None:
     situation = two_seats(active=2).build()
     assert line_of(situation, S1).endswith(" · Act S2 turn · #0")
@@ -146,9 +136,8 @@ def test_act_names_the_seat_to_act_as_you_or_by_seat_number_with_what_it_is_aske
 
 
 # @spec TOOL-059
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_pending_choice_is_shown_by_act_and_never_as_choice_pending() -> None:
-    situation = two_seats(active=2).build()
+    situation = two_seats(active=2).with_library("Swamp", "Swamp").build()
     looked: Any = effect(
         situation.game,
         situation.deck,
@@ -162,7 +151,6 @@ def test_a_pending_choice_is_shown_by_act_and_never_as_choice_pending() -> None:
 
 
 # @spec TOOL-048
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_during_mulligans_the_line_names_every_seat_still_to_keep() -> None:
     builder: Any = a_game().in_mulligan().with_hand("Forest")
     builder = builder.and_an_opposing_seat().with_hand("Island").having_kept()
@@ -174,7 +162,6 @@ def test_during_mulligans_the_line_names_every_seat_still_to_keep() -> None:
 
 
 # @spec TOOL-049
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_eliminated_calling_seat_s_line_begins_with_out() -> None:
     builder: Any = a_game().with_library("Plains")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -182,7 +169,6 @@ def test_an_eliminated_calling_seat_s_line_begins_with_out() -> None:
 
 
 # @spec TOOL-049, TOOL-062
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_ended_game_s_line_puts_ended_before_out() -> None:
     builder: Any = a_game().with_library("Plains")
     situation = builder.and_an_opposing_seat().eliminated().build()
@@ -192,7 +178,6 @@ def test_an_ended_game_s_line_puts_ended_before_out() -> None:
 
 
 # @spec TOOL-062
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_an_ended_contested_game_s_line_has_no_act() -> None:
     situation = two_seats().build()
     situation.game.status = GameStatus.ENDED
@@ -216,7 +201,6 @@ def test_a_contested_game_ended_during_mulligans_shows_the_mulligan_line_without
 
 
 # @spec TOOL-050
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_call_from_a_seat_not_to_act_names_the_seat_to_act_and_suggests_wait() -> None:
     situation = two_seats().build()
     error: Any = acting.may_call(situation.game, S2, "advance")
@@ -227,7 +211,6 @@ def test_a_call_from_a_seat_not_to_act_names_the_seat_to_act_and_suggests_wait()
 
 
 # @spec TOOL-050
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_during_mulligans_the_error_names_every_seat_still_to_keep() -> None:
     builder: Any = a_game().in_mulligan().with_hand("Forest").having_kept()
     builder = builder.and_an_opposing_seat().with_hand("Island")
@@ -240,7 +223,6 @@ def test_during_mulligans_the_error_names_every_seat_still_to_keep() -> None:
 
 
 # @spec TOOL-050
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_pending_choice_is_named_by_its_kind_in_the_error() -> None:
     situation = two_seats().build()
     looked: Any = effect(
@@ -258,7 +240,6 @@ def test_a_pending_choice_is_named_by_its_kind_in_the_error() -> None:
 
 
 # @spec TOOL-040
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_first_event_line_says_what_the_calling_seat_is_now_asked_to_do() -> None:
     situation = two_seats(hand=("Island", "Forest")).build()
     result: Any = play(situation.game, situation.deck, S1, card="Forest")
@@ -267,7 +248,6 @@ def test_the_first_event_line_says_what_the_calling_seat_is_now_asked_to_do() ->
 
 
 # @spec TOOL-040
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_seat_that_is_not_to_act_is_told_nothing_it_is_asked() -> None:
     situation = two_seats(active=2).build()
     outcome = Outcome(Status.OK, Refused((), ()), (), summarize(situation.game, situation.deck, S1))
@@ -306,7 +286,6 @@ def listing_lines(situation: Situation, seat: SeatNumber, detail: str = "summary
 
 
 # @spec TOOL-051, GAME-121
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_listing_gives_the_calling_seat_s_hand_then_each_seat_in_turn_order() -> None:
     lines = listing_lines(a_table_of_two(), S2)
     assert lines[0] == "Hand (1): Shivan Dragon"
@@ -325,7 +304,6 @@ def test_the_listing_shows_no_card_of_another_seat_s_hand_and_none_of_any_librar
 
 
 # @spec TOOL-066
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_permanent_its_controller_does_not_own_is_marked_with_its_owner() -> None:
     lines = listing_lines(a_table_of_two(), S1)
     first = lines.index("S1 (you) · Life 40 · Hand 2 · Library 3")
@@ -350,7 +328,6 @@ def a_deck(deck_id: str, commander: str) -> LoadedDeck:
 
 
 # @spec GAME-074, GAME-075, GAME-079
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_a_new_contested_game_lists_its_seats_in_turn_order_and_shows_no_hand() -> None:
     tested, other = a_deck("dtested", ATRAXA), a_deck("dother", KENRITH)
     result: Any = creation.new_game(
@@ -377,7 +354,6 @@ def test_a_new_contested_game_lists_its_seats_in_turn_order_and_shows_no_hand() 
 
 
 # @spec TURN-042
-@pytest.mark.xfail(strict=True, reason=M3A)
 def test_the_turn_passing_is_shown_with_the_new_seat_and_its_turn_and_its_draw_counted() -> None:
     builder: Any = a_game().in_step(Step.CLEANUP, turn=3).in_round(2).with_turns_taken(2)
     situation = builder.and_an_opposing_seat().with_turns_taken(1).with_library("Swamp").build()
