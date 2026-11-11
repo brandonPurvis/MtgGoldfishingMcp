@@ -82,7 +82,7 @@ The game of Magic as this service sees it — games, seats, card instances, zone
 - **Playing the game.** No built-in AI, heuristic policy or autopilot, for any seat. The auto payment system chooses how to pay, never what to play.
 - **Acting imaginary opponents.** The imaginary opponents of a goldfish game take no actions; opposition comes only from opposing seats with decks. The agent may model an imaginary opponent's action itself as an effect.
 - **Policing agents.** The service keeps hidden information out of each seat's views, but does not stop an agent from reading the log or playing several seats.
-- **Event-based triggers.** "Whenever a creature enters" and similar triggers are their controller's responsibility. Only step triggers get reminders.
+- **Event-based triggers.** "Whenever a creature enters" and similar triggers are their controller's responsibility: the service never looks for them in card text, and the controller states each one — with `effect`, or, for a cast trigger, with the `play` that casts the spell, so that a spell no other seat can answer does not resolve before its controller could state it. Only step triggers get reminders.
 - **Deck management.** No deck versions, deck history, or relationships between decks. A loaded deck is identified only by its contents.
 - **Statistics and analysis.** The service stores and returns records. Metrics, comparisons between decks and findings are produced elsewhere.
 - **The deck-improvement workflow.** Building decks, choosing opposing decks, analysing logs and editing decks happen outside the service.

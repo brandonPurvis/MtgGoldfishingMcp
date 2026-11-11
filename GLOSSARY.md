@@ -190,6 +190,10 @@ _Avoid_: Queue, chain, pending plays
 One play or effect on the stack, with its controller and the delta that controller stated.
 _Avoid_: Stack entry, spell object
 
+**Cast trigger**:
+A triggered ability of the casting seat's own that triggers on its casting a spell, stated by that seat together with the spell and resolving before it.
+_Avoid_: Cast window, on-cast ability
+
 **Resolve**:
 To apply the delta of the newest item on the stack, once every other seat has passed on it.
 _Avoid_: Execute, commit

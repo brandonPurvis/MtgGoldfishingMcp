@@ -64,6 +64,8 @@ The migrations, by the version they reach:
 
 No migration changes a game's version counter: a migrated game is the same game.
 
+Cast triggers (see `stack` and `records`) need no migration. A stack item stored before them holds no `cast_with` and is read as no cast trigger, and a log entry stored before them holds no `cast_triggers` and is read as stating none; neither is rewritten, and the schema version does not change.
+
 ## Decisions & Alternatives
 
 | Decision | Chosen | Alternatives Considered | Rationale |
