@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections import deque
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -14,15 +15,24 @@ from tests.support.card_data import recorded_scryfall_json
 COLLECTION_URL = "https://api.scryfall.com/cards/collection"
 
 
+WALL_START = datetime(2026, 1, 1, tzinfo=UTC)
+"""The wall-clock time a `FakeTime` tells before anything sleeps on it."""
+
+
 class FakeTime:
-    """A monotonic clock that only moves when something sleeps on it."""
+    """A monotonic clock, and a wall clock in step with it, that only move when told to."""
 
     def __init__(self, start: float = 1000.0) -> None:
+        self.start = start
         self.now = start
         self.sleeps: list[float] = []
 
     def monotonic(self) -> float:
         return self.now
+
+    def wall(self) -> datetime:
+        """The wall-clock time: `WALL_START` plus however far the monotonic clock has moved."""
+        return WALL_START + timedelta(seconds=self.now - self.start)
 
     def sleep(self, seconds: float) -> None:
         self.sleeps.append(seconds)
@@ -33,15 +43,25 @@ class FakeTime:
 
 
 def _names_of(card: dict[str, Any]) -> list[str]:
-    return [card["name"], *(face["name"] for face in card.get("card_faces", []))]
+    """The names the collection endpoint finds a card by: its face names, if it lists faces."""
+    faces = card.get("card_faces", [])
+    return [face["name"] for face in faces] if faces else [card["name"]]
+
+
+def refusal(status: int, retry_after: str | None = None) -> httpx.Response:
+    """An error response from Scryfall, with a `Retry-After` header when one is given."""
+    headers = {} if retry_after is None else {"Retry-After": retry_after}
+    return httpx.Response(status, json={"object": "error", "status": status}, headers=headers)
 
 
 class FakeScryfall:
     """Answers the collection endpoint from Scryfall card objects, the way Scryfall does.
 
-    Like Scryfall, it matches an identifier to a card case-insensitively by full name or
-    face name, returns one data entry per found identifier, and lists the rest under
-    `not_found`. Tests can script failures and substitute cards.
+    Like Scryfall's collection endpoint, it matches a name identifier case-insensitively
+    to a single-faced card by its name and to a card that lists faces by any one face name,
+    never by that card's full name; it returns one data entry per found identifier, the
+    same card again for each identifier finding it, and lists the rest under `not_found`.
+    Tests can script failures and substitute cards.
     """
 
     def __init__(
@@ -54,19 +74,23 @@ class FakeScryfall:
         self.time = time
         self.requests: list[httpx.Request] = []
         self.request_times: list[float] = []
-        self._scripted: deque[int | Exception] = deque()
-        self._failing_names: set[str] = set()
+        self._scripted: deque[int | Exception | httpx.Response] = deque()
+        self._failing_names: dict[str, httpx.Response] = {}
         self._substitutes: dict[str, dict[str, Any]] = {}
 
     # Arranging
 
-    def fail_next(self, *outcomes: int | Exception) -> None:
-        """Answer the next requests with these statuses or raise these errors, in order."""
+    def fail_next(self, *outcomes: int | Exception | httpx.Response) -> None:
+        """Answer the next requests with these statuses or responses, or raise these errors."""
         self._scripted.extend(outcomes)
 
-    def fail_requests_naming(self, *names: str) -> None:
-        """Answer 503 to every request that asks for any of these names."""
-        self._failing_names.update(name.casefold() for name in names)
+    def fail_requests_naming(
+        self, *names: str, status: int = 503, retry_after: str | None = None
+    ) -> None:
+        """Answer `status` to every request that asks for any of these names."""
+        self._failing_names.update(
+            (name.casefold(), refusal(status, retry_after)) for name in names
+        )
 
     def answer_with(self, name: str, card: dict[str, Any]) -> None:
         """Return `card` for the identifier `name`, whatever its name, as a loose match would."""
@@ -98,12 +122,20 @@ class FakeScryfall:
             outcome = self._scripted.popleft()
             if isinstance(outcome, Exception):
                 raise outcome
-            return httpx.Response(outcome, json={"object": "error", "status": outcome})
+            return outcome if isinstance(outcome, httpx.Response) else refusal(outcome)
         if request.method != "POST" or str(request.url) != COLLECTION_URL:
             return httpx.Response(404, json={"object": "error", "status": 404})
         names = [identifier["name"] for identifier in json.loads(request.content)["identifiers"]]
-        if any(name.casefold() in self._failing_names for name in names):
-            return httpx.Response(503, json={"object": "error", "status": 503})
+        failing = next(
+            (
+                self._failing_names[n.casefold()]
+                for n in names
+                if n.casefold() in self._failing_names
+            ),
+            None,
+        )
+        if failing is not None:
+            return refusal(failing.status_code, failing.headers.get("Retry-After"))
         data: list[dict[str, Any]] = []
         not_found: list[dict[str, str]] = []
         for name in names:
