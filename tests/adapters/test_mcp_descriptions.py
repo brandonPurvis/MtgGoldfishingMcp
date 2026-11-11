@@ -307,3 +307,16 @@ def test_the_server_instructions_continue_with_a_section_on_contested_games(
     contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
 
     assert all(word in contested for word in words), point
+
+
+# @spec TOOL-078
+@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
+def test_the_contested_section_says_a_blocked_attacker_deals_nothing_without_trample() -> None:
+    contested = SERVER_INSTRUCTIONS.removeprefix(GOLDFISH_GUIDE)
+
+    for words in (
+        "A blocked attacker deals a seat nothing",
+        "`attack` and `trample`",
+        "before combat damage",
+    ):
+        assert words in contested, words

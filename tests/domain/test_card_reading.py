@@ -1,5 +1,9 @@
 """The card reader as a whole: readings per face, assumptions, and the report on a set of cards."""
 
+from typing import Any
+
+import pytest
+
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
@@ -146,6 +150,21 @@ def test_the_report_lists_cards_that_have_or_grant_haste_or_vigilance() -> None:
         KeywordReport("Goblin Guide", "haste", KeywordReading(own=True)),
         KeywordReport("Fires of Yavimaya", "haste", KeywordReading(grant=KeywordGrant())),
         KeywordReport("Serra Angel", "vigilance", KeywordReading(own=True)),
+    )
+
+
+# @spec READ-064
+@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
+def test_the_report_lists_cards_that_have_or_grant_evasion_or_reach_by_keyword() -> None:
+    levitation = a_card("Levitation", "Creatures you control have flying.", "Enchantment")
+    spider = a_card("Giant Spider", "Reach", "Creature — Spider")
+    sneak = a_card("Phantom Warrior", "This creature can't be blocked.", "Creature — Illusion")
+    result: Any = report(reported(LLANOWAR_ELVES, SERRA_ANGEL, levitation, spider, sneak))
+    assert result.evasion_and_reach == (
+        KeywordReport("Serra Angel", "flying", KeywordReading(own=True)),
+        KeywordReport("Levitation", "flying", KeywordReading(grant=KeywordGrant())),
+        KeywordReport("Giant Spider", "reach", KeywordReading(own=True)),
+        KeywordReport("Phantom Warrior", "can't be blocked", KeywordReading(own=True)),
     )
 
 

@@ -191,6 +191,10 @@ class FaceReading:
     vigilance: KeywordReading = NO_KEYWORD
     flash: KeywordReading = NO_KEYWORD
     enters_tapped: EntersTappedReading = ENTERS_UNTAPPED
+    flying: KeywordReading = NO_KEYWORD
+    horsemanship: KeywordReading = NO_KEYWORD
+    reach: KeywordReading = NO_KEYWORD
+    cant_be_blocked: KeywordReading = NO_KEYWORD
 
     @property
     def is_mana_source(self) -> bool:

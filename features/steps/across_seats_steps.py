@@ -156,6 +156,19 @@ def step_impl(context: Any, number: int) -> None:
     _as_seat(context, number, "choose", choice_id=_choice_id(context), delta={"discard": [card]})
 
 
+@when(f'seat {SEAT} answers its blocks choice with blocks {{blocks}} and override "{{reason}}"')
+def step_impl(context: Any, number: int, blocks: str, reason: str) -> None:
+    _as_seat(
+        context,
+        number,
+        "choose",
+        choice_id=_choice_id(context),
+        blocks=json.loads(blocks),
+        override=reason,
+    )
+
+
+# Registered after the answer with an override, which it would also match.
 @when(f"seat {SEAT} answers its blocks choice with blocks {{blocks}}")
 def step_impl(context: Any, number: int, blocks: str) -> None:
     _as_seat(context, number, "choose", choice_id=_choice_id(context), blocks=json.loads(blocks))
@@ -200,6 +213,11 @@ def step_impl(context: Any, number: int, attackers: str, damage: str) -> None:
 @when(f"seat {SEAT} attacks with {{attackers}}")
 def step_impl(context: Any, number: int, attackers: str) -> None:
     _as_seat(context, number, "attack", attackers=json.loads(attackers))
+
+
+@when(f"seat {SEAT} states trample damage {{trample}}")
+def step_impl(context: Any, number: int, trample: str) -> None:
+    _as_seat(context, number, "attack", trample=json.loads(trample))
 
 
 @when(f'seat {SEAT} advances to "{{step}}"')

@@ -11,6 +11,7 @@ from mtg_goldfishing.adapters.mcp.definitions import TOOL_DEFINITIONS
 from mtg_goldfishing.adapters.mcp.parameters import Shaped, shape
 
 DEFINITIONS = {definition.name: definition for definition in TOOL_DEFINITIONS}
+NOT_BUILT = pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
 
 
 def parameter(tool: str, name: str) -> Any:
@@ -57,14 +58,72 @@ def test_effect_says_a_combat_result_gives_only_what_happens_to_the_creatures() 
 
 
 # @spec TOOL-070
-def test_attack_says_a_blocked_attacker_s_damage_entry_is_dealt_in_full() -> None:
-    targets = parameter("attack", "targets")
-    assert targets is not None
-    assert targets.meaning.startswith("Contested games: ")
+@NOT_BUILT
+def test_attack_says_a_blocked_attacker_deals_no_combat_damage_unless_trample_is_stated() -> None:
+    trample = parameter("attack", "trample")
+    assert trample is not None
+    assert trample.meaning.startswith("Contested games: ")
     description = DEFINITIONS["attack"].description
-    assert "blocked attacker" in description
-    assert "dealt in full" in description
-    assert "no reduction for blockers" in description
+    for words in (
+        "A blocked attacker deals no combat damage to the seat it attacks",
+        "its damage entry included",
+        "once blocks are known and before combat damage",
+        "trample and no attackers",
+    ):
+        assert words in description, words
+    assert "dealt in full" not in description
+
+
+# @spec TOOL-076
+@NOT_BUILT
+def test_attack_says_evasion_states_flying_horsemanship_or_can_t_be_blocked_per_attacker() -> None:
+    evasion = parameter("attack", "evasion")
+    assert evasion is not None
+    assert evasion.meaning.startswith("Contested games: ")
+    for words in (
+        "flying",
+        "horsemanship",
+        "can't be blocked (unblockable)",
+        "beyond what the service has read",
+        "for this declaration only",
+        "refused as a rule check",
+    ):
+        assert words in evasion.meaning, words
+
+
+# @spec TOOL-077
+@NOT_BUILT
+def test_choose_says_a_block_forbidden_by_evasion_fails_a_rule_check_overridden_for_this_turn() -> (
+    None
+):
+    description = DEFINITIONS["choose"].description
+    contested = description[description.index("Contested games:") :]
+    for words in (
+        "flying, horsemanship or can't be blocked forbids",
+        "fails a rule check",
+        "flying or reach only for this turn",
+        "override giving that reason",
+    ):
+        assert words in contested, words
+
+
+# @spec CMBT-080, TOOL-076
+@NOT_BUILT
+@pytest.mark.parametrize(
+    "evasion", [{"Grizzly Bears": "flying"}, {"Grizzly Bears": ["flying", "unblockable"]}]
+)
+def test_attack_takes_evasion_as_a_map_from_attacker_to_an_evasion_or_a_list(
+    evasion: object,
+) -> None:
+    arguments = {"game_id": "g1", "attackers": ["Grizzly Bears"], "evasion": evasion}
+    assert isinstance(shape(DEFINITIONS["attack"].parameters, arguments), Shaped)
+
+
+# @spec CMBT-098, TOOL-070
+@NOT_BUILT
+def test_attack_takes_trample_alone_without_attackers() -> None:
+    arguments = {"game_id": "g1", "trample": {"Shivan Dragon": 3}}
+    assert isinstance(shape(DEFINITIONS["attack"].parameters, arguments), Shaped)
 
 
 # @spec TOOL-071

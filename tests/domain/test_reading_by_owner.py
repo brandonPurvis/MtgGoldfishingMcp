@@ -9,13 +9,17 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.listing import list_state
+from mtg_goldfishing.domain.play.choosing import choose
 from mtg_goldfishing.domain.play.playing import play
+from mtg_goldfishing.domain.stack.passing import pass_
 from mtg_goldfishing.domain.steps import Step
 from mtg_goldfishing.domain.turn import advance
-from tests.support.acting import S1, S2, acted
+from tests.support.acting import S1, S2, acted, check_kinds
 from tests.support.builders import Situation, a_deck, a_game
 
 CROSSROADS = "Concordant Crossroads"
@@ -123,6 +127,33 @@ def test_haste_granted_by_a_taken_permanent_is_listed() -> None:
 
     bears = next(p for p in listing.battlefield if p.name == "Grizzly Bears")
     assert bears.haste
+
+
+# @spec GAME-171, CMBT-089
+@pytest.mark.xfail(strict=True, reason="M1: not implemented yet")
+def test_a_taken_attacker_keeps_the_flying_its_owners_deck_reads_when_blocks_are_judged() -> None:
+    builder: Any = a_game().and_an_opposing_seat().with_battlefield("Wind Drake", "Llanowar Elves")
+    situation = taken_by_seat_1(builder, "Wind Drake")
+    mine = a_deck("Grizzly Bears")
+    decks = Decks({S1: mine, S2: a_deck("Wind Drake", "Llanowar Elves")})
+    acted(
+        situation,
+        attack(situation.game, mine, S1, attackers=["Wind Drake"], targets=2, decks=decks),
+    )
+    acted(situation, pass_(situation.game, mine, S2, decks=decks))
+    acted(situation, advance(situation.game, mine, S1, to="declare_blockers", decks=decks))
+    choice = situation.game.pending[0].choice_id
+
+    result = choose(
+        situation.game,
+        decks.of(S2),
+        S2,
+        choice_id=choice,
+        blocks={"Llanowar Elves": "Wind Drake"},
+        decks=decks,
+    )
+
+    assert check_kinds(result) == ["evasion_forbids_block"]
 
 
 # @spec REC-081
