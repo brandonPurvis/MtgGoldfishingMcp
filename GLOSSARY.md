@@ -45,8 +45,12 @@ A rule check on a deck's construction: size, singleton, color identity, legality
 _Avoid_: Deck validation, legality check
 
 **Reading**:
-What the service has worked out from a card's rules text: the mana it makes, its step triggers, its haste, vigilance, evasion, reach or flash, and whether it enters tapped.
+What the service has worked out from a card's rules text: the mana it makes, its step triggers, its haste, vigilance, evasion, reach or flash, whether it enters tapped, and, for a station card, how many charge counters make it a creature.
 _Avoid_: Parse, interpretation, card logic
+
+**Station card**:
+A card with Magic's station ability, such as a Spacecraft or a Planet: charge counters put on it turn on the abilities printed after each station symbol (`8+ |`), and a station card with a printed power and toughness is an artifact creature while it has enough of them.
+_Avoid_: Ship, stationed permanent, vehicle
 
 **Assumption**:
 A plain statement of what the service guessed when a reading, or a choice made for the agent, rests on less than an exact match.

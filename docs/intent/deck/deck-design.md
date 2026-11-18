@@ -103,7 +103,7 @@ The `override` reason given when a loaded deck is created is recorded on it. A l
 
 ## Response
 
-On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards that grant flying, horsemanship, reach or "can't be blocked"; cards read as entering tapped, and those assumed to enter untapped with their condition; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
+On success the response states the id, card count and commanders, then, when non-empty: definitions applied; mana abilities read with assumptions (with each assumption); mana abilities not read; mana sources the auto payment system will not use on its own (those that are sacrificed or carry another cost); cards that grant haste or vigilance; cards that grant flying, horsemanship, reach or "can't be blocked"; cards read as entering tapped, and those assumed to enter untapped with their condition; station cards read as becoming creatures, with the charge counters each needs and any assumption; keyword readings made with assumptions; cards a refresh could not fetch again, built from their cached data; and overridden checks. Step triggers are not listed here; they appear as reminders during play.
 
 ```
 OK Loaded deck d3f9a01c2e: 100 cards, commander Atraxa, Praetors' Voice.

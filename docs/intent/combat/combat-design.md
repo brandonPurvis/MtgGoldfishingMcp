@@ -64,9 +64,9 @@ When the active seat advances into `declare_blockers` with an attack declared, e
 blocks: { [blocker]: attacker }      // each blocking creature and the attacker it blocks
 ```
 
-Blockers are named among the creatures the answering seat controls on the battlefield; attackers among the attackers attacking that seat. Several blockers may block one attacker. An empty `blocks` declares no blocks. Errors: a blocker the seat does not control on the battlefield; an attacker not attacking that seat; a blocker named twice. Rule checks: a blocker that is tapped, or whose type line does not include `Creature`; a block the attacker's evasion forbids (see Evasion). With an override reason the blocks are recorded as given and the outcome names the overridden checks.
+Blockers are named among the creatures the answering seat controls on the battlefield; attackers among the attackers attacking that seat. Several blockers may block one attacker. An empty `blocks` declares no blocks. Errors: a blocker the seat does not control on the battlefield; an attacker not attacking that seat; a blocker named twice. Rule checks: a blocker that is tapped, or that is not a creature as `game` judges it (its type line includes `Creature`, or it is a station card with enough charge counters); a block the attacker's evasion forbids (see Evasion). With an override reason the blocks are recorded as given and the outcome names the overridden checks.
 
-A seat with no untapped creatures is not asked: the service declares no blocks for it and reports that, as it reports an automatic pass.
+A seat with no untapped creatures is not asked: the service declares no blocks for it and reports that, as it reports an automatic pass. A station card with enough charge counters is one of its creatures, so a seat that controls one untapped is asked.
 
 An attacker named in any `blocks` answer is blocked, and stays blocked for the rest of the combat even if every creature blocking it leaves the battlefield. When every attacked seat has answered, the active seat is the seat to act again.
 
@@ -131,7 +131,7 @@ Errors:
 
 Rule checks, overridable:
 
-- an attacker whose type line (for a token, its `types`) does not include `Creature`;
+- an attacker that is not a creature as `game` judges it: its type line (for a token, its `types`) does not include `Creature`, and it is not a station card with enough charge counters;
 - an attacker that is tapped, other than by an earlier attack declaration this turn;
 - an attacker that entered the battlefield this table turn and has no haste — its own, granted by a permanent the service has read that the attacker's controller controls (including the attacker's own grant when that grant includes itself; a permanent another seat controls grants nothing), or listed in `haste`;
 - an attacker whose power is not a number (`*`, or absent) with no entry in `damage`;

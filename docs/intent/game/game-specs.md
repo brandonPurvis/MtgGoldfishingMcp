@@ -91,7 +91,13 @@ Design: `game-design.md`. Prefix: `GAME`.
 - [x] **GAME-099**: In a contested game, when the instances matching a card name differ in controller, the outcome shall identify the chosen instance by its instance id.
 - [x] **GAME-100**: In every game, the game shall record each card instance's owner and controller separately, the controller being the owner unless a delta has changed control.
 - [x] **GAME-101**: When a card leaves the battlefield in a contested game, the game shall set that card's controller to its owner.
-- [x] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flying, horsemanship, reach, "can't be blocked", flash, step triggers, entering tapped) — from the loaded deck of its owner, whichever seat controls it.
+- [x] **GAME-171**: In every game, goldfish or contested, the game shall read each card instance that is not a token and carries no card data of its own — its names, type line, mana cost, power and readings (mana abilities, haste, vigilance, flying, horsemanship, reach, "can't be blocked", flash, step triggers, entering tapped, station) — from the loaded deck of its owner, whichever seat controls it.
+
+## Which permanents are creatures
+
+- [x] **GAME-198**: In every game, the game shall judge a permanent to be a creature when its type line, or for a token its types, includes `Creature`, or when the station reading of its face in play names a number of charge counters (READ-065, READ-066) and the permanent has at least that many counters of the kind `charge`, the kind matched ignoring case; a token has no station reading.
+- [x] **GAME-199**: In every game, the game shall judge a station card that is a creature by GAME-198 to have, as its base power and toughness, those printed on its face in play, its power adjusted in combat as any creature's is (CMBT damage by `+1/+1` and `-1/-1` counters).
+- [x] **GAME-200**: When `get_state` lists a permanent whose station reading names a number of charge counters, in a goldfish game or a contested game, the outcome shall show that number and whether the permanent is a creature (GAME-198), with its printed power and toughness when it is.
 
 ## Mulligan
 
