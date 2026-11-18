@@ -95,9 +95,9 @@ Design: `game-design.md`. Prefix: `GAME`.
 
 ## Which permanents are creatures
 
-- [x] **GAME-198**: In every game, the game shall judge a permanent to be a creature when its type line, or for a token its types, includes `Creature`, or when its station reading names a number of charge counters (READ-065, READ-066) and the permanent has at least that many counters of the kind `charge`, the kind matched ignoring case.
-- [x] **GAME-199**: In every game, the game shall judge a station card that is a creature by GAME-198 to have the power and toughness of its face in play.
-- [x] **GAME-200**: When `get_state` lists a permanent whose station reading names a number of charge counters, in a goldfish game or a contested game, the outcome shall show that number and whether the permanent is a creature (GAME-198), with its power and toughness when it is.
+- [x] **GAME-198**: In every game, the game shall judge a permanent to be a creature when its type line, or for a token its types, includes `Creature`, or when the station reading of its face in play names a number of charge counters (READ-065, READ-066) and the permanent has at least that many counters of the kind `charge`, the kind matched ignoring case; a token has no station reading.
+- [x] **GAME-199**: In every game, the game shall judge a station card that is a creature by GAME-198 to have, as its base power and toughness, those printed on its face in play, its power adjusted in combat as any creature's is (CMBT damage by `+1/+1` and `-1/-1` counters).
+- [x] **GAME-200**: When `get_state` lists a permanent whose station reading names a number of charge counters, in a goldfish game or a contested game, the outcome shall show that number and whether the permanent is a creature (GAME-198), with its printed power and toughness when it is.
 
 ## Mulligan
 
