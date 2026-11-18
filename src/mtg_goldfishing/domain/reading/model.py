@@ -22,6 +22,12 @@ ASSUMES_ANY_COLOR = "assumes any color"
 ASSUMES_ONE_COLOR = "assumes one color for the whole amount"
 ASSUMES_CONDITION_MET = "assumes its condition is met"
 ASSUMES_UNTAPPED_PREFIX = "assumes it enters untapped: "
+ASSUMES_HIGHEST_STATION_SYMBOL = "assumes it is a creature at its highest station symbol"
+
+
+def assumes_charge_counters(count: int) -> str:
+    """The assumption a reading made after a station symbol carries."""
+    return f"assumes it has {count} or more charge counters"
 
 
 class AnyColorScope(Enum):
@@ -158,6 +164,22 @@ class EntersTappedReading:
 ENTERS_UNTAPPED = EntersTappedReading()
 
 
+@dataclass(frozen=True)
+class StationReading:
+    """How many charge counters make a station card a creature; `creature_at` is None for a
+    face that charge counters never make one."""
+
+    creature_at: int | None = None
+    assumptions: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.creature_at is not None and self.creature_at < 1:
+            raise ValueError("a station card needs at least one charge counter to be a creature")
+
+
+NEVER_A_CREATURE = StationReading()
+
+
 class Whose(Enum):
     """Whose turns a step trigger happens on."""
 
@@ -184,7 +206,8 @@ class StepTrigger:
 class FaceReading:
     """Everything the card reader worked out from one face. `flying`, `horsemanship` and
     `cant_be_blocked` are the evasion the service checks on blocks; `reach` lets a blocker
-    block a creature with flying."""
+    block a creature with flying. `station` says how many charge counters make it a
+    creature."""
 
     mana_abilities: tuple[ManaAbility, ...] = ()
     unread_mana_abilities: tuple[str, ...] = ()
@@ -197,6 +220,7 @@ class FaceReading:
     horsemanship: KeywordReading = NO_KEYWORD
     reach: KeywordReading = NO_KEYWORD
     cant_be_blocked: KeywordReading = NO_KEYWORD
+    station: StationReading = NEVER_A_CREATURE
 
     @property
     def is_mana_source(self) -> bool:
@@ -242,6 +266,12 @@ class EntersTappedReport:
 
 
 @dataclass(frozen=True)
+class StationReport:
+    card: str
+    reading: StationReading
+
+
+@dataclass(frozen=True)
 class ReadingReport:
     """What a caller can show about the readings of a set of cards."""
 
@@ -253,3 +283,4 @@ class ReadingReport:
     enters_tapped: tuple[EntersTappedReport, ...] = ()
     assumed_untapped: tuple[EntersTappedReport, ...] = ()
     evasion_and_reach: tuple[KeywordReport, ...] = ()
+    stations: tuple[StationReport, ...] = ()

@@ -30,6 +30,17 @@ from mtg_goldfishing.domain.steps import Step
 
 
 @dataclass(frozen=True)
+class StationListing:
+    """A station card's charge counters that make it a creature, whether it is one now, and
+    its power and toughness."""
+
+    creature_at: int
+    creature: bool
+    power: str | None = None
+    toughness: str | None = None
+
+
+@dataclass(frozen=True)
 class PermanentListing:
     instance_id: str
     name: str
@@ -43,6 +54,8 @@ class PermanentListing:
     """In a contested game, the seat that owns the permanent when it is not its controller."""
     opponent_triggers: tuple[Step, ...] = ()
     """In a contested game, the steps it has a trigger in on opponents' turns only."""
+    station: StationListing | None = None
+    """For a station card that charge counters make a creature, how many and whether it is one."""
 
 
 @dataclass(frozen=True)
