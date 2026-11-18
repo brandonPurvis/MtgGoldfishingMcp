@@ -151,3 +151,48 @@ def test_the_report_lists_station_cards_that_become_creatures_with_their_charge_
 # @spec READ-002
 def test_a_station_reading_from_reminder_text_carries_no_assumptions() -> None:
     assert face_reading(KVORT).station.assumptions == ()
+
+
+# @spec READ-071
+def test_flash_after_a_station_symbol_is_not_read() -> None:
+    late_flash = a_card("Late Flash", STATION + ")\n3+ | Flash", "Artifact — Spacecraft", pt="2/2")
+    assert face_reading(late_flash).flash == KeywordReading()
+
+
+# @spec READ-065
+def test_the_reminder_text_is_read_with_a_curly_apostrophe() -> None:
+    curly = a_card(
+        "Curly Ship",
+        STATION + " It\u2019s an artifact creature at 6+.)\n6+ | Flying",
+        "Artifact — Spacecraft",
+        pt="3/3",
+    )
+    assert face_reading(curly).station == StationReading(creature_at=6)
+
+
+# @spec READ-065, READ-067
+def test_a_creature_type_line_wins_over_the_reminder_text() -> None:
+    odd = a_card(
+        "Odd Ship",
+        STATION + " It's an artifact creature at 5+.)\n5+ | Flying",
+        "Artifact Creature — Spacecraft",
+        pt="3/3",
+    )
+    assert face_reading(odd).station == StationReading(creature_at=None)
+
+
+# @spec READ-066
+def test_a_station_symbol_is_read_with_any_spaces_around_its_bar() -> None:
+    tight = a_card("Tight Ship", "Station\n7+|Flying", "Artifact — Spacecraft", pt="3/3")
+    assert face_reading(tight).station.creature_at == 7
+
+
+# @spec READ-069
+def test_a_mana_ability_after_a_station_symbol_is_reported_unread_when_colors_are_known() -> None:
+    elevator = a_card(
+        "The Eternity Elevator",
+        ETERNITY_ELEVATOR.faces[0].oracle_text,
+        "Legendary Artifact — Spacecraft",
+        produced_colors=("W", "U", "B", "R", "G", "C"),
+    )
+    assert len(face_reading(elevator).unread_mana_abilities) == 1

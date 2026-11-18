@@ -212,3 +212,17 @@ def test_the_listing_shows_no_station_for_a_permanent_without_a_station_reading(
     listing = list_state(situation.game, situation.deck, TESTED, "summary")
     assert not isinstance(listing, Error)
     assert [p.station for p in listing.battlefield] == [None]
+
+
+# @spec GAME-198
+def test_a_token_is_never_a_creature_by_charge_counters() -> None:
+    situation = a_game().build()
+    recorded(
+        situation,
+        TESTED,
+        "a token maker",
+        {"tokens": [{"name": "Ship Copy", "types": "Artifact — Spacecraft", "pt": "4/4"}]},
+    )
+    token = situation.named("Ship Copy")
+    token.counters["charge"] = 20
+    assert not is_creature(situation.deck, token)

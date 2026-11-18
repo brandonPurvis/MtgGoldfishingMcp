@@ -588,18 +588,21 @@ _NOT_PLURAL_SUBTYPES = frozenset(
 )
 
 
-# @spec READ-036, READ-037, READ-038, READ-039, READ-040, READ-044, READ-068
+# @spec READ-036, READ-037, READ-038, READ-039, READ-040, READ-044, READ-068, READ-071
 def read_keyword(keyword: str, text: _FaceText) -> KeywordReading:
     """Whether the face has `keyword` itself, grants it to creatures you control, or neither.
 
     Only haste and vigilance are read as grants. Keywords given for a limited time and those
     conferred through attachment are not read. A keyword after a station symbol is read as
-    without it, assuming the charge counters the symbol names.
+    without it, assuming the charge counters the symbol names; flash after one is not read,
+    since a card in hand has no charge counters.
     """
     own = False
     grant: KeywordGrant | None = None
     assumptions: list[str] = []
     for line, station in text.ability_lines:
+        if keyword == "flash" and station is not None:
+            continue
         if keyword in _keyword_line_items(line):
             own = True
             assumptions.extend(_station_assumptions([station]))
@@ -765,7 +768,7 @@ def _grant_of(match: re.Match[str]) -> KeywordGrant | None:
 
 # Station
 
-_CREATURE_AT = re.compile(r"\bIt's an? (?:[a-z]+ )*creature at (?P<count>\d+)\+", re.IGNORECASE)
+_CREATURE_AT = re.compile(r"\bIt['’]s an?(?:[a-z]+ )*creature at (?P<count>\d+)\+", re.IGNORECASE)
 
 
 # @spec READ-065, READ-066, READ-067
