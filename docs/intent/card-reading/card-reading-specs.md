@@ -4,8 +4,8 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 
 ## General
 
-- [x] **READ-001**: The card reader shall produce every reading from a card face's rules text, type line and keywords alone, without access to game state.
-- [x] **READ-002**: The card reader shall attach to every mana ability reading, keyword reading and enters-tapped reading a list of assumptions, which is empty when the text matched a known form exactly.
+- [x] **READ-001**: The card reader shall produce every reading from a card face's rules text, type line, power and toughness, and keywords alone, without access to game state.
+- [x] **READ-002**: The card reader shall attach to every mana ability reading, keyword reading, enters-tapped reading and station reading a list of assumptions, which is empty when the text matched a known form exactly.
 
 ## Mana abilities: forms read exactly
 
@@ -92,3 +92,12 @@ Design: `card-reading-design.md`. Prefix: `READ`.
 - [x] **READ-042**: When a face's rules text says the permanent enters tapped subject to a condition or a choice, the card reader shall read it as entering untapped and add an assumption that quotes the condition.
 - [x] **READ-043**: When a face's rules text says nothing about entering tapped, the card reader shall read the permanent as entering untapped with no assumption.
 - [x] **READ-051**: When a face's rules text says the permanent enters tapped and adds only that it does not untap (`This land enters tapped and doesn't untap during your untap step.`), the card reader shall read the permanent as entering tapped with no assumption.
+
+## Station
+
+- [x] **READ-065**: When a face's rules text, reminder text included, says `It's an artifact creature at <N>+`, the card reader shall give the face a station reading of N charge counters with no assumption.
+- [x] **READ-066**: When a face whose type line does not include `Creature` has a power and a toughness and lines beginning with a station symbol (`<N>+ |`) but no sentence of READ-065, the card reader shall give the face a station reading of the greatest N among its station symbols and add the assumption "assumes it is a creature at its highest station symbol".
+- [x] **READ-067**: When a face's type line includes `Creature`, or the face has no sentence of READ-065 and either lacks a power or toughness or has no line beginning with a station symbol, the card reader shall give the face a station reading that names no number of charge counters, so that charge counters never make it a creature, with no assumption.
+- [x] **READ-068**: When haste, vigilance, flash, flying, horsemanship, reach or "can't be blocked" stands after a station symbol at the start of a line (`8+ | Flying, vigilance`), the card reader shall read it as it would read the same line without the symbol and add the assumption "assumes it has <N> or more charge counters", N being the symbol's number.
+- [x] **READ-069**: When a mana ability stands after a station symbol at the start of a line (`20+ | {T}: Add X mana of any one color, ...`), the card reader shall give that ability no reading.
+- [x] **READ-070**: When asked to report on a set of cards, the card reader shall list, beside the lists of READ-027 and READ-064, the faces whose station reading gives a number of charge counters, each with that number and the reading's assumptions.
