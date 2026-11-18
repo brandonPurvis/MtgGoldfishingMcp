@@ -7,18 +7,19 @@ prefix: READ
 
 ## Context and Design Philosophy
 
-The service does not know what cards do. This component holds the deliberate exceptions: four narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and the checks on attacks and blocks possible.
+The service does not know what cards do. This component holds the deliberate exceptions: five narrow readings of a card's rules text and keywords that make automatic payment, trigger reminders and the checks on attacks and blocks possible.
 
 1. **Mana sources**: how much mana of which colors a permanent makes, and what using it costs.
 2. **Step triggers**: which steps of the turn a permanent has a beginning-of-step trigger in, and on whose turns.
 3. **Combat keywords**: whether a permanent has, itself, or grants to others haste, vigilance, the evasion of flying, horsemanship or "can't be blocked", or reach.
 4. **Entering tapped**: whether a permanent enters the battlefield tapped.
+5. **Station**: how many charge counters make a station card a creature.
 
-Every mana ability reading, keyword reading and enters-tapped reading carries a list of `assumptions`, empty when the text matched a known form exactly. Step triggers carry none.
+Every mana ability reading, keyword reading, enters-tapped reading and station reading carries a list of `assumptions`, empty when the text matched a known form exactly. Step triggers carry none.
 
 Reading follows the tenet *Best guess, shown*. When text matches a known form only partly, the reader returns its best reading together with a plain statement of what it assumed. It returns "no reading" only when it has nothing usable. It never guesses silently.
 
-Reading is pure: text in, reading out, no game state. Which deck's reading a card instance in a game is given — its owner's, whichever seat controls it — is decided by `game`. Readings that depend on game state (counted amounts) are returned as a rule to be evaluated later by whoever holds the state.
+Reading is pure: text in, reading out, no game state. Which deck's reading a card instance in a game is given — its owner's, whichever seat controls it — is decided by `game`. Readings that depend on game state (counted amounts, the charge counters a station card needs) are returned as a rule to be evaluated later by whoever holds the state.
 
 ## Mana Sources
 
@@ -72,7 +73,7 @@ Restriction { text: string, card_types: [string] }   // card types the mana may 
 
 Any part of an ability's cost that is not `{T}`, mana symbols, a life payment, or sacrificing the permanent itself is carried verbatim in `other_cost`. Life lost through a separate triggered ability on the same card (`Whenever this land becomes tapped, it deals 1 damage to you`) is not part of the ability and is not included in `life`.
 
-`Count.match` is a single word compared, ignoring case, against the words of a permanent's type line (for a token, its `types`).
+`Count.match` is a single word compared, ignoring case, against the words of a permanent's type line (for a token, its `types`). `creature` also matches a permanent that `game` judges a creature through its station reading.
 
 A basic land type on the type line (`Forest`, `Island`, `Plains`, `Swamp`, `Mountain`) is read as the corresponding `{T}: Add` ability even when the rules text is empty.
 
@@ -89,13 +90,13 @@ When an ability's text continues past a form the reader knows, or is conditioned
 
 ### No reading
 
-An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. An ability without a reading is reported as **unread** only on a card whose `produced_colors` are known; on a card without them it is left out of the report, since nothing says the card makes mana at all.
+An ability gets no reading when it adds mana but neither taps nor sacrifices the permanent (mana filters such as `{1}: Add {R}`), when it is a triggered ability rather than an activated one (`Whenever you tap a land for mana, add ...`), when it stands after a station symbol (`20+ | {T}: Add X mana of any one color, ...`; see Station), or when no mana symbols or counts can be extracted from it and the card has no `produced_colors`. An ability without a reading is reported as **unread** only on a card whose `produced_colors` are known; on a card without them it is left out of the report, since nothing says the card makes mana at all.
 
 ### Reporting
 
 A card with several mana abilities is reported per ability: it can appear both as read and, for another ability, as unread.
 
-For a set of cards the reader produces lists a caller can show: mana abilities read exactly, mana abilities read with assumptions (each with its assumptions), unread mana abilities, cards with step triggers, cards that have or grant each combat keyword, and cards that enter tapped or are assumed to enter untapped.
+For a set of cards the reader produces lists a caller can show: mana abilities read exactly, mana abilities read with assumptions (each with its assumptions), unread mana abilities, cards with step triggers, cards that have or grant each combat keyword, cards that enter tapped or are assumed to enter untapped, and station cards read as becoming creatures, each with the charge counters it needs and any assumption.
 
 ## Step Triggers
 
@@ -143,6 +144,10 @@ Keywords conferred through attachment (`Equipped creature has haste`, `Enchanted
 
 Flash is read the same way as an own keyword, for the timing check in `play`.
 
+A combat keyword after a station symbol (`8+ | Flying, vigilance`, `4+ | Flying, menace, haste`, `6+ | Other creatures you control have haste.`) is read as it would be with the symbol removed, as the card's own or as a grant, and that keyword reading carries the assumption "assumes it has N or more charge counters", N being the symbol's number. The reading holds whatever the permanent's charge counters: Magic gives the card that keyword only while it has that many, but the reader does not know how many it has, and the keyword matters to `combat` almost only while the card is a creature, which is at its creature threshold (see Station). Station cards print their keywords at or below the symbol that carries their power and toughness, so a stationed creature has them; on a card printed otherwise, the shown assumption is what a blocking or attacking seat overrides.
+
+Flash after a station symbol gets no reading. Flash matters while the card is in hand, where it has no charge counters, so the card never has it when `play` asks.
+
 ## Entering Tapped
 
 A face gets one of:
@@ -152,6 +157,37 @@ A face gets one of:
 - **untapped**: the text says nothing about entering tapped.
 
 The reading applies to any permanent, not only lands.
+
+## Station
+
+A **station card** (Magic rules 702.184 and 722) has the station ability, which puts charge counters on it, and one or more **station symbols**, each a number followed by a plus sign. Scryfall writes each symbol at the start of a line, followed by ` | ` and the abilities it turns on:
+
+```
+Station (Tap another creature you control: Put charge counters equal to its power on this Spacecraft. Station only as a sorcery. It's an artifact creature at 9+.)
+2+ | At the beginning of combat on your turn, ...
+9+ | Flying, vigilance
+```
+
+A station card with a printed power and toughness is an artifact creature with that power and toughness, in addition to its other types, while it has at least a certain number of charge counters: its **creature threshold**. The station reading gives that number, or says the face never becomes a creature. The rules below apply in order, the first that fits deciding:
+
+```
+StationReading { creature_at: int | null, assumptions: [string] }
+```
+
+- **Already a creature.** A face whose type line includes `Creature` gets `creature_at` null and no assumption, whatever its text says.
+- **From the reminder text.** When the face's text says `It's an artifact creature at N+` (normally inside the station ability's reminder text, which the other readings ignore; matched ignoring case, with a straight or curly apostrophe), `creature_at` is N, with no assumption, even when it differs from the station symbols.
+- **From the highest station symbol.** When the face has a power and toughness and station symbols but no such sentence (`U.S.S. Defiant, Mirror Migrant` prints `Station` with no reminder text), `creature_at` is the greatest number among its station symbols, with the assumption "assumes it is a creature at its highest station symbol". Station cards print their power and toughness beside their highest symbol.
+- **Never a creature.** Any other face gets `creature_at` null and no assumption: a station card with no power and toughness (`Deep Space 9`, `The Eternity Elevator`, a Planet), and a face with neither station symbols nor the sentence.
+
+A station symbol is a number and a plus sign at the start of a line, followed by `|` with any spaces around it. An agent corrects a station reading as it corrects any other: with a card definition whose `oracle_text` states the sentence (or leaves out the symbols), and whose `power` and `toughness` are the ones the card has.
+
+Whether a permanent has reached its creature threshold depends on its charge counters, which only `game` holds, so `game` judges it (see `game`).
+
+Abilities after a station symbol are read as follows:
+
+- A combat keyword is read as described under Combat Keywords; flash gets no reading.
+- A step trigger is read as any step trigger phrase is, wherever it stands; a reminder for a trigger the card does not yet have is harmless.
+- A mana ability gets no reading (see Mana Sources), and is reported as unread on the same terms as any ability without one.
 
 ## Decisions & Alternatives
 
@@ -168,6 +204,10 @@ The reading applies to any permanent, not only lands.
 | "Can't be blocked" with a qualification | No reading | Read as plain "can't be blocked"; read as a restriction to check | Read as plain, it would refuse blocks Magic allows; a restriction reading has no check to serve yet. |
 | Evasion under a condition | Read as present, the condition shown as an assumption | No reading | It matches how haste and vigilance under a condition are read. The resulting refusal is overridable and shows the assumption, so a wrong guess costs one resubmission; no reading would let an illegal block through unseen. |
 | Whose turns a step trigger happens on | Read as controller, each, or opponents | Read the step only; ignore opponents-only phrases | In a contested game other seats' turns exist, and a trigger on each opponent's upkeep is the controller's to record during another seat's turn. |
+| When a station card is a creature | A station reading giving the creature threshold, judged against charge counters by `game` | The agent states the creature type with an `effect` whenever the threshold is reached; every attack and block with it overridden | The threshold is printed text and the counters are already tracked, so the check is cheap and exact. Left to the agent, every attack with a Spacecraft needed an override, and its blocks were never asked for. |
+| Where the creature threshold comes from | The reminder text's `It's an artifact creature at N+`, else the highest station symbol with an assumption | Always the highest station symbol; only the reminder text | The reminder text states it exactly. A card printed without reminder text still has its power and toughness beside its highest symbol, so that guess is right for the cards printed so far, and it is shown. |
+| Keywords after a station symbol | Read as with the symbol removed, whatever the counters, with an assumption naming the charge counters; flash not read | Not read; read with the threshold kept and checked against counters | Unread, a Spacecraft at its threshold would lose the flying and haste that `combat` checks. Checking the counters would put a threshold on every keyword reading for a difference that shows only below the creature threshold, where `combat` rarely looks. |
+| Mana abilities after a station symbol | No reading | Read as always usable; read with the threshold checked by `payment` | Read as always usable, the auto payment system would tap a card for mana it does not yet make (`The Eternity Elevator` below 20 counters). A threshold on mana abilities waits until a deck needs it; until then the agent adds such mana with `effect`. |
 
 ## Open Questions & Future Decisions
 
@@ -177,6 +217,7 @@ The reading applies to any permanent, not only lands.
 3. Additional `Count` kinds are added as cards that need them are encountered.
 4. Opponent-only step phrases beyond upkeep, draw step and end step, and wordings such as `each other player's`.
 5. Readings for the evasion and blocking restrictions `combat` does not yet check: menace, fear, intimidate, shadow, protection, landwalk, qualified "can't be blocked", "can't block".
+6. Mana abilities after a station symbol, which get no reading until a reading can carry the charge counters it needs.
 
 ## References
 

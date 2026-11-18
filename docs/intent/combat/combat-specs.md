@@ -36,7 +36,7 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 
 ## Blocks in a contested game
 
-- [x] **CMBT-037**: When the active seat of a contested game advances into `declare_blockers` with an attack declared, each attacked seat still in the game that controls an untapped creature shall receive a pending choice of kind `blocks` showing the attackers attacking it, the choices created in turn order starting from the seat after the active seat.
+- [x] **CMBT-037**: When the active seat of a contested game advances into `declare_blockers` with an attack declared, each attacked seat still in the game that controls an untapped creature (GAME-198) shall receive a pending choice of kind `blocks` showing the attackers attacking it, the choices created in turn order starting from the seat after the active seat.
 - [x] **CMBT-038**: When an advance of a contested game enters `declare_blockers` and creates a `blocks` pending choice, the advance shall stop in `declare_blockers` even when `to` names a later step.
 - [x] **CMBT-039**: When a seat answers a `blocks` pending choice in a contested game with `choose` and a `blocks` map from blocker to attacker, the game shall record each attacker named in the map as blocked.
 - [x] **CMBT-040**: When a seat answers a `blocks` pending choice in a contested game, the game shall accept several blockers naming the same attacker.
@@ -45,8 +45,8 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 - [x] **CMBT-043**: If a `blocks` answer in a contested game names an attacker that is not attacking the answering seat, then `choose` shall return an error and change nothing.
 - [x] **CMBT-044**: If a `blocks` answer in a contested game names the same blocker twice, then `choose` shall return an error and change nothing.
 - [x] **CMBT-045**: If a `blocks` answer in a contested game names a blocker that is tapped and carries no `override`, then `choose` shall fail a rule check and change nothing.
-- [x] **CMBT-046**: If a `blocks` answer in a contested game names a blocker whose type line, or for a token its types, does not include `Creature` and carries no `override`, then `choose` shall fail a rule check and change nothing.
-- [x] **CMBT-047**: When an attacked seat of a contested game controls no untapped creature at the time blocks are requested, the game shall give it no `blocks` pending choice, declare no blocks for it, and report in the outcome that it did so, naming the seat.
+- [x] **CMBT-046**: If a `blocks` answer in a contested game names a blocker that is not a creature (GAME-198) and carries no `override`, then `choose` shall fail a rule check and change nothing.
+- [x] **CMBT-047**: When an attacked seat of a contested game controls no untapped creature (GAME-198) at the time blocks are requested, the game shall give it no `blocks` pending choice, declare no blocks for it, and report in the outcome that it did so, naming the seat.
 - [x] **CMBT-048**: When every `blocks` pending choice of a combat in a contested game has been answered, the active seat shall be the seat to act again.
 - [x] **CMBT-049**: In a contested game, a `blocks` pending choice shall show an attacked seat only the attackers attacking that seat, and shall accept blocks only against those attackers.
 - [x] **CMBT-081**: In a contested game, a `blocks` pending choice shall show, for each attacker it lists, every evasion the game holds for that attacker under CMBT-087, whether read or listed in `evasion`, as the game holds it at the moment the choice or its listing is shown.
@@ -76,7 +76,7 @@ Design: `combat-design.md`. Prefix: `CMBT`.
 - [x] **CMBT-014**: If `attack` names an attacker that is not on the battlefield, in a goldfish game or a contested game, then `attack` shall return an error.
 - [x] **CMBT-015**: If `blocked`, `damage`, `vigilance` or `haste` names something that is not among the attackers, in a goldfish game or a contested game, then `attack` shall return an error.
 - [x] **CMBT-016**: If `commander_target` in a goldfish game is outside 0 to 2, or is a map naming something that is not an attacking commander, then `attack` shall return an error.
-- [x] **CMBT-017**: If an attacker's type line, or for a token its types, does not include `Creature`, in a goldfish game or a contested game, then `attack` shall fail a rule check.
+- [x] **CMBT-017**: If an attacker is not a creature (GAME-198), in a goldfish game or a contested game, then `attack` shall fail a rule check.
 - [x] **CMBT-018**: If an attacker is tapped other than by an earlier attack declaration in the same turn, in a goldfish game or a contested game, then `attack` shall fail a rule check.
 - [x] **CMBT-079**: In a contested game, when judging an attacker's haste and vigilance, the game shall read the attacker and every permanent that could grant it either keyword from each one's owner's deck, whichever seat controls it.
 - [x] **CMBT-019**: If an attacker entered the battlefield during the current table turn (its `entered_turn` equals the table turn number, the count of turns begun by all seats) and has no haste of its own, none granted by the reading of a permanent controlled by the seat that controls the attacker (never by a permanent another seat controls), including the attacker's own grant when it includes itself, and is not listed in `haste`, in a goldfish game or a contested game, then `attack` shall fail a rule check.

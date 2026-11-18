@@ -14,6 +14,7 @@ from mtg_goldfishing.domain.game.listing import (
     PermanentListing,
     SeatListing,
     StateListing,
+    StationListing,
 )
 from mtg_goldfishing.domain.game.model import TokenSpec
 from mtg_goldfishing.domain.game.rules_text import RulesText
@@ -34,6 +35,7 @@ from mtg_goldfishing.domain.reading.model import (
     ManaAbility,
     PermanentsCount,
     Produces,
+    StationReport,
 )
 
 
@@ -123,6 +125,8 @@ def _permanent(permanent: PermanentListing) -> str:
         details.append("tapped")
     if permanent.counters:
         details.append("counters " + ", ".join(f"{n} {kind}" for kind, n in permanent.counters))
+    if permanent.station is not None:
+        details.append(_station(permanent.station))
     if permanent.mana:
         details.append("mana " + " / ".join(ability_text(a) for a in permanent.mana))
     if permanent.haste:
@@ -136,6 +140,15 @@ def _permanent(permanent: PermanentListing) -> str:
     described = f": {'; '.join(details)}" if details else ""
     owner = f" (owner {permanent.owner})" if permanent.owner is not None else ""
     return f"  {permanent.instance_id} {permanent.name}{owner}{described}"
+
+
+# @spec TOOL-112
+def _station(station: StationListing) -> str:
+    """A station card's charge counters that make it a creature, and its power and toughness
+    once they do."""
+    if not station.creature:
+        return f"creature at {station.creature_at} charge counters"
+    return f"creature {station.power}/{station.toughness} ({station.creature_at}+ charge counters)"
 
 
 def _payments(listing: StateListing) -> list[str]:
@@ -305,6 +318,7 @@ def report_lines(report: DeckReport) -> list[str]:
                 for e in report.assumed_untapped
             ],
         ),
+        ("Creatures by station", [_station_report(s) for s in report.stations]),
         (
             "Keywords read with assumptions",
             [
@@ -315,6 +329,14 @@ def report_lines(report: DeckReport) -> list[str]:
         ("Not refreshed (cached data kept)", list(report.not_refreshed)),
     ]
     return [f"{title}: {', '.join(items)}" for title, items in parts if items]
+
+
+# @spec TOOL-113
+def _station_report(station: StationReport) -> str:
+    """A station card in the load_deck report: the charge counters that make it a creature,
+    and anything assumed."""
+    facts = [f"{station.reading.creature_at} charge counters", *station.reading.assumptions]
+    return f"{station.card} ({'; '.join(facts)})"
 
 
 def _why_not_automatic(card: str, ability: ManaAbility) -> str:

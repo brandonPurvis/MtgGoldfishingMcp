@@ -9,6 +9,7 @@ from mtg_goldfishing.domain.cards import type_words
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.cards_in_play import (
     face_of,
+    has_type,
     is_creature,
     is_land,
     is_summoning_sick,
@@ -105,7 +106,7 @@ def _devotion(game: Game, decks: Decks, seat: SeatNumber, colors: tuple[str, ...
     return total
 
 
-# @spec PAY-011, PAY-051, PAY-054
+# @spec PAY-011, PAY-051, PAY-054, PAY-055
 def count(
     game: Game, deck: LoadedDeck, source: CardInstance, per: Count, decks: Decks | None = None
 ) -> int:
@@ -119,7 +120,7 @@ def count(
             return sum(
                 1
                 for card in game.battlefield_of(seat)
-                if word.lower() in type_words(type_line(every.of(card.owner), card))
+                if has_type(every.of(card.owner), card, word)
             )
         case DevotionCount(colors=colors):
             return _devotion(game, every, seat, colors)

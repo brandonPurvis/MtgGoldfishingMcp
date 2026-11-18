@@ -1,4 +1,5 @@
-"""The card reader: four narrow readings of a card face's rules text, type line and keywords.
+"""The card reader: five narrow readings of a card face's rules text, type line, power and
+toughness, and keywords.
 
 Reading is pure: text in, reading out, no game state. When text matches a known form only
 partly, the reader returns its best reading together with the assumptions it made; it never
@@ -18,6 +19,7 @@ from mtg_goldfishing.domain.reading.model import (
     AMOUNT_ASSUMED_ONE,
     ASSUMES_ANY_COLOR,
     ASSUMES_CONDITION_MET,
+    ASSUMES_HIGHEST_STATION_SYMBOL,
     ASSUMES_ONE_COLOR,
     ASSUMES_UNTAPPED_PREFIX,
     ENTERS_UNTAPPED,
@@ -46,9 +48,12 @@ from mtg_goldfishing.domain.reading.model import (
     Produces,
     ReadAbility,
     ReadingReport,
+    StationReading,
+    StationReport,
     StepTrigger,
     UnreadAbility,
     Whose,
+    assumes_charge_counters,
 )
 from mtg_goldfishing.domain.steps import STEPS, Step
 
@@ -72,6 +77,7 @@ def read_face(face: Face, card: Card) -> FaceReading:
         horsemanship=read_evasion_keyword("horsemanship", text),
         reach=read_evasion_keyword("reach", text),
         cant_be_blocked=read_cant_be_blocked(text),
+        station=read_station(text),
     )
 
 
@@ -82,7 +88,7 @@ def read_card(card: Card) -> CardReading:
     return CardReading(tuple(read_face(face, card) for face in card.faces))
 
 
-# @spec READ-027, READ-064
+# @spec READ-027, READ-064, READ-070
 def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
     """What a caller can show about the readings of a set of cards, named by face."""
     read_exactly: list[ReadAbility] = []
@@ -93,6 +99,7 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
     enters_tapped: list[EntersTappedReport] = []
     assumed_untapped: list[EntersTappedReport] = []
     evasion_and_reach: list[KeywordReport] = []
+    stations: list[StationReport] = []
     for card, reading in cards:
         for face, face_reading in zip(card.faces, reading.faces, strict=False):
             name = face.name
@@ -118,6 +125,8 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
                 enters_tapped.append(EntersTappedReport(name, tapped))
             elif tapped.assumptions:
                 assumed_untapped.append(EntersTappedReport(name, tapped))
+            if face_reading.station.creature_at is not None:
+                stations.append(StationReport(name, face_reading.station))
     return ReadingReport(
         read_exactly=tuple(read_exactly),
         read_with_assumptions=tuple(read_with_assumptions),
@@ -127,6 +136,7 @@ def report(cards: Iterable[tuple[Card, CardReading]]) -> ReadingReport:
         enters_tapped=tuple(enters_tapped),
         assumed_untapped=tuple(assumed_untapped),
         evasion_and_reach=tuple(evasion_and_reach),
+        stations=tuple(stations),
     )
 
 
@@ -143,6 +153,7 @@ def evasion_and_reach_of(reading: FaceReading) -> tuple[tuple[str, KeywordReadin
 # The text of a face, as the reader sees it
 
 _REMINDER_TEXT = re.compile(r"\s*\([^()]*\)")
+_STATION_SYMBOL = re.compile(r"^(?P<count>\d+)\+\s*\|\s*(?P<rest>.*)$")
 _SENTENCE_BREAK = re.compile(r"(?<=\.)\s+")
 _SELF_WORDS = (
     "this creature",
@@ -168,6 +179,12 @@ class _FaceText:
     lines: tuple[str, ...]
     self_reference: str  # a regex alternation naming the permanent itself
 
+    @property
+    def ability_lines(self) -> tuple[tuple[str, int | None], ...]:
+        """Each line with any station symbol before it removed, and that symbol's number: the
+        charge counters the line's abilities need, None for a line with no symbol."""
+        return tuple(_without_station_symbol(line) for line in self.lines)
+
     @classmethod
     def of(cls, face: Face, card: Card) -> _FaceText:
         lines = tuple(
@@ -181,6 +198,29 @@ class _FaceText:
         alternatives = [re.escape(name) for name in sorted(names, key=len, reverse=True)]
         alternatives += [re.escape(words) for words in _SELF_WORDS]
         return cls(face, card, lines, "(?:" + "|".join(alternatives) + ")")
+
+
+def _station_symbol(line: str) -> int | None:
+    """The number of the station symbol a line begins with (`9+ | Flying`), if any."""
+    match = _STATION_SYMBOL.match(line)
+    return int(match["count"]) if match else None
+
+
+def has_station_symbol(face: Face) -> bool:
+    """Whether a line of the face's rules text begins with a station symbol (`9+ | Flying`)."""
+    return any(_station_symbol(line.strip()) is not None for line in face.oracle_text.splitlines())
+
+
+def _without_station_symbol(line: str) -> tuple[str, int | None]:
+    match = _STATION_SYMBOL.match(line)
+    if match is None:
+        return line, None
+    return match["rest"], int(match["count"])
+
+
+def _station_assumptions(stations: Iterable[int | None]) -> list[str]:
+    """The assumption each station symbol a keyword was read after adds."""
+    return [assumes_charge_counters(count) for count in stations if count is not None]
 
 
 def _sentences(text: str) -> list[str]:
@@ -230,19 +270,19 @@ _OPTION_SEPARATOR = re.compile(r",\s*(?:or\s+)?|\s+or\s+")
 _LIST_SEPARATOR = re.compile(r",\s*(?:or\s+|and\s+)?|\s+or\s+|\s+and\s+")
 
 
-# @spec READ-003, READ-015, READ-016, READ-024, READ-025, READ-026, READ-045
+# @spec READ-003, READ-015, READ-016, READ-024, READ-025, READ-026, READ-045, READ-069
 def read_mana_abilities(text: _FaceText) -> tuple[tuple[ManaAbility, ...], tuple[str, ...]]:
     """The face's mana abilities, each read separately, and those that add mana unread.
 
     An ability that adds mana but gets no reading is listed as unread only when the card's
-    produced colors are known.
+    produced colors are known. An ability after a station symbol gets no reading.
     """
     read: list[ManaAbility] = list(_basic_land_abilities(text.face))
     unread: list[str] = []
     for line in text.lines:
         if not _ADDS_MANA.search(line):
             continue
-        ability = _read_mana_ability(line, text)
+        ability = None if _station_symbol(line) is not None else _read_mana_ability(line, text)
         if ability is None:
             if text.card.produced_colors:
                 unread.append(line)
@@ -548,19 +588,24 @@ _NOT_PLURAL_SUBTYPES = frozenset(
 )
 
 
-# @spec READ-036, READ-037, READ-038, READ-039, READ-040, READ-044
+# @spec READ-036, READ-037, READ-038, READ-039, READ-040, READ-044, READ-068, READ-071
 def read_keyword(keyword: str, text: _FaceText) -> KeywordReading:
     """Whether the face has `keyword` itself, grants it to creatures you control, or neither.
 
     Only haste and vigilance are read as grants. Keywords given for a limited time and those
-    conferred through attachment are not read.
+    conferred through attachment are not read. A keyword after a station symbol is read as
+    without it, assuming the charge counters the symbol names; flash after one is not read,
+    since a card in hand has no charge counters.
     """
     own = False
     grant: KeywordGrant | None = None
     assumptions: list[str] = []
-    for line in text.lines:
+    for line, station in text.ability_lines:
+        if keyword == "flash" and station is not None:
+            continue
         if keyword in _keyword_line_items(line):
             own = True
+            assumptions.extend(_station_assumptions([station]))
             continue
         for sentence in _sentences(line):
             if _LIMITED_TIME.search(sentence):
@@ -574,6 +619,7 @@ def read_keyword(keyword: str, text: _FaceText) -> KeywordReading:
                 continue
             if conditional:
                 assumptions.append(ASSUMES_CONDITION_MET)
+            assumptions.extend(_station_assumptions([station]))
     return KeywordReading(own=own, grant=grant, assumptions=tuple(dict.fromkeys(assumptions)))
 
 
@@ -637,29 +683,34 @@ def _is_activated_or_triggered(line: str) -> bool:
     return bool(_TRIGGER_START.match(body)) or _ACTIVATED.match(body) is not None
 
 
-def _standing_sentences(text: _FaceText) -> Iterable[tuple[str, bool]]:
+def _standing_sentences(text: _FaceText) -> Iterable[tuple[str, bool, int | None]]:
     """Each sentence of the face's static abilities that gives something for good, with
-    whether it does so under a condition: activated and triggered abilities, and text giving
-    a keyword for a limited time, are left out."""
-    for line in text.lines:
+    whether it does so under a condition and the number of the station symbol it stands
+    after, if any: activated and triggered abilities, and text giving a keyword for a limited
+    time, are left out."""
+    for line, station in text.ability_lines:
         if _is_activated_or_triggered(line):
             continue
         for sentence in _sentences(line):
             if _LIMITED_TIME.search(sentence) or _CANT_BE_BLOCKED_THIS_TURN.search(sentence):
                 continue
-            yield sentence, bool(_EVASION_CONDITION.search(sentence))
+            yield sentence, bool(_EVASION_CONDITION.search(sentence)), station
 
 
-# @spec READ-055, READ-056, READ-057, READ-061, READ-062, READ-063
+# @spec READ-055, READ-056, READ-057, READ-061, READ-062, READ-063, READ-068
 def read_evasion_keyword(keyword: str, text: _FaceText) -> KeywordReading:
     """Whether the face has flying, horsemanship or reach itself, grants it to creatures you
     control, or neither. Only standing abilities count: what a spell gives for a limited time
     and what an activated or triggered ability gives are not read, nor what attachment
-    confers."""
-    own = any(keyword in _keyword_line_items(line) for line in text.lines)
+    confers. A keyword after a station symbol is read as without it, assuming the charge
+    counters the symbol names."""
+    listed = [
+        station for line, station in text.ability_lines if keyword in _keyword_line_items(line)
+    ]
+    own = bool(listed)
     grant: KeywordGrant | None = None
-    assumptions: list[str] = []
-    for sentence, conditional in _standing_sentences(text):
+    assumptions: list[str] = _station_assumptions(listed)
+    for sentence, conditional, station in _standing_sentences(text):
         if _has_keyword_itself(keyword, sentence, text.self_reference):
             own = True
         elif (found := _granted(keyword, sentence)) is not None:
@@ -668,10 +719,11 @@ def read_evasion_keyword(keyword: str, text: _FaceText) -> KeywordReading:
             continue
         if conditional:
             assumptions.append(ASSUMES_CONDITION_MET)
+        assumptions.extend(_station_assumptions([station]))
     return KeywordReading(own=own, grant=grant, assumptions=tuple(dict.fromkeys(assumptions)))
 
 
-# @spec READ-058, READ-059, READ-060, READ-061, READ-062, READ-063
+# @spec READ-058, READ-059, READ-060, READ-061, READ-062, READ-063, READ-068
 def read_cant_be_blocked(text: _FaceText) -> KeywordReading:
     """Whether the face says it can't be blocked, or that creatures you control can't be,
     with nothing after `can't be blocked` but a condition introduced by `as long as` or `if`
@@ -683,7 +735,7 @@ def read_cant_be_blocked(text: _FaceText) -> KeywordReading:
     own = False
     grant: KeywordGrant | None = None
     assumptions: list[str] = []
-    for sentence, _ in _standing_sentences(text):
+    for sentence, _, station in _standing_sentences(text):
         body = _LEADING_CONDITION.sub("", sentence)
         conditional = body != sentence or bool(_TRAILING_CONDITION.search(body))
         if own_sentence.match(body):
@@ -696,6 +748,7 @@ def read_cant_be_blocked(text: _FaceText) -> KeywordReading:
             continue
         if conditional:
             assumptions.append(ASSUMES_CONDITION_MET)
+        assumptions.extend(_station_assumptions([station]))
     return KeywordReading(own=own, grant=grant, assumptions=tuple(dict.fromkeys(assumptions)))
 
 
@@ -711,6 +764,29 @@ def _grant_of(match: re.Match[str]) -> KeywordGrant | None:
             return None
         subtype = _singular(plural)
     return KeywordGrant(includes_self=not match["other"], subtype=subtype)
+
+
+# Station
+
+_CREATURE_AT = re.compile(r"\bIt['’]s an?(?:[a-z]+ )*creature at (?P<count>\d+)\+", re.IGNORECASE)
+
+
+# @spec READ-065, READ-066, READ-067
+def read_station(text: _FaceText) -> StationReading:
+    """How many charge counters make the face a creature: the number its text states, reminder
+    text included (`It's an artifact creature at 9+`), else, for a face with a power and
+    toughness, its highest station symbol, assumed. A face that is a creature already, or
+    that has no power and toughness or no station symbols, never becomes one this way."""
+    face = text.face
+    if face.is_creature:
+        return StationReading()
+    stated = _CREATURE_AT.search(face.oracle_text)
+    if stated is not None:
+        return StationReading(int(stated["count"]))
+    symbols = [count for line in text.lines if (count := _station_symbol(line)) is not None]
+    if face.power is None or face.toughness is None or not symbols:
+        return StationReading()
+    return StationReading(max(symbols), (ASSUMES_HIGHEST_STATION_SYMBOL,))
 
 
 # Entering tapped
