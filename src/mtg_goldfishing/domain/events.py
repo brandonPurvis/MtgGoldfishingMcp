@@ -15,6 +15,7 @@ from mtg_goldfishing.domain.reading.model import (
     EntersTappedReport,
     KeywordReport,
     ReadAbility,
+    StationReport,
     UnreadAbility,
 )
 from mtg_goldfishing.domain.steps import Step
@@ -282,8 +283,9 @@ class DeckReport:
     abilities read with assumptions, mana abilities not read, mana abilities the auto
     payment system will not use on its own (they sacrifice or carry another cost), cards
     granting haste or vigilance, cards granting flying, horsemanship, reach or "can't be
-    blocked", cards read as entering tapped, cards assumed to enter untapped, and keyword
-    readings made with assumptions. `not_refreshed`
+    blocked", cards read as entering tapped, cards assumed to enter untapped, keyword
+    readings made with assumptions, and station cards read as becoming creatures (`stations`,
+    each with the charge counters it needs). `not_refreshed`
     names the cards a refresh could not fetch again, whose cached data the deck was built from.
     """
 
@@ -297,6 +299,7 @@ class DeckReport:
     assumed_untapped: tuple[EntersTappedReport, ...] = ()
     keywords_with_assumptions: tuple[KeywordReport, ...] = ()
     not_refreshed: tuple[str, ...] = ()
+    stations: tuple[StationReport, ...] = ()
 
 
 @dataclass(frozen=True)

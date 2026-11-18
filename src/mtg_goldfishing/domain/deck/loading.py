@@ -438,6 +438,7 @@ def deck_report(deck: LoadedDeck) -> DeckReport:
         enters_tapped=readings.enters_tapped,
         assumed_untapped=readings.assumed_untapped,
         keywords_with_assumptions=tuple(keywords_with_assumptions),
+        stations=readings.stations,
     )
 
 

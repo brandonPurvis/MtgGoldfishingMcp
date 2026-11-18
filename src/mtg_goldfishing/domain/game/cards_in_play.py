@@ -5,7 +5,7 @@ from __future__ import annotations
 from mtg_goldfishing.domain.cards import Card, Face, type_words
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.game.decks import Decks
-from mtg_goldfishing.domain.game.model import CardInstance, Game, TokenSpec
+from mtg_goldfishing.domain.game.model import CardInstance, Game, TokenSpec, Zone
 from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.reading.model import (
     NO_READING,
@@ -75,23 +75,66 @@ def type_line(deck: LoadedDeck, card: CardInstance) -> str:
     return face.type_line if face else ""
 
 
+CHARGE = "charge"
+"""The counter kind a station card counts."""
+
+
+def charge_counters(card: CardInstance) -> int:
+    """The instance's charge counters, the counter kind matched ignoring case."""
+    return sum(n for kind, n in card.counters.items() if kind.casefold() == CHARGE)
+
+
+def creature_at(deck: LoadedDeck, card: CardInstance) -> int | None:
+    """The charge counters that make the instance a creature, by its station reading; None
+    when charge counters never do."""
+    return reading_of(deck, card).station.creature_at
+
+
+def is_stationed(deck: LoadedDeck, card: CardInstance) -> bool:
+    """A station card on the battlefield with the charge counters that make it a creature."""
+    needed = creature_at(deck, card)
+    return card.zone is Zone.BATTLEFIELD and needed is not None and charge_counters(card) >= needed
+
+
+def types_of(deck: LoadedDeck, card: CardInstance) -> frozenset[str]:
+    """The lower-cased words of the instance's types as it stands: its type line (for a token,
+    its types), with `creature` added while it is a station card with enough charge counters."""
+    words = type_words(type_line(deck, card))
+    return words | {"creature"} if is_stationed(deck, card) else words
+
+
 def has_type(deck: LoadedDeck, card: CardInstance, word: str) -> bool:
-    return word.lower() in type_words(type_line(deck, card))
+    return word.lower() in types_of(deck, card)
 
 
 def is_land(deck: LoadedDeck, card: CardInstance) -> bool:
     return has_type(deck, card, "land")
 
 
+# @spec GAME-198
 def is_creature(deck: LoadedDeck, card: CardInstance) -> bool:
+    """Whether the permanent is a creature: its type line (for a token, its types) includes
+    Creature, or it is a station card with the charge counters its station reading names. Every
+    rule that speaks of a creature asks this."""
     return has_type(deck, card, "creature")
 
 
+# @spec GAME-199
 def power(deck: LoadedDeck, card: CardInstance) -> str | None:
+    """The power of the instance's face in play, a station card's included; a token's from its
+    spec."""
     if card.token is not None:
         return card.token.power
     face = face_of(deck, card)
     return face.power if face else None
+
+
+def toughness(deck: LoadedDeck, card: CardInstance) -> str | None:
+    if card.token is not None:
+        pt = card.token.pt
+        return pt.split("/")[1].strip() if pt and "/" in pt else None
+    face = face_of(deck, card)
+    return face.toughness if face else None
 
 
 def mana_cost(deck: LoadedDeck, card: CardInstance) -> ManaString:

@@ -16,8 +16,8 @@ from mtg_goldfishing.adapters.sqlite.codec import from_data, to_data
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.deck.definitions import definitions_reading
 from mtg_goldfishing.domain.deck.model import CardDefinition
-from mtg_goldfishing.domain.reading.model import CardReading, KeywordReading
-from mtg_goldfishing.domain.reading.reader import read_card
+from mtg_goldfishing.domain.reading.model import CardReading, KeywordReading, StationReading
+from mtg_goldfishing.domain.reading.reader import has_station_symbol, read_card
 
 Migration = str | Callable[[sqlite3.Connection], None]
 
@@ -238,6 +238,90 @@ def add_evasion_and_reach(connection: sqlite3.Connection) -> None:
             )
 
 
+KEYWORDS_READ_AGAIN = (
+    "haste",
+    "vigilance",
+    "flash",
+    "flying",
+    "horsemanship",
+    "reach",
+    "cant_be_blocked",
+)
+"""The keyword readings migration 5 makes again on a face with a station symbol."""
+
+
+def _has_station_symbol(card: Card, index: int) -> bool:
+    return index < len(card.faces) and has_station_symbol(card.faces[index])
+
+
+def _with_station(stored: dict[str, Any], card: Card, reading: CardReading) -> dict[str, Any]:
+    """A stored card reading with each face's station reading added from `reading` and, on a
+    face with a station symbol, its keyword readings replaced from it; every other part of it
+    as it was."""
+    faces = stored.get("faces")
+    if not isinstance(faces, list):
+        return stored
+    rewritten = []
+    for index, face in enumerate(faces):
+        if not isinstance(face, dict):
+            rewritten.append(face)
+            continue
+        made = reading.face(index)
+        added = {"station": to_data(made.station, StationReading)}
+        if _has_station_symbol(card, index):
+            added |= {
+                name: to_data(getattr(made, name), KeywordReading) for name in KEYWORDS_READ_AGAIN
+            }
+        rewritten.append({**face, **added})
+    return {**stored, "faces": rewritten}
+
+
+def _deck_with_station(stored: dict[str, Any]) -> dict[str, Any]:
+    """A stored loaded deck whose card readings hold the station readings made from the card
+    data stored with each, card definitions applied, as `load_deck` makes them."""
+    definitions = [from_data(d, CardDefinition) for d in stored.get("definitions", [])]
+    cards = []
+    for deck_card in stored.get("cards", []):
+        card = from_data(deck_card["card"], Card)
+        own = _definitions_of(card, definitions)
+        reading = definitions_reading(card, own) if own else read_card(card)
+        cards.append({**deck_card, "reading": _with_station(deck_card["reading"], card, reading)})
+    return {**stored, "cards": cards}
+
+
+def _game_with_station(stored: dict[str, Any]) -> dict[str, Any]:
+    """A stored game whose card instances that hold card data and a reading of their own have
+    the station reading made from that card data added; an instance that holds no reading gets
+    none."""
+    cards = []
+    for instance in stored.get("cards", []):
+        data, reading = instance.get("definition"), instance.get("reading")
+        if data is None or reading is None:
+            cards.append(instance)
+            continue
+        card = from_data(data, Card)
+        cards.append({**instance, "reading": _with_station(reading, card, read_card(card))})
+    return {**stored, "cards": cards}
+
+
+# @spec STOR-043, STOR-044, STOR-045, STOR-046
+def add_station_readings(connection: sqlite3.Connection) -> None:
+    """Add the station reading to every face reading held in a stored loaded deck or game,
+    made from the card data stored with it, and read again the keywords of every face with a
+    station symbol. Deck ids and a game's version counter are left as they were."""
+    for table, key, column, rewrite in (
+        ("decks", "deck_id", "deck", _deck_with_station),
+        ("games", "game_id", "state", _game_with_station),
+    ):
+        rows = connection.execute(f"SELECT {key}, {column} FROM {table}").fetchall()
+        for row_key, document in rows:
+            rewritten = rewrite(json.loads(document))
+            connection.execute(
+                f"UPDATE {table} SET {column} = ? WHERE {key} = ?",
+                (json.dumps(rewritten, ensure_ascii=False, separators=(",", ":")), row_key),
+            )
+
+
 def sqlite_statements(script: str) -> list[str]:
     """The SQL statements of a script, one at a time, so that each can run inside an open
     transaction (`executescript` would commit it first)."""
@@ -314,6 +398,7 @@ MIGRATIONS: tuple[Migration, ...] = (
     add_seats,
     add_step_trigger_turns,
     add_evasion_and_reach,
+    add_station_readings,
 )
 """A database at version n has had the first n migrations applied."""
 

@@ -839,6 +839,22 @@ def test_the_report_lists_keyword_readings_made_with_assumptions() -> None:
 
 
 # @spec DECK-037
+def test_the_report_lists_station_cards_with_the_charge_counters_that_make_them_creatures() -> None:
+    labship = a_card(
+        "Synthesizer Labship",
+        "Station (Tap another creature you control: Put charge counters equal to its power on"
+        " this Spacecraft. Station only as a sorcery. It's an artifact creature at 9+.)\n"
+        "9+ | Flying, vigilance",
+        "Artifact — Spacecraft",
+        pt="4/4",
+    )
+    load = a_deck_list().with_card_data(labship).with_cards("Synthesizer Labship").loaded()
+    assert [
+        (station.card, station.reading.creature_at) for station in load.summary.report.stations
+    ] == [("Synthesizer Labship", 9)]
+
+
+# @spec DECK-037
 def test_the_report_is_empty_for_a_deck_with_nothing_to_report() -> None:
     assert a_deck_list().loaded().summary.report == DeckReport()
 
