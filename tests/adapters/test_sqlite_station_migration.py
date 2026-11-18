@@ -153,7 +153,6 @@ def _face(deck: LoadedDeck, name: str) -> Any:
 
 
 # @spec STOR-043
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_stored_deck_s_station_card_gains_its_station_reading(path: Path) -> None:
     _stored_before_station(path)
 
@@ -174,7 +173,6 @@ def test_a_stored_deck_s_card_without_station_gains_a_station_reading_of_never(
 
 
 # @spec STOR-044
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_stored_game_s_own_card_reading_gains_its_station_reading(path: Path) -> None:
     _stored_before_station(path)
 
@@ -196,7 +194,6 @@ def test_the_migration_adds_no_reading_to_a_card_instance_that_holds_none(path: 
 
 
 # @spec STOR-045
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_s_keywords_are_read_again(path: Path) -> None:
     _stored_before_station(path)
 

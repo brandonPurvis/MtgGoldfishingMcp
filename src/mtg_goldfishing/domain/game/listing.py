@@ -9,10 +9,14 @@ from mtg_goldfishing.domain.combat.evasion import held_evasion
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 from mtg_goldfishing.domain.events import Error, ErrorKind, Evasion, NoticeKind, RevealedCard
 from mtg_goldfishing.domain.game.cards_in_play import (
+    creature_at,
     face_name,
     has_haste,
     has_vigilance,
+    is_creature,
+    power,
     reading_of,
+    toughness,
 )
 from mtg_goldfishing.domain.game.decks import Decks
 from mtg_goldfishing.domain.game.model import (
@@ -155,6 +159,19 @@ class StateListing:
 DETAILS = ("summary", "full")
 
 
+# @spec GAME-200
+def _station(deck: LoadedDeck, card: CardInstance) -> StationListing | None:
+    """A station card's charge counters that make it a creature, and whether it is one now,
+    with its power and toughness when it is; None for a permanent charge counters never make
+    a creature."""
+    needed = creature_at(deck, card)
+    if needed is None:
+        return None
+    if not is_creature(deck, card):
+        return StationListing(needed, creature=False)
+    return StationListing(needed, True, power(deck, card), toughness(deck, card))
+
+
 # @spec GAME-030, GAME-123, GAME-171
 def _permanent(game: Game, decks: Decks, card: CardInstance) -> PermanentListing:
     """A permanent as listed: its triggers on its controller's turn or each turn, and, in a
@@ -176,6 +193,7 @@ def _permanent(game: Game, decks: Decks, card: CardInstance) -> PermanentListing
         triggers=own,
         owner=card.owner if game.contested and card.owner != card.controller else None,
         opponent_triggers=others if game.contested else (),
+        station=_station(deck, card),
     )
 
 

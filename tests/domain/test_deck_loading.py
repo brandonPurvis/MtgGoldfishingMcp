@@ -839,7 +839,6 @@ def test_the_report_lists_keyword_readings_made_with_assumptions() -> None:
 
 
 # @spec DECK-037
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_report_lists_station_cards_with_the_charge_counters_that_make_them_creatures() -> None:
     labship = a_card(
         "Synthesizer Labship",

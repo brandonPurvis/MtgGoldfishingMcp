@@ -6,8 +6,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from mtg_goldfishing.domain.combat.attack import attack
 from mtg_goldfishing.domain.events import AttackerDamage, CheckKind, CombatDamageDealt, Error
 from mtg_goldfishing.domain.game.cards_in_play import is_creature
@@ -45,13 +43,11 @@ def declare(situation: Situation, **arguments: object) -> Applied | Refusal:
 
 
 # @spec GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_with_the_charge_counters_its_reading_names_is_a_creature() -> None:
     assert judged_creature(stationed(charge=9).build())
 
 
 # @spec GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_with_more_charge_counters_than_it_needs_is_a_creature() -> None:
     assert judged_creature(stationed(charge=12).build())
 
@@ -62,7 +58,6 @@ def test_a_station_card_with_fewer_charge_counters_than_it_needs_is_not_a_creatu
 
 
 # @spec GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_charge_counter_kind_is_matched_ignoring_case() -> None:
     situation = a_game().with_battlefield(LABSHIP, counters={"Charge": 9}).build()
     assert judged_creature(situation)
@@ -98,7 +93,6 @@ def test_a_station_card_that_never_becomes_a_creature_is_not_one_at_any_count() 
 
 
 # @spec CMBT-017, GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_with_enough_charge_counters_attacks_without_an_override() -> None:
     situation = stationed(charge=9).build()
     assert isinstance(declare(situation, attackers=[LABSHIP]), Applied)
@@ -113,7 +107,6 @@ def test_a_station_card_short_of_its_charge_counters_fails_the_creature_check() 
 
 
 # @spec GAME-199
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_deals_its_printed_power_in_combat() -> None:
     situation = stationed(charge=9).build()
     declare(situation, attackers=[LABSHIP])
@@ -124,7 +117,6 @@ def test_a_station_card_deals_its_printed_power_in_combat() -> None:
 
 
 # @spec CMBT-019, GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_that_entered_this_turn_is_summoning_sick_as_a_creature() -> None:
     situation = stationed(charge=9, entered_turn=3).build()
     result = declare(situation, attackers=[LABSHIP])
@@ -133,7 +125,6 @@ def test_a_station_card_that_entered_this_turn_is_summoning_sick_as_a_creature()
 
 
 # @spec CMBT-019, READ-068
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_with_haste_after_its_station_symbol_attacks_the_turn_it_entered() -> None:
     situation = stationed(RAIDER, charge=4, entered_turn=3).build()
     assert isinstance(declare(situation, attackers=[RAIDER]), Applied)
@@ -151,7 +142,6 @@ def defended_by(*permanents: str, charge: int = 9) -> Situation:
 
 
 # @spec CMBT-037, CMBT-047, GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_seat_whose_only_creature_is_a_station_card_is_asked_for_blocks() -> None:
     situation = defended_by(LABSHIP)
     advanced(situation, "declare_blockers")
@@ -167,7 +157,6 @@ def test_a_seat_whose_station_card_is_short_of_its_charge_counters_is_not_asked(
 
 
 # @spec CMBT-046, GAME-198
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_card_with_enough_charge_counters_blocks_without_an_override() -> None:
     situation = defended_by(LABSHIP)
     advanced(situation, "declare_blockers")
@@ -181,7 +170,6 @@ def test_a_station_card_with_enough_charge_counters_blocks_without_an_override()
 
 
 # @spec PAY-055
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_count_of_creatures_counts_a_station_card_with_enough_charge_counters() -> None:
     situation = stationed(charge=9).with_battlefield("Gaea's Cradle", "Grizzly Bears").build()
     cradle = situation.named("Gaea's Cradle")
@@ -205,7 +193,6 @@ def listed_station(situation: Situation) -> StationListing | None:
 
 
 # @spec GAME-200
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_listing_shows_a_station_card_that_is_a_creature_with_its_power_and_toughness() -> None:
     assert listed_station(stationed(charge=9).build()) == StationListing(
         creature_at=9, creature=True, power="4", toughness="4"
@@ -213,7 +200,6 @@ def test_the_listing_shows_a_station_card_that_is_a_creature_with_its_power_and_
 
 
 # @spec GAME-200
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_listing_shows_a_station_card_short_of_its_charge_counters_as_no_creature() -> None:
     assert listed_station(stationed(charge=2).build()) == StationListing(
         creature_at=9, creature=False

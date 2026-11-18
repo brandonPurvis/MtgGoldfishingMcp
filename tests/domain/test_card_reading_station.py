@@ -1,8 +1,6 @@
 """The card reader's station reading: how many charge counters make a station card a creature,
 and how it reads the abilities after a station symbol."""
 
-import pytest
-
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.reading.model import (
     FaceReading,
@@ -66,13 +64,11 @@ def face_reading(card: Card) -> FaceReading:
 
 
 # @spec READ-065
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_reminder_text_gives_the_charge_counters_that_make_it_a_creature() -> None:
     assert face_reading(LABSHIP).station == StationReading(creature_at=9)
 
 
 # @spec READ-066
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_without_reminder_text_a_station_card_with_power_is_a_creature_at_its_highest_symbol() -> (
     None
 ):
@@ -102,7 +98,6 @@ def test_a_creature_with_station_symbols_gets_no_charge_counters_to_become_one()
 
 
 # @spec READ-068
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_keyword_after_a_station_symbol_is_read_with_the_charge_counters_assumed() -> None:
     reading = face_reading(LABSHIP)
     assumed = ("assumes it has 9 or more charge counters",)
@@ -111,7 +106,6 @@ def test_a_keyword_after_a_station_symbol_is_read_with_the_charge_counters_assum
 
 
 # @spec READ-068
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_each_keyword_after_a_station_symbol_assumes_its_own_symbols_number() -> None:
     reading = face_reading(MIRROR_MIGRANT)
     assert reading.vigilance.assumptions == ("assumes it has 3 or more charge counters",)
@@ -119,7 +113,6 @@ def test_each_keyword_after_a_station_symbol_assumes_its_own_symbols_number() ->
 
 
 # @spec READ-068
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_haste_after_a_station_symbol_is_read_with_the_others_on_its_line() -> None:
     reading = face_reading(KVORT)
     assumed = ("assumes it has 4 or more charge counters",)
@@ -128,7 +121,6 @@ def test_haste_after_a_station_symbol_is_read_with_the_others_on_its_line() -> N
 
 
 # @spec READ-068
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_grant_after_a_station_symbol_is_read_with_the_charge_counters_assumed() -> None:
     flagship = a_card(
         "Flagship", STATION + ")\n6+ | Other creatures you control have haste.", "Artifact"
@@ -143,7 +135,6 @@ def test_a_mana_ability_after_a_station_symbol_gets_no_reading() -> None:
 
 
 # @spec READ-070
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_report_lists_station_cards_that_become_creatures_with_their_charge_counters() -> None:
     cards = [LABSHIP, MIRROR_MIGRANT, DEEP_SPACE_9]
     found = report((card, read_card(card)) for card in cards)
@@ -169,7 +160,6 @@ def test_flash_after_a_station_symbol_is_not_read() -> None:
 
 
 # @spec READ-065
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_the_reminder_text_is_read_with_a_curly_apostrophe() -> None:
     curly = a_card(
         "Curly Ship",
@@ -192,7 +182,6 @@ def test_a_creature_type_line_wins_over_the_reminder_text() -> None:
 
 
 # @spec READ-066
-@pytest.mark.xfail(strict=True, reason="station cards are not read yet (issue 62)")
 def test_a_station_symbol_is_read_with_any_spaces_around_its_bar() -> None:
     tight = a_card("Tight Ship", "Station\n7+|Flying", "Artifact — Spacecraft", pt="3/3")
     assert face_reading(tight).station.creature_at == 7
