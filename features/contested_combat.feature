@@ -36,6 +36,23 @@ Feature: Combat in a contested game
     Then seat S2's life is 40
     And seat S3's life is 39
 
+  # @spec CMBT-037, CMBT-046, GAME-198
+  Scenario: A station card with enough charge counters is asked to block, and blocks
+    Given the Omnath test deck is loaded with the station card "Test Labship" that is a creature at 4 charge counters
+    And a started contested game against 1 Omnath deck with the tested seat first
+    And seat S1 puts "Grizzly Bears" onto the battlefield
+    And seat S1 has ended its turn
+    And seat S2 puts "Test Labship" onto the battlefield
+    And seat S2 has recorded an effect with delta {"counters": {"Test Labship": {"charge": 4}}}
+    And seat S2 has ended its turn
+    When seat S1 attacks with ["Grizzly Bears"]
+    And seat S2 passes
+    And seat S1 advances to "declare_blockers"
+    Then the status line shows "Act S2 blocks"
+    When seat S2 answers its blocks choice with blocks {"Test Labship": "Grizzly Bears"}
+    Then the response is OK
+    And the status line shows "Act S1 turn"
+
   # @spec CMBT-061, CMBT-062, CMBT-066
   Scenario: The attacking seat states what happens to the creatures, and the service deals the damage to seats
     Given a started contested game against 1 Omnath deck with the tested seat first

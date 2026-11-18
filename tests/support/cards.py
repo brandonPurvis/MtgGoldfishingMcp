@@ -10,12 +10,16 @@ def a_face(
     type_line: str = "Artifact",
     *,
     mana_cost: str = "",
+    pt: str | None = None,
 ) -> Face:
+    power, toughness = pt.split("/") if pt else (None, None)
     return Face(
         name=name,
         mana_cost=ManaString.parse(mana_cost),
         type_line=type_line,
         oracle_text=text,
+        power=power,
+        toughness=toughness,
     )
 
 
@@ -27,11 +31,12 @@ def a_card(
     mana_cost: str = "",
     produced_colors: tuple[str, ...] = (),
     keywords: tuple[str, ...] = (),
+    pt: str | None = None,
 ) -> Card:
-    """A single-faced card with the given Oracle text and type line."""
+    """A single-faced card with the given Oracle text and type line, and `pt` as `4/4`."""
     return Card(
         name=name,
-        faces=(a_face(name, text, type_line, mana_cost=mana_cost),),
+        faces=(a_face(name, text, type_line, mana_cost=mana_cost, pt=pt),),
         produced_colors=produced_colors,
         keywords=keywords,
     )

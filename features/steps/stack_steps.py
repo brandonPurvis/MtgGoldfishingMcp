@@ -66,6 +66,37 @@ def step_impl(context: Any, card: str, text: str) -> None:
     context.opposing_deck_id = response.text.split()[3].rstrip(":")
 
 
+@given(
+    'the Omnath test deck is loaded with the station card "{card}"'
+    " that is a creature at {charge:d} charge counters"
+)
+def step_impl(context: Any, card: str, charge: int) -> None:
+    """A Spacecraft no card catalog knows, described by its card definition: a 4/4 flyer once
+    it has `charge` charge counters."""
+    station = (
+        "Station (Tap another creature you control: Put charge counters equal to its power on"
+        f" this Spacecraft. Station only as a sorcery. It's an artifact creature at {charge}+.)\n"
+        f"{charge}+ | Flying"
+    )
+    definition = {
+        "name": card,
+        "mana_cost": "{3}",
+        "type_line": "Artifact — Spacecraft",
+        "oracle_text": station,
+        "power": "4",
+        "toughness": "4",
+        "color_identity": [],
+    }
+    response = context.agent.call(
+        "load_deck",
+        cards=an_opposing_deck_list().with_cards(card).text(),
+        commander=OMNATH,
+        definitions=[definition],
+    )
+    assert headline(response.text).startswith("OK Loaded deck "), response.text
+    context.opposing_deck_id = response.text.split()[3].rstrip(":")
+
+
 @given("a started contested game against the Atraxa deck with the tested seat first")
 def step_impl(context: Any) -> None:
     context.opposing_deck_id = context.agent.deck_id

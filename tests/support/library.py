@@ -23,6 +23,7 @@ from mtg_goldfishing.domain.reading.model import (
     KeywordReading,
     ManaAbility,
     PermanentsCount,
+    StationReading,
     StepTrigger,
     Whose,
 )
@@ -230,6 +231,28 @@ _add(_card("Spirit Wisp", "{W}", "Creature — Spirit", pt="1/1", identity="W"))
 _add(
     _card("Treetop Snare", "{1}{G}", "Enchantment", identity="G"),
     _reading(reach=KeywordReading(grant=KeywordGrant(includes_self=True))),
+)
+# Station cards: creatures at a number of charge counters.
+_add(
+    _card("Synthesizer Labship", "{U}", "Artifact — Spacecraft", pt="4/4", identity="U"),
+    _reading(
+        station=StationReading(9),
+        flying=KeywordReading(own=True, assumptions=("assumes it has 9 or more charge counters",)),
+        vigilance=KeywordReading(
+            own=True, assumptions=("assumes it has 9 or more charge counters",)
+        ),
+    ),
+)
+_add(
+    _card("K'Vort-Class Raider", "{4}", "Artifact — Spacecraft", pt="5/5"),
+    _reading(
+        station=StationReading(4),
+        haste=KeywordReading(own=True, assumptions=("assumes it has 4 or more charge counters",)),
+    ),
+)
+_add(
+    _card("Deep Space 9", "{9}", "Legendary Artifact — Spacecraft"),
+    _reading(station=StationReading(None)),
 )
 _add(
     _card("Phyrexian Arena", "{1}{B}{B}", "Enchantment", identity="B"),
