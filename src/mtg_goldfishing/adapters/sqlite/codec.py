@@ -89,6 +89,7 @@ def from_data(data: Any, kind: object) -> Any:
 
 _writers: dict[Hashable, Convert] = {}
 _readers: dict[Hashable, Convert] = {}
+_checks: dict[Hashable, Convert] = {}
 _building = threading.local()
 
 
@@ -100,16 +101,31 @@ def _reader(kind: object) -> Convert:
     return _planned(_readers, _make_reader, kind)
 
 
+def _instance_check(kind: object) -> Callable[[object], bool]:
+    """Whether a value is an instance of the declared type `kind`, as the codec judges it:
+    `bool` is not an `int` or a `float`, an `int` is a `float`, and a generic type is judged
+    by its origin."""
+    return _planned(_checks, _make_instance_check, kind)
+
+
 def _planned(
     made: dict[Hashable, Convert], make: Callable[[object], Convert], kind: object
 ) -> Convert:
     """The converter for `kind`, worked out on first use and kept.
 
-    A type met again while its own converter is being worked out (an alias that refers to
-    itself) gets a stand-in that looks the finished converter up when it is first called.
-    Two threads that meet a new type at once may both work it out; the results are equal.
+    Converters are kept by the type's structure with each union's members in their declared
+    order, since `typing` compares unions as sets but member order is part of the format; a
+    type that cannot be keyed that way is worked out afresh each time. A type met again
+    while its own converter is being worked out (an alias that refers to itself, directly or
+    through a union) gets a stand-in, which looks the finished converter up, or works it out
+    itself, when it is called. If working a type out fails, nothing is kept and the failure
+    is raised when a value of that type is converted, as it would be had the type been
+    reached value by value. Two threads that meet a new type at once may both work it out;
+    the results are equal.
     """
-    key: Hashable = kind
+    key = _ordered_key(kind)
+    if key is None:
+        return _attempted(make, kind)
     found = made.get(key)
     if found is not None:
         return found
@@ -120,15 +136,46 @@ def _planned(
     if mark in building:
 
         def stand_in(value: Any) -> Any:
-            return made[key](value)
+            return (made.get(key) or _planned(made, make, kind))(value)
 
         return stand_in
     building.add(mark)
     try:
         converter = make(kind)
+    except Exception:
+        return _attempted(make, kind)
     finally:
         building.discard(mark)
     return made.setdefault(key, converter)
+
+
+def _attempted(make: Callable[[object], Convert], kind: object) -> Convert:
+    """A converter that works `kind` out when called, raising whatever doing so raises."""
+
+    def convert(value: Any) -> Any:
+        return make(kind)(value)
+
+    return convert
+
+
+def _ordered_key(kind: object) -> Hashable | None:
+    """A key for `kind` that tells unions apart by member order, or None if it has none."""
+    try:
+        origin, arguments = typing.get_origin(kind), typing.get_args(kind)
+        if origin is None and not arguments:
+            hash(kind)
+            return kind
+        parts = []
+        for argument in arguments:
+            part = _ordered_key(argument)
+            if part is None:
+                return None
+            parts.append(part)
+        key = (_is_union(kind), origin, tuple(parts))
+        hash(key)
+    except TypeError:
+        return None
+    return key
 
 
 # ---------------------------------------------------------------------------------------
@@ -644,10 +691,7 @@ def _is_instance(value: object, kind: object) -> bool:
     return _instance_check(kind)(value)
 
 
-def _instance_check(kind: object) -> Callable[[object], bool]:
-    """Whether a value is an instance of the declared type `kind`, as the codec judges it:
-    `bool` is not an `int` or a `float`, an `int` is a `float`, and a generic type is judged
-    by its origin."""
+def _make_instance_check(kind: object) -> Callable[[object], bool]:
     kind = _unaliased(kind)
     if kind is object or kind is Any:
         return lambda value: True

@@ -121,19 +121,16 @@ DECKS_KEPT = 64
 class SqliteDeckRepository(DeckRepository):
     """Each loaded deck is one row, written once and never replaced.
 
-    The decks most recently found are also kept in memory, up to `kept`, and answered from
+    The decks most recently found are also kept in memory, up to `DECKS_KEPT`, and answered from
     there: a loaded deck never changes once start-up migrations have run, so a copy cannot
     go stale. Only a read that can see nothing uncommitted (one made while no transaction
     is open on the reading connection) puts a deck in memory; adding a deck never does, so
     a rolled-back deck is never kept. A deck id that names no deck is not remembered.
     """
 
-    def __init__(
-        self, database: SqliteDatabase, *, now: Now = utc_now, kept: int = DECKS_KEPT
-    ) -> None:
+    def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
         self._database = database
         self._now = now
-        self._limit = kept
         self._kept: OrderedDict[str, LoadedDeck] = OrderedDict()
         self._guard = threading.Lock()
 
@@ -170,7 +167,7 @@ class SqliteDeckRepository(DeckRepository):
         with self._guard:
             self._kept[deck_id] = deck
             self._kept.move_to_end(deck_id)
-            while len(self._kept) > self._limit:
+            while len(self._kept) > DECKS_KEPT:
                 self._kept.popitem(last=False)
 
 
