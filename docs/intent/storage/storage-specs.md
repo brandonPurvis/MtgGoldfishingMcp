@@ -65,6 +65,24 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-059**: If its database has been closed, then the SQLite deck repository shall raise the error the database raises when asked for any loaded deck, including one it keeps in memory.
 - [x] **STOR-060**: Every dataclass that a loaded deck can hold at any depth — reached through any field type, union member or tuple item, and including every subclass of a dataclass so reached — shall be frozen, and none of its fields shall be declared with a type that admits a list, a dict, a set, or a value of any type (`object` or `Any`).
 
+## Live games in memory
+
+- [ ] **STOR-066**: Each SQLite game repository shall keep its own games in memory, starting with none, and share them with no other repository.
+- [ ] **STOR-067**: When a transaction in which the SQLite game repository added a game commits, the repository shall keep the game object that was given to `add`, at version 1, as the game most recently asked for.
+- [ ] **STOR-068**: When a transaction in which the SQLite game repository saved a game commits, the repository shall keep the game object given to the last save of that game in the transaction that wrote it, at the version that save wrote, as the game most recently asked for.
+- [ ] **STOR-069**: When a save fails because the game's stored version counter differs from the version given, the SQLite game repository shall keep nothing from that save.
+- [ ] **STOR-070**: When a transaction in which the SQLite game repository added or saved a game ends in any way other than a successful commit — rolled back, a commit that fails, or ended by SQLite after an error — the repository shall keep nothing from that transaction's writes and shall leave the game it kept for each such game id, if any, as it was.
+- [ ] **STOR-071**: When a transaction begins on a connection, the SQLite database shall discard any work that an earlier transaction on that connection left for its commit and that has not run.
+- [ ] **STOR-072**: When a transaction in which the SQLite game repository added or saved a game commits, the repository shall keep the written game before the commit returns to its caller.
+- [ ] **STOR-073**: When asked for a game it keeps, the SQLite game repository shall read that game's stored version counter and, when it equals the version kept, return the kept game object itself at that version without reading the game's stored document.
+- [ ] **STOR-074**: When asked for a game it does not keep, or one whose stored version counter differs from the version kept, the SQLite game repository shall read the game's stored document and version counter in one statement and return the game that document stands for at that version.
+- [ ] **STOR-075**: When the SQLite game repository reads a game's stored document while no transaction is open on the reading connection, it shall keep the game read, at the version read, as the game most recently asked for, unless it keeps that game at a later version.
+- [ ] **STOR-076**: When the SQLite game repository reads a game's stored document while a transaction is open on the reading connection, it shall not keep the game read.
+- [ ] **STOR-077**: When the SQLite game repository returns a game it keeps, it shall make that game the most recently asked for.
+- [ ] **STOR-078**: When keeping one more game would make the SQLite game repository keep more than 64, it shall first forget the game it keeps that was least recently asked for.
+- [ ] **STOR-079**: If asked for a game id it keeps whose stored row no longer exists, then the SQLite game repository shall report that it has no such game.
+- [ ] **STOR-080**: If its database has been closed, then the SQLite game repository shall raise the error the database raises when asked for any game, including one it keeps.
+
 ## Schema
 
 - [x] **STOR-013**: When the service starts against a database with an older schema version, the SQLite adapter shall apply forward migrations to reach the current schema version before serving.

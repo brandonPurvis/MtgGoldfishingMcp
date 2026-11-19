@@ -14,6 +14,7 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-005**: Domain value objects shall be immutable, compare by value, and reject invalid values on construction.
 - [x] **APP-006**: Every domain operation on a game, goldfish or contested, shall return either an applied result holding the changed game and its events, or a refusal holding errors or failed rule checks, and shall not raise an exception to signal a refusal.
 - [x] **APP-007**: When a domain operation returns a refusal, in a goldfish game or a contested game, the game passed to the operation shall be unchanged.
+- [ ] **APP-097**: When a domain operation returns an applied result, in a goldfish game or a contested game, the game passed to the operation shall be unchanged, the changes being held only by the game the result holds.
 - [x] **APP-008**: The domain shall perform no input or output, read no clock, and draw no randomness other than from a seed passed to it.
 - [x] **APP-029**: `Game` shall be the one aggregate that changes: the seats of a game, their card instances, zones and mana pools, the stack, the response window, the declared attack, the pending choices and the notices shall be reached and changed only through the `Game` they belong to.
 - [x] **APP-030**: A seat shall be an entity inside its `Game`, identified by its seat number, and no port shall save or load a seat on its own.
@@ -41,6 +42,11 @@ Design: `application-design.md`. Prefix: `APP`.
 - [x] **APP-011**: The application shall define the ports `GameRepository`, `DeckRepository`, `RecordStore`, `CardCatalog`, `UnitOfWork`, `GameLocks`, `IdSource`, `Clock` and `Renderer`, each expressed in domain types.
 - [x] **APP-012**: Every adapter implementing a port shall pass that port's contract test suite, including the in-memory adapters.
 - [x] **APP-013**: The in-memory adapters shall be working implementations that keep their data in memory, with a card catalog loaded from recorded card data, an id source that yields a fixed sequence, and a clock set by the test.
+- [ ] **APP-098**: A use case shall not change a game that `GameRepository` returned to it, nor a game it has handed to `GameRepository` to add or save.
+- [ ] **APP-099**: The `GameRepository` contract test suite shall require that a game returned equals the game last added or saved under that id, at its version, and shall not require that a game returned be a different object from the one added or saved.
+- [ ] **APP-100**: The in-memory game repository shall return the game object it keeps for a game id, and shall keep the game object it is given to add or save, not a copy of it.
+- [ ] **APP-101**: The in-memory game repository shall hold, beside each game it keeps, a private copy taken when it kept the game, and, when asked for that game or to save it, shall raise an exception if the kept game no longer equals that copy.
+- [ ] **APP-102**: When an application test or an in-process feature test ends, the test composition root shall compare every game the in-memory game repository keeps with its private copy and fail the test if any differs.
 - [x] **APP-041**: The application shall define the port `GameChanges`, with one operation that announces that a game has changed and one that waits until a game changes after a given change number or a timeout passes.
 - [x] **APP-042**: Each port shall be an abstract base class defined in `application/ports.py`.
 - [x] **APP-043**: Every implementation of a port, in-memory adapters included, shall be a concrete class that inherits from the port it implements.
