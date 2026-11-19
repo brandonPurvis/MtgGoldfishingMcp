@@ -21,7 +21,7 @@ repos:
         pass_filenames: false
       - id: pytest
         name: unit tests (pytest)
-        entry: uv run pytest -m "not e2e and not monitoring"
+        entry: uv run pytest -m "not e2e and not monitoring and not speed"
         language: system
         types: [python]
         pass_filenames: false

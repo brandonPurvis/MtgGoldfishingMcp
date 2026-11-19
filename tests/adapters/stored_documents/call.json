@@ -1,0 +1,1 @@
+{"__type__":"CallRecord","time":"2026-11-09T12:00:00+00:00","game_id":"gtest000001","tool":"advance","arguments":{"game_id":"gtest000001","to":"main2","flags":[true,1.5]},"status":"OK","response":"OK · change 5","is_override":false,"change":5,"id":0,"seat":null}
