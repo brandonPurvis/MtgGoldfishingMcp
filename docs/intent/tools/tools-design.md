@@ -231,6 +231,8 @@ A `blocks` choice reads `x9 (blocks): attacked by Grizzly Bears (c61), Serra Ang
 
 A response is a single text content item. `ERROR` responses set the MCP result's error flag; `OK`, `REJECTED` and `CHOICE` do not, because a rejection is an ordinary, expected outcome the agent acts on. Arguments that fail the tool's schema are answered in the same text format as an `ERROR`, not as a protocol-level fault, so the agent always reads one format. Such a response sets the error flag, carries the status line when the call named an existing game, and is saved as a call record like any other call. To make this possible the tools are served by the SDK's low-level server, which validates nothing: the schemas the tools declare describe each parameter's JSON type and which are required, to guide the agent, and the adapter shapes the arguments itself. Every object or list parameter is also accepted as a JSON string. A parameter name the tool does not have is a malformed argument. A call naming a tool that does not exist is answered as a protocol error, since there is no tool to record it under.
 
+The tool surface returns each call's status word beside its response text, and the MCP server and the FastAPI application accept an optional tool-call listener, so that the telemetry component can measure each tool call as it was answered (see `telemetry`). Nothing an agent receives depends on whether a listener is given.
+
 ## Player Brief
 
 A Claude Code subagent definition at `.claude/agents/goldfish-player.md`, one brief for every seat of every game. It restricts the subagent to the service's tools and tells it how to conduct a game for a deck-testing workflow:
