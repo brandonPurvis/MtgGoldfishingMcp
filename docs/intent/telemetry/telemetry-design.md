@@ -35,7 +35,9 @@ A tool call is timed from the moment the MCP server's call handler receives it t
 | `OK`, `REJECTED`, `CHOICE`, `ERROR` | The tool answered with that status word, including an `ERROR` for arguments of the wrong shape |
 | `PROTOCOL_ERROR` | The call named a tool that does not exist and was answered as a protocol error; its `tool.name` is `unknown` |
 | `DEFECT` | The tool raised an exception instead of answering; the exception goes on exactly as it would unmeasured |
-| `CANCELLED` | The call was cancelled before it had a result, as when the client goes away during a long `wait`; the cancellation goes on exactly as it would unmeasured |
+| `CANCELLED` | The call handler was cancelled before it had the tool's result, as when the service stops while the call waits for a worker thread; the cancellation goes on exactly as it would unmeasured. A cancellation that arrives after the handler has its result is not the call's, and the call is recorded with its status word |
+
+A call or request *raised* when its handling raised a Python `Exception`, and was *cancelled* when it raised the async backend's cancellation exception. Any other `BaseException` — `KeyboardInterrupt`, `SystemExit` — passes through unrecorded, since the process is stopping.
 
 The status word is the one the tools component defines; the tool surface returns it beside the response text, so telemetry never reads it out of the text. A name the client chose is never an attribute value: an unknown tool is counted under `unknown`, so a client cannot create new time series by calling made-up tools.
 
@@ -43,14 +45,14 @@ A `wait` call's duration is mostly time spent waiting by design — up to its ti
 
 ### HTTP requests
 
-An HTTP request is timed from the moment the application receives it until its response has ended — the last body chunk sent — however long a streamed response stays open.
+An HTTP request is timed from the moment the application receives it until the application has finished with it — returned, raised or been cancelled — which for a normal response is when its last body chunk has been sent, however long a streamed response stays open. Only HTTP requests are measured; the application's lifespan events pass through.
 
 | Attribute | Value |
 |---|---|
 | `http.request.method` | The request's method if it is one of `GET`, `HEAD`, `POST`, `PUT`, `DELETE`, `CONNECT`, `OPTIONS`, `TRACE`, `PATCH`; otherwise `_OTHER` |
 | `url.scheme` | The request's scheme, `http` or `https` |
 | `http.route` | `/mcp` or `/health` when the request's path is exactly that route; otherwise `other` |
-| `http.response.status_code` | The status code of the response the application started; `500` when the application raised before starting one, since that is what the server then sends; absent when the request was cancelled before a response started |
+| `http.response.status_code` | The status code of the response the application started; `500` when the application raised or returned before starting one, since that is what the server then sends; absent when the request was cancelled before a response started |
 | `error.type` | The exception's fully qualified class name when the application raised, before or after starting a response; otherwise `cancelled` when the request was cancelled before a response started; otherwise the status code as text (`"503"`) when the response's status code is 500 or above; otherwise absent |
 
 An exception or cancellation, before or after the response started, goes on exactly as it would unmeasured; the request is recorded first.
@@ -80,18 +82,18 @@ Telemetry is configured with OpenTelemetry's standard environment variables, rea
 
 Pushes use OTLP over HTTP with protobuf, the only protocol the service sends. Every measurement carries a `service.instance.id`, a new random id each time the service starts unless `OTEL_RESOURCE_ATTRIBUTES` gives one, so that several processes pushing to one store keep separate series.
 
-The service refuses to start, with a message naming the variable and exit status 2, as it does for an unusable port, when:
+Export is on when an endpoint is in effect — the `_METRICS_` variable if set, else the general one — and telemetry is not turned off. The service refuses to start, with a message naming the variable and exit status 2, as it does for an unusable port, when:
 
-- an endpoint variable is set but is not an `http://` or `https://` URL;
-- `OTEL_METRIC_EXPORT_INTERVAL` is set but is not a whole number of milliseconds greater than zero;
-- `OTEL_EXPORTER_OTLP_PROTOCOL` or `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` is set to anything but `http/protobuf`;
+- export is on and the endpoint in effect is not an `http://` or `https://` URL with a host;
+- export is on and `OTEL_METRIC_EXPORT_INTERVAL` is set but is not a whole number of milliseconds greater than zero;
+- export is on and the protocol in effect — `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` if set, else `OTEL_EXPORTER_OTLP_PROTOCOL` — is anything but `http/protobuf`;
 - `OTEL_METRICS_EXPORTER` is set to anything but `otlp` or `none`.
 
-An empty variable counts as unset, as it does for the service's own settings.
+Settings that will not be used are not checked: with telemetry turned off, neither the endpoint, the protocol nor the interval is; with a `_METRICS_` endpoint set, the general endpoint is not. Headers, the push timeout and resource attributes are read and applied by OpenTelemetry itself and are not checked by the service. Values naming a choice (`none`, `true`, `http/protobuf`) are read ignoring case. An empty variable counts as unset, as it does for the service's own settings.
 
 With no endpoint set, or telemetry turned off, measurements are still taken but go nowhere. Exporting runs on a background thread; a push that fails is dropped and does not reach any call. The export interval defaults to five seconds, shorter than OpenTelemetry's sixty, so the dashboard is live.
 
-When the service stops, after the HTTP server has finished the requests in flight, the meter provider is shut down — pushing what was measured since the last push, waiting at most five seconds — and then the database and card catalog are closed.
+When the service stops, once the HTTP server has stopped and the application's own shutdown — including the MCP session manager's — has finished, the meter provider is shut down, pushing what was measured since the last push and waiting at most five seconds. Then the database and card catalog are closed, whether or not that shutdown succeeded.
 
 ## Where It Sits
 
@@ -100,7 +102,7 @@ Telemetry is an adapter, in `src/mtg_goldfishing/adapters/telemetry/`. Under `sr
 No adapter imports another (APP-003), so telemetry and the MCP adapter are connected only by the composition root:
 
 - **Service metrics.** The telemetry adapter's one object, built over an OpenTelemetry meter provider, offers two operations: record a tool call (tool name, status, seconds) and record an HTTP request (method, scheme, path, status code or none, error type or none, seconds). It owns the instrument names, attribute names, bucket boundaries, and the folding of unknown methods and paths into `_OTHER` and `other`.
-- **The tool-call listener.** The MCP adapter declares a tool-call listener: a callable taking a tool name, a status and a duration in seconds. `mcp_server` and `create_app` accept one as an optional argument, and with none given nothing is measured. When a listener is given, the MCP server times each call in its call handler and calls the listener with the call's outcome — naming a tool that does not exist as `unknown`, since only the MCP adapter knows which tools exist — swallowing and logging anything the listener raises.
+- **The tool-call listener.** The MCP adapter declares a tool-call listener: a callable taking a tool name, a status and a duration in seconds. `mcp_server` and `create_app` accept one as an optional argument, and with none given nothing is measured. When a listener is given, the MCP server times each call in its call handler and calls the listener, synchronously and without awaiting, with the call's outcome — naming a tool that does not exist as `unknown`, since only the MCP adapter knows which tools exist — swallowing and logging anything the listener raises.
 - **The HTTP middleware.** The telemetry adapter provides an ASGI middleware that is given the service metrics and the application's measured routes. It wraps the whole application, so every request — to `/mcp`, `/health`, any other path, and requests the MCP transport refuses — is measured.
 - **Composition.** The composition root reads the telemetry settings and builds the meter provider — with an OTLP exporter on a periodic reader when export is on, with no reader otherwise — builds the service metrics over it, passes their tool-call recording to `create_app` as the listener, adds the middleware to the application with the routes `/mcp` and `/health`, and shuts the meter provider down when the service stops.
 
@@ -118,18 +120,18 @@ The collector stores the instruments as Prometheus metrics, under the names the 
 
 ## Dashboard
 
-The dashboard, *MTG Goldfishing*, is provisioned from a JSON file in `monitoring/`, so it is present whenever the stack starts and changes to it are reviewed like code. It refreshes every five seconds and opens on the last fifteen minutes. A `tool` variable, listing every tool seen, filters the tool panels; it includes every tool by default.
+The dashboard, *MTG Goldfishing*, is provisioned from a JSON file in `monitoring/`, so it is present whenever the stack starts and changes to it are reviewed like code. It refreshes every five seconds and opens on the last fifteen minutes. A `tool` variable, listing every tool seen (`unknown` too, once a call has named a tool that does not exist), filters the tool panels other than *`wait` latency*; it includes every tool by default.
 
 | Panel | Shows |
 |---|---|
 | Tool latency | p50, p95 and p99 of tool-call duration over time, across the selected tools other than `wait` |
 | Latency by tool | p50, p95 and p99 of each tool's duration over the selected time range, one row per tool, `wait` included |
 | Tool calls by status | Rate of tool calls over time, stacked by `tool.status` |
-| Tool error rate | Share of tool calls answered `ERROR`, `PROTOCOL_ERROR` or `DEFECT` over time |
+| Tool error rate | Share of calls to the selected tools other than `wait` answered `ERROR`, `PROTOCOL_ERROR` or `DEFECT`, over time |
 | Calls by tool and status | Count of calls over the selected time range, one row per tool, one column per status |
-| `wait` latency | p50, p95 and p99 of `wait` duration over time |
+| `wait` latency | p50, p95 and p99 of `wait` duration over time, whatever tools are selected |
 | HTTP latency | p50, p95 and p99 of HTTP request duration over time, by route |
-| HTTP requests by status code | Rate of HTTP requests over time, stacked by status code |
+| HTTP requests by status code | Rate of HTTP requests over time, stacked by status code, a request recorded without one shown as `none` |
 
 Percentiles are computed by Prometheus from the bucket series, summed across service instances, over a rolling one-minute window for time series and over the selected range for tables. The HTTP latency panel describes the transport, `wait` included; tool latency without `wait` is on the tool panels.
 
@@ -146,7 +148,7 @@ Percentiles are computed by Prometheus from the bucket series, summed across ser
 | Tool-call instrument name | `goldfishing.tool_call.duration` in the service's namespace | A draft MCP semantic convention | No stable convention covers MCP tool calls; a namespaced name cannot collide with one later. |
 | Client-chosen values | Unknown tools, methods and paths folded into `unknown`, `_OTHER` and `other` | Recorded as given | Attribute values a client chooses would let any client create unbounded time series. |
 | Percentile accuracy | Explicit buckets tuned to the service's range, with edges just above `wait`'s timeouts | Exponential histograms | Exponential histograms need native-histogram support in the metrics store; explicit buckets work with every Prometheus and give enough resolution where calls fall. |
-| Unusable telemetry settings | Refuse to start, exit status 2 | Warn and fall back to defaults, as OpenTelemetry does | The service already refuses an unusable port; a maintainer who set an endpoint and sees no metrics because of a typo has a harder problem than one told at start-up. |
+| Unusable telemetry settings | Refuse to start, exit status 2, for the settings that decide whether and where metrics go, when they will be used | Warn and fall back to defaults, as OpenTelemetry does; check every OpenTelemetry variable | The service already refuses an unusable port; a maintainer who set an endpoint and sees no metrics because of a typo has a harder problem than one told at start-up. Headers, timeouts and resource attributes have OpenTelemetry's own handling, and refusing a setting that will not be used would block a service that could run. |
 | Export interval | 5 seconds by default, overridable | OpenTelemetry's default of 60 seconds | A dashboard a minute behind is not live; the push is a small request on a background thread. |
 | OTLP transport | HTTP with protobuf only | gRPC; both | Fewer and lighter dependencies; the stack accepts both, and one protocol is one code path. |
 | Instance identity | A random `service.instance.id` per start | None | Without it, several processes pushing to one store overwrite each other's cumulative series, which a hosted deployment would hit. |
