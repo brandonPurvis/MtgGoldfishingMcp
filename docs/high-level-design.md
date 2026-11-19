@@ -201,6 +201,7 @@ The rings are tested at their own level, so each test says one thing and fails f
 - **A small end-to-end check** starts the real process with SQLite and plays a short goldfish game over HTTP.
 - **Contested end-to-end scenarios** (behave) run a selection of the contested-game scenarios against the real process with SQLite, with a separate client for each seat, so that seat ids, `wait` and seats acting at once are exercised over the network.
 - **A live monitoring check**, run only on request against a running monitoring stack, starts the real process pushing to it and confirms that every dashboard panel shows its measurements.
+- **A storage speed check**, run only on request, times the codec reading and writing a loaded deck and a contested game against the standard library's JSON module on the same documents, since timings are too noisy to gate every commit.
 - **An architecture test** fails the build if an inner ring imports an outer one.
 
 Tests use recorded card data and never reach the network. Telemetry exports nothing unless an endpoint is configured, so no test outside the live monitoring check sends metrics anywhere; tests that check measurements read them from an in-process reader. Every requirement is cited by at least one test.
