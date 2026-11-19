@@ -1,8 +1,8 @@
 """The storage speed check: the codec timed against the standard library's JSON module.
 
-Run on request with `pytest -m speed`: timings are too noisy to gate every commit. Each
-side is run afresh many times and the medians are compared, so the ratio holds on any
-machine that is not busy with something else.
+Run on request with `pytest -m speed`; any other run skips it, since timings are too
+noisy to gate every commit. Each side is run afresh many times and the medians are
+compared, so the ratio holds on any machine that is not busy with something else.
 """
 
 from __future__ import annotations
@@ -30,9 +30,12 @@ REFERENCES: dict[str, tuple[Callable[[], object], object]] = {
     "reference contested game": (a_reference_contested_game, Game),
 }
 
-not_yet_fast = pytest.mark.xfail(
-    strict=True, reason="the codec still inspects type hints value by value"
-)
+
+@pytest.fixture(autouse=True)
+def only_on_request(request: pytest.FixtureRequest) -> None:
+    """Skip unless the run asked for the speed check by marker, as `pytest -m speed` does."""
+    if "speed" not in str(request.config.getoption("markexpr", "")):
+        pytest.skip("the storage speed check runs only on request: pytest -m speed")
 
 
 def median_seconds(run: Callable[[], object]) -> float:
@@ -46,7 +49,6 @@ def median_seconds(run: Callable[[], object]) -> float:
 
 
 # @spec STOR-051
-@not_yet_fast
 @pytest.mark.parametrize("name", sorted(REFERENCES))
 def test_reading_a_stored_document_costs_at_most_five_json_parses(name: str) -> None:
     build, kind = REFERENCES[name]
@@ -59,7 +61,6 @@ def test_reading_a_stored_document_costs_at_most_five_json_parses(name: str) -> 
 
 
 # @spec STOR-052
-@not_yet_fast
 @pytest.mark.parametrize("name", sorted(REFERENCES))
 def test_writing_a_stored_document_costs_at_most_four_json_writes(name: str) -> None:
     build, kind = REFERENCES[name]

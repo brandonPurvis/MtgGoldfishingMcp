@@ -23,10 +23,6 @@ from tests.support.stored import a_rich_deck
 RICH = "drich"
 LIMIT = 64
 
-not_yet_kept = pytest.mark.xfail(
-    strict=True, reason="the deck repository does not keep decks in memory yet"
-)
-
 
 @pytest.fixture
 def stores(tmp_path: Path) -> Iterator[SqliteStores]:
@@ -69,7 +65,6 @@ def stored(stores: SqliteStores, decks: list[LoadedDeck]) -> list[str]:
 
 
 # @spec STOR-053, STOR-054
-@not_yet_kept
 def test_a_deck_found_once_is_answered_from_memory_afterwards(stores: SqliteStores) -> None:
     stored(stores, [a_rich_deck()])
     stores.decks.get(RICH)
@@ -81,7 +76,6 @@ def test_a_deck_found_once_is_answered_from_memory_afterwards(stores: SqliteStor
 
 
 # @spec STOR-054
-@not_yet_kept
 def test_a_kept_deck_is_answered_from_memory_inside_a_unit_of_work(stores: SqliteStores) -> None:
     stored(stores, [a_rich_deck()])
     stores.decks.get(RICH)
@@ -137,7 +131,6 @@ def test_keeping_one_deck_past_the_limit_forgets_the_least_recently_asked_for(
 
 
 # @spec STOR-055
-@not_yet_kept
 def test_the_other_decks_stay_kept_when_one_is_forgotten(stores: SqliteStores) -> None:
     ids = stored(stores, numbered_decks(LIMIT + 1))
     for deck_id in ids:
@@ -151,7 +144,6 @@ def test_the_other_decks_stay_kept_when_one_is_forgotten(stores: SqliteStores) -
 
 
 # @spec STOR-061
-@not_yet_kept
 def test_a_deck_answered_from_memory_becomes_the_most_recently_asked_for(
     stores: SqliteStores,
 ) -> None:
@@ -168,7 +160,6 @@ def test_a_deck_answered_from_memory_becomes_the_most_recently_asked_for(
 
 
 # @spec STOR-053
-@not_yet_kept
 def test_a_deck_just_kept_is_the_most_recently_asked_for(stores: SqliteStores) -> None:
     ids = stored(stores, numbered_decks(LIMIT + 1))
     for deck_id in ids:

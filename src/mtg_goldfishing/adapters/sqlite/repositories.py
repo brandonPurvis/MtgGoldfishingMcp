@@ -6,6 +6,8 @@ authoritative. The other columns of a row are copies, kept to find rows by.
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -110,21 +112,46 @@ def _copied_columns(game: Game) -> tuple[str, str, int, str, str | None, str]:
     )
 
 
-# @spec STOR-001, STOR-010
-class SqliteDeckRepository(DeckRepository):
-    """Each loaded deck is one row, written once and never replaced."""
+DECKS_KEPT = 64
+"""How many loaded decks a deck repository keeps in memory: every seat of 16 four-seat games."""
 
-    def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
+
+# @spec STOR-001, STOR-010, STOR-053, STOR-054, STOR-055, STOR-056, STOR-057, STOR-058
+# @spec STOR-059, STOR-061, STOR-064, STOR-065
+class SqliteDeckRepository(DeckRepository):
+    """Each loaded deck is one row, written once and never replaced.
+
+    The decks most recently found are also kept in memory, up to `kept`, and answered from
+    there: a loaded deck never changes once start-up migrations have run, so a copy cannot
+    go stale. Only a read that can see nothing uncommitted (one made while no transaction
+    is open on the reading connection) puts a deck in memory; adding a deck never does, so
+    a rolled-back deck is never kept. A deck id that names no deck is not remembered.
+    """
+
+    def __init__(
+        self, database: SqliteDatabase, *, now: Now = utc_now, kept: int = DECKS_KEPT
+    ) -> None:
         self._database = database
         self._now = now
+        self._limit = kept
+        self._kept: OrderedDict[str, LoadedDeck] = OrderedDict()
+        self._guard = threading.Lock()
 
     def get(self, deck_id: str) -> LoadedDeck | None:
-        row = (
-            self._database.connection()
-            .execute("SELECT deck FROM decks WHERE deck_id = ?", (deck_id,))
-            .fetchone()
-        )
-        return None if row is None else decode(row[0], LoadedDeck)
+        connection = self._database.connection()
+        committed_only = not connection.in_transaction  # raises once the database is closed
+        with self._guard:
+            kept = self._kept.get(deck_id)
+            if kept is not None:
+                self._kept.move_to_end(deck_id)
+                return kept
+        row = connection.execute("SELECT deck FROM decks WHERE deck_id = ?", (deck_id,)).fetchone()
+        if row is None:
+            return None
+        deck: LoadedDeck = decode(row[0], LoadedDeck)
+        if committed_only:
+            self._keep(deck_id, deck)
+        return deck
 
     def add(self, deck: LoadedDeck) -> LoadedDeck:
         with self._database.writing() as connection:
@@ -137,6 +164,14 @@ class SqliteDeckRepository(DeckRepository):
             ).fetchone()
         loaded: LoadedDeck = decode(stored, LoadedDeck)
         return loaded
+
+    def _keep(self, deck_id: str, deck: LoadedDeck) -> None:
+        """Keep a deck as the most recently asked for, forgetting the least recent if full."""
+        with self._guard:
+            self._kept[deck_id] = deck
+            self._kept.move_to_end(deck_id)
+            while len(self._kept) > self._limit:
+                self._kept.popitem(last=False)
 
 
 # @spec STOR-001, STOR-011, STOR-012, STOR-028, STOR-029
