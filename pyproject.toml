@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.162.2",
     "httpx>=0.28.1",
     "mcp>=1.2",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+    "opentelemetry-sdk>=1.45.2",
     "uvicorn>=0.54.0",
 ]
 
@@ -27,7 +29,10 @@ pythonpath = ["src", "."]
 addopts = "-q"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["e2e: starts the real service; excluded from the pre-commit run"]
+markers = [
+    "e2e: starts the real service; excluded from the pre-commit run",
+    "monitoring: needs the monitoring stack running; excluded from the pre-commit run",
+]
 
 [tool.ruff]
 line-length = 100
@@ -71,5 +76,7 @@ dev = [
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
+    "pyyaml>=6.0.2",
     "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12",
 ]
