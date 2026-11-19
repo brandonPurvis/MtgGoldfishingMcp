@@ -28,6 +28,20 @@ The repository's `.mcp.json` connects Claude Code to the running service as the 
 
 A contested game is started with `new_game` and `opponents`, the deck ids of one to three opposing seats; the response gives each seat its own seat id. Each seat's agent passes its seat id as `game_id`, calls `wait` while another seat is to act, and answers `pass` when it is asked to respond and does nothing. Given a seat id and the seat it plays instead of a deck, `goldfish-player` plays that one seat.
 
+## Watching the service
+
+The service measures each tool call and HTTP request and pushes the measurements over OTLP. It exports nothing unless an endpoint is set. `monitoring/` holds a local stack (an OpenTelemetry collector, Prometheus and Grafana in one container) with the *MTG Goldfishing* dashboard provisioned:
+
+```
+docker compose -f monitoring/compose.yaml up -d                     # start the stack
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run mtg-goldfishing
+docker compose -f monitoring/compose.yaml down                      # stop it; the stored data is kept
+```
+
+In PowerShell, set the endpoint with `$env:OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318"` before `uv run mtg-goldfishing`.
+
+Open Grafana at http://localhost:3000 (no login) and the dashboard *MTG Goldfishing*. The stack listens on `127.0.0.1` only.
+
 ## Development
 
 ```

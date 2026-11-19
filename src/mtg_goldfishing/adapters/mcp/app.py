@@ -11,11 +11,12 @@ from mcp.server.streamable_http_manager import StreamableHTTPASGIApp, Streamable
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.routing import Route
 
-from mtg_goldfishing.adapters.mcp.server import mcp_server
+from mtg_goldfishing.adapters.mcp.server import ToolCallListener, mcp_server
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
 from mtg_goldfishing.application.service import Service
 
 MCP_PATH = "/mcp"
+HEALTH_PATH = "/health"
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
 
 
@@ -39,11 +40,17 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# @spec TOOL-001, TOOL-002
-def create_app(service: Service, *, host: str = "127.0.0.1") -> FastAPI:
-    """The FastAPI application serving the tools over `service`."""
+# @spec TOOL-001, TOOL-002, TEL-001, TEL-007
+def create_app(
+    service: Service,
+    *,
+    host: str = "127.0.0.1",
+    on_tool_call: ToolCallListener | None = None,
+) -> FastAPI:
+    """The FastAPI application serving the tools over `service`, telling `on_tool_call` of
+    each tool call when one is given."""
     sessions = StreamableHTTPSessionManager(
-        app=mcp_server(ToolSurface(service)),
+        app=mcp_server(ToolSurface(service), on_tool_call=on_tool_call),
         stateless=True,
         security_settings=_transport_security(host),
     )
@@ -54,6 +61,6 @@ def create_app(service: Service, *, host: str = "127.0.0.1") -> FastAPI:
             yield
 
     app = FastAPI(title="MTG Goldfishing", lifespan=lifespan)
-    app.add_api_route("/health", health, methods=["GET"])
+    app.add_api_route(HEALTH_PATH, health, methods=["GET"])
     app.router.routes.append(Route(MCP_PATH, endpoint=StreamableHTTPASGIApp(sessions)))
     return app

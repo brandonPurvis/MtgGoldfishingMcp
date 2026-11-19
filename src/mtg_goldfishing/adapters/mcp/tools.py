@@ -39,10 +39,12 @@ USE_CASES: dict[str, UseCase] = {
 
 @dataclass(frozen=True)
 class ToolResponse:
-    """What a tool call returns to the agent: one text, and whether it is an `ERROR`."""
+    """What a tool call returns: the text sent to the agent, whether it is an `ERROR`, and
+    the status word of the response, which the MCP server reads and never sends."""
 
     text: str
     is_error: bool
+    status: str
 
 
 ToolFunction = Callable[[Mapping[str, object]], ToolResponse]
@@ -74,7 +76,7 @@ class ToolSurface:
         definition = self._definitions[name]
         return lambda arguments: self._call(definition, arguments)
 
-    # @spec TOOL-010, TOOL-013, TOOL-027, TOOL-028, REC-017
+    # @spec TOOL-010, TOOL-013, TOOL-027, TOOL-028, REC-017, TEL-008
     def call(self, name: str, arguments: Mapping[str, object]) -> ToolResponse:
         """Answer one call of the tool `name`."""
         return self._call(self._definitions[name], arguments)
@@ -87,4 +89,5 @@ class ToolSurface:
             )
         else:
             answer = USE_CASES[definition.name](self._service, shaped.arguments)
-        return ToolResponse(answer.response, answer.outcome.status is Status.ERROR)
+        status = answer.outcome.status
+        return ToolResponse(answer.response, status is Status.ERROR, status.value)
