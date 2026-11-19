@@ -25,6 +25,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from opentelemetry.sdk.metrics import MeterProvider
 
 from mtg_goldfishing.adapters.mcp.app import create_app
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
@@ -36,6 +37,7 @@ from mtg_goldfishing.adapters.system import (
     RandomIdSource,
     SystemClock,
 )
+from mtg_goldfishing.adapters.telemetry import TelemetrySettings
 from mtg_goldfishing.application.ports import CardCatalog, GameChanges
 from mtg_goldfishing.application.service import Service
 
@@ -135,6 +137,8 @@ def serve(
     *,
     catalog: CardCatalog | None = None,
     run: Runner = run_with_uvicorn,
+    telemetry: TelemetrySettings | None = None,
+    meter_provider: MeterProvider | None = None,
 ) -> int:
     """Serve until stopped; the process's exit status.
 

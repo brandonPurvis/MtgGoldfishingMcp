@@ -43,6 +43,7 @@ class ToolResponse:
 
     text: str
     is_error: bool
+    status: str = ""
 
 
 ToolFunction = Callable[[Mapping[str, object]], ToolResponse]

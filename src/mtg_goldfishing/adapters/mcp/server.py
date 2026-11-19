@@ -7,7 +7,8 @@ wrong shape is answered as an `ERROR` in the text format, never as a protocol fa
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Mapping
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
@@ -27,6 +28,9 @@ from mcp.types import (
 from mtg_goldfishing.adapters.mcp.instructions import SERVER_INSTRUCTIONS, SERVER_NAME
 from mtg_goldfishing.adapters.mcp.tools import ToolSurface
 
+ToolCallListener = Callable[[str, str, float], None]
+"""Told of each tool call: the tool's name, the status it ended with and its seconds."""
+
 
 def _service_version() -> str:
     try:
@@ -36,7 +40,12 @@ def _service_version() -> str:
 
 
 # @spec TOOL-001, TOOL-007, TOOL-012, TOOL-027
-def mcp_server(tools: ToolSurface) -> Server[Any]:
+def mcp_server(
+    tools: ToolSurface,
+    *,
+    on_tool_call: ToolCallListener | None = None,
+    timer: Callable[[], float] = time.perf_counter,
+) -> Server[Any]:
     """The `goldfishing` MCP server over the tool surface."""
     listed = [
         Tool(name=d.name, description=d.description, input_schema=d.input_schema)
