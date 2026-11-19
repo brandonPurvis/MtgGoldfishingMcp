@@ -63,8 +63,9 @@ def test_an_id_that_names_no_seat_of_any_stored_game_is_reported_as_naming_none(
 def test_a_seat_id_still_names_its_seat_after_the_game_is_saved_again(games: Any) -> None:
     game = a_game_of_two_seats()
     games.add(game)
-    game.seat(SeatNumber(2)).life = 12
-    games.save(game, version=1)
+    changed = game.copy()
+    changed.seat(SeatNumber(2)).life = 12
+    games.save(changed, version=1)
 
     found = games.find_seat(game.seat(SeatNumber(2)).seat_id)
 

@@ -62,12 +62,13 @@ def _execute(path: Path, sql: str, *parameters: object) -> None:
 def test_a_saved_game_is_returned_equal_after_a_restart(stores: SqliteStores, path: Path) -> None:
     game = a_rich_game()
     stores.games.add(game)
-    game.tested.life = 22
-    stores.games.save(game, version=1)
+    changed = game.copy()
+    changed.tested.life = 22
+    stores.games.save(changed, version=1)
 
     restarted = _restarted(stores, path)
     try:
-        assert restarted.games.get(GAME) == StoredGame(game, 2)
+        assert restarted.games.get(GAME) == StoredGame(changed, 2)
     finally:
         restarted.database.close()
 
@@ -230,6 +231,7 @@ def test_nothing_stored_is_deleted_by_later_writes_or_a_restart(
     stores.games.add(game)
     stores.decks.add(a_rich_deck())
     for change in (1, 2, 3):
+        game = game.copy()
         game.change = change
         stores.games.save(game, version=change)
         stores.records.append_entry(GAME, a_log_entry(change))
