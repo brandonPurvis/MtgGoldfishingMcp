@@ -51,7 +51,7 @@ An HTTP request is timed from the moment the application receives it until its r
 | `url.scheme` | The request's scheme, `http` or `https` |
 | `http.route` | `/mcp` or `/health` when the request's path is exactly that route; otherwise `other` |
 | `http.response.status_code` | The status code of the response the application started; `500` when the application raised before starting one, since that is what the server then sends; absent when the request was cancelled before a response started |
-| `error.type` | Absent when the response's status code is below 500. The status code as text (`"503"`) when the application answered with a 5xx; the exception's fully qualified class name when it raised before starting a response; `cancelled` when the request was cancelled before a response started |
+| `error.type` | The exception's fully qualified class name when the application raised, before or after starting a response; otherwise `cancelled` when the request was cancelled before a response started; otherwise the status code as text (`"503"`) when the response's status code is 500 or above; otherwise absent |
 
 An exception or cancellation, before or after the response started, goes on exactly as it would unmeasured; the request is recorded first.
 
@@ -99,8 +99,8 @@ Telemetry is an adapter, in `src/mtg_goldfishing/adapters/telemetry/`. Under `sr
 
 No adapter imports another (APP-003), so telemetry and the MCP adapter are connected only by the composition root:
 
-- **Service metrics.** The telemetry adapter's one object, built over an OpenTelemetry meter provider, offers two operations: record a tool call (tool name, status, seconds) and record an HTTP request (method, scheme, path, status code or none, error type or none, seconds). It owns the instrument names, attribute names, bucket boundaries, and the folding of unknown tools, methods and paths into `unknown`, `_OTHER` and `other`.
-- **The tool-call listener.** The MCP adapter declares a tool-call listener: a callable taking a tool name, a status and a duration in seconds. `mcp_server` and `create_app` accept one as an optional argument, and with none given nothing is measured. When a listener is given, the MCP server times each call in its call handler and calls the listener with the call's outcome, swallowing and logging anything the listener raises.
+- **Service metrics.** The telemetry adapter's one object, built over an OpenTelemetry meter provider, offers two operations: record a tool call (tool name, status, seconds) and record an HTTP request (method, scheme, path, status code or none, error type or none, seconds). It owns the instrument names, attribute names, bucket boundaries, and the folding of unknown methods and paths into `_OTHER` and `other`.
+- **The tool-call listener.** The MCP adapter declares a tool-call listener: a callable taking a tool name, a status and a duration in seconds. `mcp_server` and `create_app` accept one as an optional argument, and with none given nothing is measured. When a listener is given, the MCP server times each call in its call handler and calls the listener with the call's outcome — naming a tool that does not exist as `unknown`, since only the MCP adapter knows which tools exist — swallowing and logging anything the listener raises.
 - **The HTTP middleware.** The telemetry adapter provides an ASGI middleware that is given the service metrics and the application's measured routes. It wraps the whole application, so every request — to `/mcp`, `/health`, any other path, and requests the MCP transport refuses — is measured.
 - **Composition.** The composition root reads the telemetry settings and builds the meter provider — with an OTLP exporter on a periodic reader when export is on, with no reader otherwise — builds the service metrics over it, passes their tool-call recording to `create_app` as the listener, adds the middleware to the application with the routes `/mcp` and `/health`, and shuts the meter provider down when the service stops.
 
@@ -112,7 +112,7 @@ Telemetry is not a port: the application never calls it, and nothing in it is a 
 
 The repository's `monitoring/` directory holds a Compose file that runs Grafana's `otel-lgtm` image — an OpenTelemetry collector, a Prometheus metrics store and Grafana in one container — at a pinned version. It publishes OTLP over HTTP on port `4318`, OTLP over gRPC on `4317`, and Grafana on `3000`, each bound to `127.0.0.1` only. The store's data is kept in a named volume, so history survives restarting the container. Grafana opens without a login, as the image provides for local use.
 
-To watch the service: start the stack with `docker compose -f monitoring/compose.yaml up -d`, start the service with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`, and open Grafana at `http://localhost:3000`.
+The README tells a maintainer how to watch the service: start the stack with `docker compose -f monitoring/compose.yaml up -d`, start the service with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`, and open Grafana at `http://localhost:3000`.
 
 The collector stores the instruments as Prometheus metrics, under the names the pinned image's translation gives them; the dashboard's queries use those names, and they are checked against a running stack whenever the pinned version changes.
 
