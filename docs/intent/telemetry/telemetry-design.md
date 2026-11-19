@@ -49,11 +49,11 @@ An HTTP request is timed from the moment the application receives it until the a
 
 | Attribute | Value |
 |---|---|
-| `http.request.method` | The request's method if it is one of `GET`, `HEAD`, `POST`, `PUT`, `DELETE`, `CONNECT`, `OPTIONS`, `TRACE`, `PATCH`; otherwise `_OTHER` |
+| `http.request.method` | The request's method, matched exactly as sent, if it is one of `GET`, `HEAD`, `POST`, `PUT`, `DELETE`, `CONNECT`, `OPTIONS`, `TRACE`, `PATCH`; otherwise `_OTHER` |
 | `url.scheme` | The request's scheme, `http` or `https` |
 | `http.route` | `/mcp` or `/health` when the request's path is exactly that route; otherwise `other` |
 | `http.response.status_code` | The status code of the response the application started; `500` when the application raised or returned before starting one, since that is what the server then sends; absent when the request was cancelled before a response started |
-| `error.type` | The exception's fully qualified class name when the application raised, before or after starting a response; otherwise `cancelled` when the request was cancelled before a response started; otherwise the status code as text (`"503"`) when the response's status code is 500 or above; otherwise absent |
+| `error.type` | The exception's fully qualified class name (`module.ClassName`, or the bare name for a built-in exception such as `ValueError`) when the application raised, before or after starting a response; otherwise `cancelled` when the request was cancelled before a response started; otherwise the status code as text (`"503"`) when the response's status code is 500 or above; otherwise absent |
 
 An exception or cancellation, before or after the response started, goes on exactly as it would unmeasured; the request is recorded first.
 
@@ -89,11 +89,11 @@ Export is on when an endpoint is in effect — the `_METRICS_` variable if set, 
 - export is on and the protocol in effect — `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` if set, else `OTEL_EXPORTER_OTLP_PROTOCOL` — is anything but `http/protobuf`;
 - `OTEL_METRICS_EXPORTER` is set to anything but `otlp` or `none`.
 
-Settings that will not be used are not checked: with telemetry turned off, neither the endpoint, the protocol nor the interval is; with a `_METRICS_` endpoint set, the general endpoint is not. Headers, the push timeout and resource attributes are read and applied by OpenTelemetry itself and are not checked by the service. Values naming a choice (`none`, `true`, `http/protobuf`) are read ignoring case. An empty variable counts as unset, as it does for the service's own settings.
+Settings that will not be used are not checked: with telemetry turned off, neither the endpoint, the protocol nor the interval is; with a `_METRICS_` endpoint set, the general endpoint is not. Headers, the push timeout and resource attributes are read and applied by OpenTelemetry itself and are not checked by the service. Values naming a choice (`none`, `true`, `http/protobuf`) are read ignoring case, and resource attribute values are percent-decoded, as OpenTelemetry specifies. An empty variable counts as unset, as it does for the service's own settings.
 
 With no endpoint set, or telemetry turned off, measurements are still taken but go nowhere. Exporting runs on a background thread; a push that fails is dropped and does not reach any call. The export interval defaults to five seconds, shorter than OpenTelemetry's sixty, so the dashboard is live.
 
-When the service stops, once the HTTP server has stopped and the application's own shutdown — including the MCP session manager's — has finished, the meter provider is shut down, pushing what was measured since the last push and waiting at most five seconds. Then the database and card catalog are closed, whether or not that shutdown succeeded.
+When the service stops, once the HTTP server has stopped and the application's own shutdown — including the MCP session manager's — has finished, the meter provider is shut down, pushing what was measured since the last push and waiting at most five seconds. Then the database and card catalog are closed, whether or not that shutdown succeeded; a failed shutdown is logged and goes no further.
 
 ## Where It Sits
 

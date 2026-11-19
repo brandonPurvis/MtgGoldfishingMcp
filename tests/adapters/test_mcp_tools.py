@@ -396,7 +396,6 @@ def test_the_tools_get_log_errors_list_are_the_tools_the_surface_offers_in_its_o
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_ok_response_carries_its_status_word() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -407,7 +406,6 @@ def test_an_ok_response_carries_its_status_word() -> None:
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_rejected_response_carries_its_status_word() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -419,7 +417,6 @@ def test_a_rejected_response_carries_its_status_word() -> None:
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_choice_response_carries_its_status_word() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -431,7 +428,6 @@ def test_a_choice_response_carries_its_status_word() -> None:
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_error_response_carries_its_status_word() -> None:
     surface, _ = _surface()
 
@@ -441,7 +437,6 @@ def test_an_error_response_carries_its_status_word() -> None:
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_malformed_call_s_response_carries_the_error_status_word() -> None:
     surface, harness = _surface()
     game_id = _in_main_step_with_forests(harness)
@@ -452,7 +447,6 @@ def test_a_malformed_call_s_response_carries_the_error_status_word() -> None:
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_response_opening_with_a_digest_carries_its_status_word_not_its_first_word() -> None:
     surface, harness = _surface()
     game_id = harness.started_contested_game(opposing=1)
@@ -464,7 +458,6 @@ def test_a_response_opening_with_a_digest_carries_its_status_word_not_its_first_
 
 
 # @spec TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_function_form_of_a_tool_carries_the_status_word_too() -> None:
     surface, _ = _surface()
 

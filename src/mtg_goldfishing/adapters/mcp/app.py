@@ -40,16 +40,17 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# @spec TOOL-001, TOOL-002
+# @spec TOOL-001, TOOL-002, TEL-001, TEL-007
 def create_app(
     service: Service,
     *,
     host: str = "127.0.0.1",
     on_tool_call: ToolCallListener | None = None,
 ) -> FastAPI:
-    """The FastAPI application serving the tools over `service`."""
+    """The FastAPI application serving the tools over `service`, telling `on_tool_call` of
+    each tool call when one is given."""
     sessions = StreamableHTTPSessionManager(
-        app=mcp_server(ToolSurface(service)),
+        app=mcp_server(ToolSurface(service), on_tool_call=on_tool_call),
         stateless=True,
         security_settings=_transport_security(host),
     )
@@ -60,6 +61,6 @@ def create_app(
             yield
 
     app = FastAPI(title="MTG Goldfishing", lifespan=lifespan)
-    app.add_api_route("/health", health, methods=["GET"])
+    app.add_api_route(HEALTH_PATH, health, methods=["GET"])
     app.router.routes.append(Route(MCP_PATH, endpoint=StreamableHTTPASGIApp(sessions)))
     return app

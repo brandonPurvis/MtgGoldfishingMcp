@@ -54,7 +54,6 @@ def _record_request(metrics: ServiceMetrics, method: str = "GET") -> None:
 
 
 # @spec TEL-009
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_tool_call_is_one_measurement_of_its_duration() -> None:
     metrics, reader = _metrics()
 
@@ -64,7 +63,6 @@ def test_a_tool_call_is_one_measurement_of_its_duration() -> None:
 
 
 # @spec TEL-009
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_tool_call_durations_are_in_seconds() -> None:
     metrics, reader = _metrics()
 
@@ -78,7 +76,6 @@ def test_tool_call_durations_are_in_seconds() -> None:
     ("tool", "status"),
     [("play", "REJECTED"), ("unknown", "PROTOCOL_ERROR"), ("wait", "CANCELLED")],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_tool_call_is_attributed_to_its_tool_and_its_status_as_given(
     tool: str, status: str
 ) -> None:
@@ -93,7 +90,6 @@ def test_a_tool_call_is_attributed_to_its_tool_and_its_status_as_given(
 
 # @spec TEL-011
 @pytest.mark.parametrize("method", METHODS)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_known_request_method_is_recorded_as_it_is(method: str) -> None:
     metrics, reader = _metrics()
 
@@ -105,7 +101,6 @@ def test_a_known_request_method_is_recorded_as_it_is(method: str) -> None:
 
 # @spec TEL-011
 @pytest.mark.parametrize("method", ["PROPFIND", "BREW"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_any_other_request_method_is_folded_into_other(method: str) -> None:
     metrics, reader = _metrics()
 
@@ -116,13 +111,11 @@ def test_any_other_request_method_is_folded_into_other(method: str) -> None:
 
 
 # @spec TEL-021
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_bucket_boundaries_are_the_service_s_own() -> None:
     assert tuple(BUCKET_BOUNDARIES) == BOUNDARIES
 
 
 # @spec TEL-021
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_tool_call_durations_are_bucketed_at_the_service_s_boundaries() -> None:
     metrics, reader = _metrics()
 
@@ -132,7 +125,6 @@ def test_tool_call_durations_are_bucketed_at_the_service_s_boundaries() -> None:
 
 
 # @spec TEL-021
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_http_request_durations_are_bucketed_at_the_service_s_boundaries() -> None:
     metrics, reader = _metrics()
 

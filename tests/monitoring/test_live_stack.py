@@ -73,6 +73,8 @@ async def _play_a_few_calls(url: str) -> None:
         await client.call_tool("play", {"game_id": game_id, "card": "Forest", "from": "hand"})
         await client.call_tool("play", {"game_id": game_id, "card": ["Forest"]})
         await client.call_tool("wait", {"game_id": game_id, "timeout": 1})
+        # Answered the same way every round, so its series rises between rounds.
+        await client.call_tool("wait", {"game_id": "no-such-seat", "timeout": 1})
         with contextlib.suppress(MCPError):
             await client.call_tool("no_such_tool", {})
 
@@ -99,8 +101,10 @@ def _for_this_run(expr: str, service_name: str) -> str:
 
 
 def _query(expr: str) -> list[dict[str, Any]]:
+    """The query's result, or nothing while Grafana's Prometheus datasource is still starting."""
     response = httpx.get(PROMETHEUS_QUERY, params={"query": expr}, timeout=10.0)
-    response.raise_for_status()
+    if response.status_code != 200:
+        return []
     result: list[dict[str, Any]] = response.json()["data"]["result"]
     return result
 
