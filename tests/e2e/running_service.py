@@ -10,7 +10,7 @@ import socket
 import subprocess
 import sys
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,9 +36,16 @@ def _free_port() -> int:
         return port
 
 
+# @spec TEL-041
 def _environment(port: int, database: Path) -> dict[str, str]:
+    """This process's environment, without any `OTEL_` variable so that a developer's shell
+    never makes the service export, and with the service's own settings."""
     return {
-        **os.environ,
+        **{
+            name: value
+            for name, value in os.environ.items()
+            if not name.upper().startswith("OTEL_")
+        },
         "MTG_GOLDFISHING_HOST": "127.0.0.1",
         "MTG_GOLDFISHING_PORT": str(port),
         "MTG_GOLDFISHING_DB": str(database),
@@ -75,15 +82,22 @@ def _stop(process: subprocess.Popen[bytes]) -> None:
 
 @contextmanager
 def running_service(
-    folder: Path, command: Sequence[str] = RECORDED_SERVICE
+    folder: Path,
+    command: Sequence[str] = RECORDED_SERVICE,
+    *,
+    environment: Mapping[str, str] | None = None,
 ) -> Iterator[RunningService]:
-    """The service started by `command` with its database in `folder`, until the block ends."""
+    """The service started by `command` with its database in `folder`, until the block ends.
+
+    `environment` is added to the harness's environment, after its `OTEL_` variables are
+    removed.
+    """
     port = _free_port()
     database = folder / "games.sqlite3"
     process = subprocess.Popen(
         list(command),
         cwd=ROOT,
-        env=_environment(port, database),
+        env={**_environment(port, database), **(environment or {})},
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=sys.platform != "win32",

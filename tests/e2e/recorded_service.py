@@ -15,6 +15,7 @@ import os
 import sys
 
 from mtg_goldfishing.adapters.memory import InMemoryCardCatalog
+from mtg_goldfishing.adapters.telemetry import TelemetryProblem, telemetry_settings_from
 from mtg_goldfishing.bootstrap import SettingsProblem, serve, settings_from
 from tests.support.card_data import recorded_cards
 
@@ -24,7 +25,11 @@ def main() -> int:
     if isinstance(settings, SettingsProblem):
         print(settings.message, file=sys.stderr)
         return 2
-    return serve(settings, catalog=InMemoryCardCatalog(recorded_cards()))
+    telemetry = telemetry_settings_from(os.environ)
+    if isinstance(telemetry, TelemetryProblem):
+        print(telemetry.message, file=sys.stderr)
+        return 2
+    return serve(settings, catalog=InMemoryCardCatalog(recorded_cards()), telemetry=telemetry)
 
 
 if __name__ == "__main__":
