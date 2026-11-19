@@ -32,6 +32,7 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "e2e: starts the real service; excluded from the pre-commit run",
     "monitoring: needs the monitoring stack running; excluded from the pre-commit run",
+    "speed: the storage speed check, timed against the json module; run on request, excluded from the pre-commit run",
 ]
 
 [tool.ruff]
