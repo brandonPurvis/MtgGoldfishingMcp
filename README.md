@@ -49,6 +49,7 @@ uv sync                         # install everything
 uv run pre-commit install       # once: lint, type check and unit tests run before every commit
 uv run pytest                   # unit, application, contract, architecture and end-to-end tests
 uv run pytest -m "not e2e"      # the same without starting the real service
+uv run pytest -m speed          # the storage speed check: the codec timed against json
 uv run behave                   # feature tests
 uv run ruff check && uv run ruff format --check && uv run mypy
 ```
