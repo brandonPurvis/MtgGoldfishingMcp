@@ -393,3 +393,74 @@ def test_the_tools_get_log_errors_list_are_the_tools_the_surface_offers_in_its_o
     surface, _ = _surface()
 
     assert tuple(surface.names) == SERVICE_TOOLS == TOOLS
+
+
+# @spec TEL-008
+def test_an_ok_response_carries_its_status_word() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("play", {"game_id": game_id, "card": "Forest"})
+
+    assert response.status == "OK"
+
+
+# @spec TEL-008
+def test_a_rejected_response_carries_its_status_word() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    surface.call("play", {"game_id": game_id, "card": "Forest", "from": "hand"})
+    response = surface.call("play", {"game_id": game_id, "card": "Forest", "from": "hand"})
+
+    assert response.status == "REJECTED"
+
+
+# @spec TEL-008
+def test_a_choice_response_carries_its_status_word() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+    look = {"look": {"n": 2, "from": "top", "rest": "library_bottom"}}
+
+    response = surface.call("effect", {"game_id": game_id, "source": "Ponder", "delta": look})
+
+    assert response.status == "CHOICE"
+
+
+# @spec TEL-008
+def test_an_error_response_carries_its_status_word() -> None:
+    surface, _ = _surface()
+
+    response = surface.call("get_state", {"game_id": "gnosuchgame"})
+
+    assert response.status == "ERROR"
+
+
+# @spec TEL-008
+def test_a_malformed_call_s_response_carries_the_error_status_word() -> None:
+    surface, harness = _surface()
+    game_id = _in_main_step_with_forests(harness)
+
+    response = surface.call("play", {"game_id": game_id, "card": 12})
+
+    assert response.status == "ERROR"
+
+
+# @spec TEL-008
+def test_a_response_opening_with_a_digest_carries_its_status_word_not_its_first_word() -> None:
+    surface, harness = _surface()
+    game_id = harness.started_contested_game(opposing=1)
+    surface.call("mulligan", {"game_id": game_id, "keep": True})
+
+    response = surface.call("get_state", {"game_id": harness.seat_id(game_id, 2)})
+
+    assert (response.text.split()[0], response.status) == ("S1", "OK")
+
+
+# @spec TEL-008
+def test_the_function_form_of_a_tool_carries_the_status_word_too() -> None:
+    surface, _ = _surface()
+
+    response = surface.function("get_state")({"game_id": "gnosuchgame"})
+
+    assert response.status == "ERROR"

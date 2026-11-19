@@ -18,6 +18,14 @@ _Avoid_: Player, user, client
 The instructions that tell an agent how to play a seat through the service's tools.
 _Avoid_: Tester brief, prompt
 
+**Telemetry**:
+The service's measurements of itself: how long each tool call and HTTP request took and how it was answered. It describes the service, never a game.
+_Avoid_: Metrics (alone), statistics, analytics
+
+**Service metrics**:
+The telemetry adapter's object that records a tool call or an HTTP request as a measurement.
+_Avoid_: Metrics client, recorder
+
 ### Decks and cards
 
 **Loaded deck**:
