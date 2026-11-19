@@ -40,6 +40,26 @@ Design: `storage-design.md`. Prefix: `STOR`.
 - [x] **STOR-028**: The SQLite adapter shall key each stored turn snapshot by game id and table turn number, which in a goldfish game is the turn number, so that the snapshots of different seats' turns in a contested game never replace one another.
 - [x] **STOR-029**: If the SQLite adapter is asked to add a snapshot whose game id and table turn number already have a stored snapshot, then it shall raise an exception and write nothing, neither replacing the stored snapshot nor ignoring the new one silently.
 
+## Stored documents
+
+- [ ] **STOR-047**: The SQLite adapter shall write each stored game, loaded deck, log entry, turn snapshot, call record and cached card as the JSON text that the storage design's stored document format defines for that value.
+- [ ] **STOR-048**: When a migration turns a stored value into JSON-ready data or JSON-ready data into a value, the SQLite adapter shall produce the data or value that the stored document format defines, the same as for a whole document.
+- [ ] **STOR-049**: The SQLite adapter shall read every game, loaded deck, log entry, turn snapshot, call record and cached card document that a database at the current schema version holds, including documents a migration wrote without the codec, as the value the stored document format says it stands for.
+- [ ] **STOR-050**: If a value to be stored does not match its declared type, or a stored document or JSON-ready data cannot be read as the type asked for, then the SQLite adapter shall raise a codec error.
+- [ ] **STOR-051**: The SQLite adapter shall turn the stored text of a loaded deck of 100 cards, and of a four-seat contested game, into the value it stands for in no more than five times the time the standard library's JSON module takes to parse that text, each measured as the median of repeated runs and excluding the database read.
+- [ ] **STOR-052**: The SQLite adapter shall turn a loaded deck of 100 cards, and a four-seat contested game, into its stored text in no more than four times the time the standard library's JSON module takes to write that value's JSON-ready data as text, each measured as the median of repeated runs and excluding the database write.
+
+## Loaded decks in memory
+
+- [ ] **STOR-053**: When the SQLite deck repository finds a loaded deck by a read made while no transaction is open on the reading connection, it shall keep that deck in memory, keyed by its deck id.
+- [ ] **STOR-054**: While its database is open, when asked for a loaded deck it keeps in memory, the SQLite deck repository shall return the kept deck without reading the database, and shall make that deck the most recently asked for.
+- [ ] **STOR-055**: When keeping one more loaded deck in memory would make the SQLite deck repository keep more than 64, it shall first forget the deck it keeps that was least recently asked for.
+- [ ] **STOR-056**: When asked for a deck id that names no loaded deck it keeps in memory, the SQLite deck repository shall read the database, and shall not remember a deck id that named no stored loaded deck.
+- [ ] **STOR-057**: When adding a loaded deck, the SQLite deck repository shall write it to and read it back from the database, neither answering from memory nor keeping the deck in memory.
+- [ ] **STOR-058**: When a unit of work in which a loaded deck was added, and read back, is rolled back, the SQLite deck repository shall report that the deck's id names no loaded deck.
+- [ ] **STOR-059**: If the database has been closed, then the SQLite deck repository shall raise when asked for any loaded deck, including one it keeps in memory.
+- [ ] **STOR-060**: Every dataclass that a loaded deck can hold, at any depth, shall be frozen and shall have no field declared as a list, dict or set.
+
 ## Schema
 
 - [x] **STOR-013**: When the service starts against a database with an older schema version, the SQLite adapter shall apply forward migrations to reach the current schema version before serving.
