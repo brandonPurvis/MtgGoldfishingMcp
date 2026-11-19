@@ -74,6 +74,7 @@ The game of Magic as this service sees it — games, seats, card instances, zone
 9. **Complete records.** Logs, turn snapshots and call records give an outside process everything it needs, and survive a restart of the service.
 10. **Usable on day one.** The service's own instructions and tool descriptions are enough for an agent to play a seat of a game, and a player brief makes it usable as a Claude Code subagent.
 11. **Code that reads as the domain.** A rule of the game as the service sees it is written once, in the domain model, in glossary terms, and can be tested without a database, a network or an MCP client.
+12. **Observable service.** A maintainer can watch, live, how long each tool takes (median, 95th and 99th percentile), how its calls are answered, and how the HTTP endpoint answers, on a dashboard that runs on the local machine.
 
 ## Non-Goals
 
@@ -84,7 +85,7 @@ The game of Magic as this service sees it — games, seats, card instances, zone
 - **Policing agents.** The service keeps hidden information out of each seat's views, but does not stop an agent from reading the log or playing several seats.
 - **Event-based triggers.** "Whenever a creature enters" and similar triggers are their controller's responsibility: the service never looks for them in card text, and the controller states each one — with `effect`, or, for a cast trigger, with the `play` that casts the spell, so that a spell no other seat can answer does not resolve before its controller could state it. Only step triggers get reminders.
 - **Deck management.** No deck versions, deck history, or relationships between decks. A loaded deck is identified only by its contents.
-- **Statistics and analysis.** The service stores and returns records. Metrics, comparisons between decks and findings are produced elsewhere.
+- **Statistics and analysis.** The service stores and returns records. Metrics about games and decks, comparisons between decks and findings are produced elsewhere. The service's own operational telemetry — how long calls take and how they are answered — describes the service, not the games, and is in scope.
 - **The deck-improvement workflow.** Building decks, choosing opposing decks, analysing logs and editing decks happen outside the service.
 - **Tuning the tool surface by measurement.** A loop that replays benchmark games to refine tool names, descriptions and response formats is a separate project; the call record exists so that project has data.
 - **Ending games.** The service notifies when an end condition is met and applies eliminations; only the tested seat's agent ends a game.
@@ -103,7 +104,7 @@ Ordered: when two conflict, the higher one wins.
 
 ## System Design
 
-One long-running Python process serves MCP over streamable HTTP, mounted in a FastAPI application bound to the local machine. Agents connect by URL. All state lives in one SQLite database in WAL mode.
+One long-running Python process serves MCP over streamable HTTP, mounted in a FastAPI application bound to the local machine. Agents connect by URL. All state lives in one SQLite database in WAL mode. When an OpenTelemetry endpoint is configured, the process pushes its operational metrics there over OTLP; a local monitoring stack started beside it receives them and shows them on a dashboard.
 
 ### Architecture: ports and adapters
 
@@ -117,6 +118,7 @@ flowchart LR
         SQL[storage: SQLite adapter]
         SCRY[card-data: Scryfall adapter\nwith cache]
         MEM[in-memory adapters\nfor tests]
+        TEL[telemetry adapter\ncall and request metrics]
     end
     subgraph Application
         UC[application: use cases\none per tool]
@@ -132,11 +134,13 @@ flowchart LR
     SCRY -.implements.-> P
     MEM -.implements.-> P
     SCRY -->|exact names| Scryfall[(Scryfall API)]
+    MCP -.measured by.-> TEL
+    TEL -->|OTLP, when configured| Stack[(local monitoring stack\nand dashboard)]
 ```
 
 - **Domain.** The model of a game and everything that can be decided from it: the `Game` aggregate with its seats, card instances, zones and stack; the immutable `LoadedDeck`; value objects such as mana strings, costs, steps, deltas and readings; and domain services such as the auto payment system and the card reader. The domain performs no I/O, reads no clock, draws no randomness except through a seed it is given, and imports nothing from the other rings.
 - **Application.** One use case per tool. A use case fetches what the domain needs through ports, asks the domain to decide, and saves the result. The application owns the ports: the abstract interfaces through which it reaches persistence, card data, identifiers, time, and the announcement that a game has changed, which lets a waiting seat wake.
-- **Adapters.** The MCP adapter drives the application: it turns tool calls into use-case requests and turns results into response text. The SQLite and Scryfall adapters are driven by it: they implement the ports. In-memory adapters implement the same ports for tests.
+- **Adapters.** The MCP adapter drives the application: it turns tool calls into use-case requests and turns results into response text. The SQLite and Scryfall adapters are driven by it: they implement the ports. In-memory adapters implement the same ports for tests. The telemetry adapter measures the MCP adapter from the outside — each tool call and each HTTP request as it was answered — and never reaches into the application or the domain; telemetry is about the service, not the game.
 
 ### Dependency injection
 
@@ -181,6 +185,7 @@ Each is one leaf design under `docs/intent/`, owning the requirement prefix show
 | `card-data` | Domain + adapter | `CARD` | The card model (domain) and the Scryfall adapter with its cache that supplies it |
 | `storage` | Adapter | `STOR` | The SQLite adapter behind the persistence ports |
 | `tools` | Adapter | `TOOL` | The MCP adapter: tool definitions and descriptions, the response text format and statuses, the digest's wording, server instructions, the player brief, HTTP serving and configuration |
+| `telemetry` | Adapter | `TEL` | Operational metrics: the duration and status word of each tool call, the duration and status code of each HTTP request, exporting them over OTLP when configured, and the local monitoring stack with its dashboard |
 
 ### Tools
 
@@ -197,7 +202,7 @@ The rings are tested at their own level, so each test says one thing and fails f
 - **Contested end-to-end scenarios** (behave) run a selection of the contested-game scenarios against the real process with SQLite, with a separate client for each seat, so that seat ids, `wait` and seats acting at once are exercised over the network.
 - **An architecture test** fails the build if an inner ring imports an outer one.
 
-Tests use recorded card data and never reach the network. Every requirement is cited by at least one test.
+Tests use recorded card data and never reach the network. Telemetry exports nothing unless an endpoint is configured, so no test sends metrics anywhere; tests that check measurements read them from an in-process reader. Every requirement is cited by at least one test.
 
 ## Key Design Decisions
 
@@ -221,6 +226,7 @@ Tests use recorded card data and never reach the network. Every requirement is c
 - **Decks are loaded once and referred to by id.** `load_deck` takes the list as text and returns an id derived from its contents and card data; `new_game` takes that id, and one more for each opposing seat. *Alternative:* `new_game` takes a file path — rejected because server and agent may not share a disk. *Alternative:* `new_game` takes the list — rejected because a deck is normally played many times and the list would be resent each time.
 - **Served over HTTP, not stdio.** One process serves every agent, which lets the seats of one game be played by separate agents, and is the shape a hosted service would take. *Alternative:* a stdio server launched per client — rejected because separate clients could not share a game, and it cannot be offered to others later.
 - **No identity.** Game and seat ids are random and unguessable, which is the only access control. *Alternative:* users and sessions now — rejected under *Build for local, don't block hosted*.
+- **Telemetry is OpenTelemetry metrics pushed over OTLP to a local all-in-one stack.** The service exports only when the standard OpenTelemetry endpoint setting is present, and the repository carries a container definition for a single image holding a collector, a metrics store and Grafana, with the dashboard provisioned. *Alternative:* a Prometheus `/metrics` route scraped by the stack — rejected because a containerised scraper cannot reach a service bound to the local machine without binding it to every address, which gives up the protection against DNS rebinding, and the route would expose the service's usage without any access control. *Alternative:* the standalone Aspire dashboard — rejected because its views are fixed and its data is held only in memory, so it cannot show the percentile and status panels the goal asks for. Pushing to a standard protocol also means a hosted deployment changes only where metrics are sent.
 - **The first turn draws a card by default.** Commander is a multiplayer game, where no player skips their first draw, and a goldfish game stands in for one. `new_game` can turn this off.
 
 ## Success Metrics
@@ -233,11 +239,13 @@ Tests use recorded card data and never reach the network. Every requirement is c
 - The whole domain and feature test suites run without a database file, a network connection or a running server.
 - A goldfish game's calls, responses, status line and records carry nothing of contested games: no seat ids beyond the game id, no digest, no stack and no response windows.
 
-**Falsification signals:** an agent can learn the order of a library other than by replaying a seed it has already played; a seat's responses or state show another seat's hand or library; a refused call changes state; a game's state is lost or altered by restarting the service; the auto payment system taps sources in a way that makes a card in hand uncastable when another payment would not have; a goldfish game's response shows a digest, the stack or a response window; a domain module imports an adapter; a rule of play is implemented in a tool handler or a SQL statement.
+**Falsification signals:** an agent can learn the order of a library other than by replaying a seed it has already played; a seat's responses or state show another seat's hand or library; a refused call changes state; a game's state is lost or altered by restarting the service; the auto payment system taps sources in a way that makes a card in hand uncastable when another payment would not have; a goldfish game's response shows a digest, the stack or a response window; a domain module imports an adapter; a rule of play is implemented in a tool handler or a SQL statement; a call's response, records or game state differ depending on whether telemetry is configured or its endpoint is reachable.
 
 ## References
 
 - Scryfall API: `https://scryfall.com/docs/api`
 - Model Context Protocol Python SDK: `https://github.com/modelcontextprotocol/python-sdk`
+- OpenTelemetry Python: `https://opentelemetry.io/docs/languages/python/`
+- Grafana `otel-lgtm` all-in-one image: `https://github.com/grafana/docker-otel-lgtm`
 - Magic Comprehensive Rules 103.8c (no player skips the first draw in multiplayer), 117 (timing and priority), 405 (stack), 506–511 (combat), 800 (multiplayer rules, including 800.4a on leaving the game), 903 (Commander)
 - `GLOSSARY.md` for project vocabulary
