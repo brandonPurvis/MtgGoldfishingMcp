@@ -151,7 +151,6 @@ async def _cancelled_request(
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_http_request_is_one_measurement_of_the_request_duration() -> None:
     measuring = Measuring(_responding())
 
@@ -161,7 +160,6 @@ async def test_an_http_request_is_one_measurement_of_the_request_duration() -> N
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_http_request_durations_are_in_seconds() -> None:
     measuring = Measuring(_responding())
 
@@ -171,7 +169,6 @@ async def test_http_request_durations_are_in_seconds() -> None:
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_is_timed_from_receiving_it_until_the_application_returned() -> None:
     clock = SteppedClock()
 
@@ -189,7 +186,6 @@ async def test_a_request_is_timed_from_receiving_it_until_the_application_return
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_is_timed_until_the_application_raised() -> None:
     clock = SteppedClock()
 
@@ -205,7 +201,6 @@ async def test_a_request_is_timed_until_the_application_raised() -> None:
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_is_timed_until_the_application_was_cancelled() -> None:
     measuring, _ = await _cancelled_request(clock=SteppedClock())
 
@@ -213,7 +208,6 @@ async def test_a_request_is_timed_until_the_application_was_cancelled() -> None:
 
 
 # @spec TEL-010
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_response_reaches_the_server_unchanged() -> None:
     measuring = Measuring(_responding(201))
 
@@ -227,7 +221,6 @@ async def test_the_response_reaches_the_server_unchanged() -> None:
 
 # @spec TEL-010
 @pytest.mark.parametrize("kind", ["lifespan", "websocket"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_event_that_is_not_an_http_request_reaches_the_application(kind: str) -> None:
     received: list[str] = []
 
@@ -243,7 +236,6 @@ async def test_an_event_that_is_not_an_http_request_reaches_the_application(kind
 
 # @spec TEL-010
 @pytest.mark.parametrize("kind", ["lifespan", "websocket"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_event_that_is_not_an_http_request_is_not_measured(kind: str) -> None:
     async def app(scope: Scope, receive: Receive, send: Send) -> None:
         return
@@ -260,7 +252,6 @@ async def test_an_event_that_is_not_an_http_request_is_not_measured(kind: str) -
 
 # @spec TEL-012
 @pytest.mark.parametrize("scheme", ["http", "https"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_request_s_scheme_is_recorded(scheme: str) -> None:
     measuring = Measuring(_responding())
 
@@ -270,7 +261,6 @@ async def test_the_request_s_scheme_is_recorded(scheme: str) -> None:
 
 
 # @spec TEL-011
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_request_s_method_is_recorded() -> None:
     measuring = Measuring(_responding())
 
@@ -281,7 +271,6 @@ async def test_the_request_s_method_is_recorded() -> None:
 
 # @spec TEL-013
 @pytest.mark.parametrize("path", ["/mcp", "/health"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_measured_route_is_recorded_as_its_path(path: str) -> None:
     measuring = Measuring(_responding())
 
@@ -292,7 +281,6 @@ async def test_a_measured_route_is_recorded_as_its_path(path: str) -> None:
 
 # @spec TEL-013
 @pytest.mark.parametrize("path", ["/mcp/", "/", "/health/deep", "/MCP", "/elsewhere"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_any_other_path_is_recorded_as_other(path: str) -> None:
     measuring = Measuring(_responding())
 
@@ -303,7 +291,6 @@ async def test_any_other_path_is_recorded_as_other(path: str) -> None:
 
 # @spec TEL-013
 @pytest.mark.parametrize(("path", "route"), [("/games", "/games"), ("/mcp", "other")])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_measured_routes_are_the_ones_the_middleware_was_given(
     path: str, route: str
 ) -> None:
@@ -316,7 +303,6 @@ async def test_the_measured_routes_are_the_ones_the_middleware_was_given(
 
 # @spec TEL-014
 @pytest.mark.parametrize("status", [200, 404, 503])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_status_code_of_the_response_started_is_recorded(status: int) -> None:
     measuring = Measuring(_responding(status))
 
@@ -326,7 +312,6 @@ async def test_the_status_code_of_the_response_started_is_recorded(status: int) 
 
 
 # @spec TEL-014, TEL-017
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_response_started_before_the_application_raised_keeps_its_status_code() -> None:
     measuring = Measuring(_raising(HandlerFailed(), after_starting=200))
 
@@ -336,7 +321,6 @@ async def test_a_response_started_before_the_application_raised_keeps_its_status
 
 
 # @spec TEL-015
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_application_that_raised_before_responding_is_recorded_as_500() -> None:
     measuring = Measuring(_raising(HandlerFailed()))
 
@@ -346,7 +330,6 @@ async def test_an_application_that_raised_before_responding_is_recorded_as_500()
 
 
 # @spec TEL-015
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_application_that_returned_without_responding_is_recorded_as_500() -> None:
     measuring = Measuring(_returning_without_a_response)
 
@@ -356,7 +339,6 @@ async def test_an_application_that_returned_without_responding_is_recorded_as_50
 
 
 # @spec TEL-016
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_cancelled_before_responding_is_recorded_without_a_status_code() -> None:
     measuring, _ = await _cancelled_request()
 
@@ -364,7 +346,6 @@ async def test_a_request_cancelled_before_responding_is_recorded_without_a_statu
 
 
 # @spec TEL-014
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_cancelled_after_responding_keeps_its_status_code() -> None:
     measuring, _ = await _cancelled_request(started=200)
 
@@ -376,7 +357,6 @@ async def test_a_request_cancelled_after_responding_keeps_its_status_code() -> N
 
 # @spec TEL-017
 @pytest.mark.parametrize("after_starting", [None, 200], ids=["before responding", "after"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_application_that_raised_is_recorded_with_the_exception_s_class(
     after_starting: int | None,
 ) -> None:
@@ -388,8 +368,17 @@ async def test_an_application_that_raised_is_recorded_with_the_exception_s_class
 
 
 # @spec TEL-017
+async def test_a_built_in_exception_is_recorded_by_its_bare_class_name() -> None:
+    measuring = Measuring(_raising(ValueError("no such card")))
+
+    with pytest.raises(ValueError, match="no such card"):
+        await measuring.request()
+
+    assert measuring.attributes()["error.type"] == "ValueError"
+
+
+# @spec TEL-017
 @pytest.mark.parametrize("after_starting", [None, 200], ids=["before responding", "after"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_application_s_exception_goes_on_as_the_same_exception(
     after_starting: int | None,
 ) -> None:
@@ -404,7 +393,6 @@ async def test_the_application_s_exception_goes_on_as_the_same_exception(
 
 # @spec TEL-018
 @pytest.mark.parametrize("started", [None, 200], ids=["before responding", "after"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_cancellation_goes_on_after_the_request_is_recorded(started: int | None) -> None:
     _, cancellation_went_on = await _cancelled_request(started=started)
 
@@ -412,7 +400,6 @@ async def test_a_cancellation_goes_on_after_the_request_is_recorded(started: int
 
 
 # @spec TEL-018
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_cancelled_before_responding_is_recorded_as_cancelled() -> None:
     measuring, _ = await _cancelled_request()
 
@@ -420,7 +407,6 @@ async def test_a_request_cancelled_before_responding_is_recorded_as_cancelled() 
 
 
 # @spec TEL-018, TEL-019
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_cancelled_after_a_successful_response_started_has_no_error_type() -> None:
     measuring, _ = await _cancelled_request(started=200)
 
@@ -428,7 +414,6 @@ async def test_a_request_cancelled_after_a_successful_response_started_has_no_er
 
 
 # @spec TEL-019
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_request_cancelled_after_a_server_error_started_has_its_code_as_error_type() -> (
     None
 ):
@@ -439,7 +424,6 @@ async def test_a_request_cancelled_after_a_server_error_started_has_its_code_as_
 
 # @spec TEL-019
 @pytest.mark.parametrize("status", [500, 503, 599])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_server_error_response_has_its_status_code_as_error_type(status: int) -> None:
     measuring = Measuring(_responding(status))
 
@@ -449,7 +433,6 @@ async def test_a_server_error_response_has_its_status_code_as_error_type(status:
 
 
 # @spec TEL-015, TEL-019
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_application_that_returned_without_responding_has_500_as_error_type() -> None:
     measuring = Measuring(_returning_without_a_response)
 
@@ -460,7 +443,6 @@ async def test_an_application_that_returned_without_responding_has_500_as_error_
 
 # @spec TEL-019
 @pytest.mark.parametrize("status", [200, 302, 404, 499])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_response_below_500_has_no_error_type(status: int) -> None:
     measuring = Measuring(_responding(status))
 
@@ -498,7 +480,6 @@ def _failing_to_record(app: App, failure: RecordingBroke | None = None) -> Measu
 
 
 # @spec TEL-020
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_response_goes_on_when_recording_raises() -> None:
     measuring = _failing_to_record(_responding(201))
 
@@ -511,7 +492,6 @@ async def test_a_response_goes_on_when_recording_raises() -> None:
 
 
 # @spec TEL-020
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_application_s_exception_goes_on_when_recording_raises() -> None:
     failure = HandlerFailed()
     measuring = _failing_to_record(_raising(failure))
@@ -523,7 +503,6 @@ async def test_the_application_s_exception_goes_on_when_recording_raises() -> No
 
 
 # @spec TEL-020
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_cancellation_goes_on_when_recording_raises() -> None:
     with anyio.CancelScope() as cancel_scope:
 
@@ -537,7 +516,6 @@ async def test_a_cancellation_goes_on_when_recording_raises() -> None:
 
 
 # @spec TEL-020
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_failure_to_record_is_logged(caplog: pytest.LogCaptureFixture) -> None:
     failure = RecordingBroke()
     measuring = _failing_to_record(_responding(), failure)

@@ -277,7 +277,6 @@ def _readme() -> str:
 
 
 # @spec TEL-042
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_stack_runs_the_all_in_one_image_at_a_pinned_version() -> None:
     tag = str(_stack_service()["image"]).removeprefix(f"{IMAGE}:")
 
@@ -286,7 +285,6 @@ def test_the_stack_runs_the_all_in_one_image_at_a_pinned_version() -> None:
 
 # @spec TEL-043
 @pytest.mark.parametrize("port", ["4318", "4317", "3000"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_stack_publishes_each_port_on_the_loopback_address_only(port: str) -> None:
     bindings = {
         (binding.host_ip, binding.published)
@@ -298,7 +296,6 @@ def test_the_stack_publishes_each_port_on_the_loopback_address_only(port: str) -
 
 
 # @spec TEL-043
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_stack_publishes_no_port_beyond_the_loopback_address() -> None:
     exposed = [binding for binding in _port_bindings() if binding.host_ip != "127.0.0.1"]
 
@@ -306,7 +303,6 @@ def test_the_stack_publishes_no_port_beyond_the_loopback_address() -> None:
 
 
 # @spec TEL-044
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_stack_keeps_its_stored_data_in_a_named_volume() -> None:
     named = set((_compose().get("volumes") or {}).keys())
     data_mounts = [mount for mount in _mounts() if mount.target == STORED_DATA]
@@ -338,7 +334,6 @@ def _dashboard_mount() -> Mount:
 
 
 # @spec TEL-045
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_stack_mounts_the_dashboard_provider_into_grafanas_provisioning() -> None:
     mount = _provider_mount()
 
@@ -346,7 +341,6 @@ def test_the_stack_mounts_the_dashboard_provider_into_grafanas_provisioning() ->
 
 
 # @spec TEL-045
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_dashboard_provider_points_grafana_at_the_mounted_dashboard() -> None:
     provider = yaml.safe_load(PROVIDER.read_text(encoding="utf-8"))
     paths = [PurePosixPath(entry["options"]["path"]) for entry in provider["providers"]]
@@ -358,7 +352,6 @@ def test_the_dashboard_provider_points_grafana_at_the_mounted_dashboard() -> Non
 
 
 # @spec TEL-045
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_dashboard_provider_reads_files() -> None:
     provider = yaml.safe_load(PROVIDER.read_text(encoding="utf-8"))
 
@@ -366,7 +359,6 @@ def test_the_dashboard_provider_reads_files() -> None:
 
 
 # @spec TEL-046
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_every_panel_queries_the_stacks_prometheus() -> None:
     off = {panel["title"]: _datasource_uids(panel) for panel in _panels() if panel.get("targets")}
 
@@ -374,7 +366,6 @@ def test_every_panel_queries_the_stacks_prometheus() -> None:
 
 
 # @spec TEL-046
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_every_query_names_the_metrics_as_the_pinned_image_stores_them() -> None:
     named = {
         name
@@ -397,7 +388,6 @@ def test_every_query_names_the_metrics_as_the_pinned_image_stores_them() -> None
     ],
     ids=["start the stack", "start the service pushing to it", "open the dashboard"],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_readme_says_how_to_watch_the_service(instruction: str) -> None:
     assert instruction in _readme()
 
@@ -406,25 +396,21 @@ def test_the_readme_says_how_to_watch_the_service(instruction: str) -> None:
 
 
 # @spec TEL-048
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_dashboard_is_titled_mtg_goldfishing() -> None:
     assert _dashboard()["title"] == "MTG Goldfishing"
 
 
 # @spec TEL-048
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_dashboard_refreshes_every_five_seconds() -> None:
     assert _dashboard()["refresh"] == "5s"
 
 
 # @spec TEL-048
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_dashboard_opens_on_the_last_fifteen_minutes() -> None:
     assert _dashboard()["time"] == {"from": "now-15m", "to": "now"}
 
 
 # @spec TEL-049
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_tool_variable_lists_the_tool_names_of_the_tool_call_metric() -> None:
     query = _variable_query(_tool_variable())
 
@@ -434,19 +420,16 @@ def test_the_tool_variable_lists_the_tool_names_of_the_tool_call_metric() -> Non
 
 
 # @spec TEL-049
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_tool_variable_hides_no_tool_name() -> None:
     assert _tool_variable().get("regex", "") == ""
 
 
 # @spec TEL-049
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_tool_variable_allows_several_tools_to_be_selected() -> None:
     assert _tool_variable()["multi"] is True
 
 
 # @spec TEL-049
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_tool_variable_includes_every_tool_by_default() -> None:
     variable = _tool_variable()
     value = variable.get("current", {}).get("value")
@@ -456,7 +439,6 @@ def test_the_tool_variable_includes_every_tool_by_default() -> None:
 
 # @spec TEL-049
 @pytest.mark.parametrize("title", FILTERED_TOOL_PANELS)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_tool_panel_shows_only_the_selected_tools(title: str) -> None:
     unfiltered = [
         selector
@@ -472,21 +454,18 @@ def test_a_tool_panel_shows_only_the_selected_tools(title: str) -> None:
     "title",
     [TOOL_LATENCY, CALLS_BY_STATUS, ERROR_RATE, WAIT_LATENCY, HTTP_LATENCY, HTTP_BY_STATUS_CODE],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_panel_over_time_is_a_time_series(title: str) -> None:
     assert _panel(title)["type"] == "timeseries"
 
 
 # @spec TEL-051, TEL-054
 @pytest.mark.parametrize("title", [LATENCY_BY_TOOL, CALLS_BY_TOOL_AND_STATUS])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_panel_over_the_selected_range_is_a_table(title: str) -> None:
     assert _panel(title)["type"] == "table"
 
 
 # @spec TEL-051, TEL-054
 @pytest.mark.parametrize("title", [LATENCY_BY_TOOL, CALLS_BY_TOOL_AND_STATUS])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_table_queries_once_at_the_end_of_the_selected_range(title: str) -> None:
     ranged = [
         target.get("refId")
@@ -499,7 +478,6 @@ def test_a_table_queries_once_at_the_end_of_the_selected_range(title: str) -> No
 
 # @spec TEL-050, TEL-051, TEL-055, TEL-056
 @pytest.mark.parametrize("title", [*TIME_SERIES_PERCENTILE_PANELS, *TABLE_PERCENTILE_PANELS])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_latency_panel_shows_the_p50_p95_and_p99(title: str) -> None:
     assert {percentile.quantile for percentile in _percentiles(title)} == PERCENTILES
 
@@ -514,7 +492,6 @@ def test_a_latency_panel_shows_the_p50_p95_and_p99(title: str) -> None:
         (HTTP_LATENCY, f"{HTTP_METRIC}_bucket"),
     ],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_latency_panel_reads_its_instruments_bucket_series(title: str, series: str) -> None:
     assert {percentile.series for percentile in _percentiles(title)} == {series}
 
@@ -530,14 +507,12 @@ def test_a_latency_panel_reads_its_instruments_bucket_series(title: str, series:
     ],
     ids=["pooled across tools", "one row per tool", "wait alone", "one line per route"],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_latency_panel_groups_its_percentiles(title: str, grouping: set[str]) -> None:
     assert {percentile.grouping for percentile in _percentiles(title)} == {frozenset(grouping)}
 
 
 # @spec TEL-050, TEL-053
 @pytest.mark.parametrize("title", [TOOL_LATENCY, ERROR_RATE])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_panel_without_wait_leaves_wait_out(title: str) -> None:
     including_wait = [
         selector for selector in _all_selectors(title, TOOL_METRIC) if WAIT_EXCLUDED not in selector
@@ -548,7 +523,6 @@ def test_a_panel_without_wait_leaves_wait_out(title: str) -> None:
 
 # @spec TEL-051, TEL-052, TEL-054
 @pytest.mark.parametrize("title", [LATENCY_BY_TOOL, CALLS_BY_STATUS, CALLS_BY_TOOL_AND_STATUS])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_panel_with_wait_keeps_wait_in(title: str) -> None:
     excluding = [selector for selector in _all_selectors(title, TOOL_METRIC) if "wait" in selector]
 
@@ -556,7 +530,6 @@ def test_a_panel_with_wait_keeps_wait_in(title: str) -> None:
 
 
 # @spec TEL-052
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_tool_calls_by_status_shows_the_call_rate_for_each_status() -> None:
     sums = _sums(CALLS_BY_STATUS, "rate", f"{TOOL_METRIC}_count")
 
@@ -565,13 +538,11 @@ def test_tool_calls_by_status_shows_the_call_rate_for_each_status() -> None:
 
 # @spec TEL-052, TEL-057
 @pytest.mark.parametrize("title", [CALLS_BY_STATUS, HTTP_BY_STATUS_CODE])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_rate_by_status_is_stacked(title: str) -> None:
     assert _stacking(title) == "normal"
 
 
 # @spec TEL-053
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_tool_error_rate_counts_error_protocol_error_and_defect_as_errors() -> None:
     statuses = [
         set(match.split("|"))
@@ -583,7 +554,6 @@ def test_tool_error_rate_counts_error_protocol_error_and_defect_as_errors() -> N
 
 
 # @spec TEL-053
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_tool_error_rate_divides_the_error_calls_by_all_calls() -> None:
     shapes = [
         ("tool_status" in parts[0], "tool_status" in parts[1]) if len(parts) == 2 else None
@@ -594,7 +564,6 @@ def test_tool_error_rate_divides_the_error_calls_by_all_calls() -> None:
 
 
 # @spec TEL-054
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_calls_by_tool_and_status_counts_the_calls_over_the_selected_range() -> None:
     sums = _sums(CALLS_BY_TOOL_AND_STATUS, "increase", f"{TOOL_METRIC}_count")
 
@@ -604,7 +573,6 @@ def test_calls_by_tool_and_status_counts_the_calls_over_the_selected_range() -> 
 
 
 # @spec TEL-054
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_calls_by_tool_and_status_has_a_row_per_tool_and_a_column_per_status() -> None:
     transformations = _panel(CALLS_BY_TOOL_AND_STATUS).get("transformations", [])
     matrix = any(
@@ -625,7 +593,6 @@ def test_calls_by_tool_and_status_has_a_row_per_tool_and_a_column_per_status() -
 
 
 # @spec TEL-055
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_wait_latency_shows_only_wait() -> None:
     selectors = _all_selectors(WAIT_LATENCY, TOOL_METRIC)
 
@@ -633,7 +600,6 @@ def test_wait_latency_shows_only_wait() -> None:
 
 
 # @spec TEL-055
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_wait_latency_ignores_the_tool_selection() -> None:
     exprs = _exprs(WAIT_LATENCY)
 
@@ -643,7 +609,6 @@ def test_wait_latency_ignores_the_tool_selection() -> None:
 
 
 # @spec TEL-057
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_http_requests_by_status_code_shows_the_request_rate_for_each_status_code() -> None:
     sums = _sums(HTTP_BY_STATUS_CODE, "rate", f"{HTTP_METRIC}_count")
 
@@ -651,7 +616,6 @@ def test_http_requests_by_status_code_shows_the_request_rate_for_each_status_cod
 
 
 # @spec TEL-057
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_http_requests_by_status_code_shows_a_request_without_one_as_none() -> None:
     pattern = re.compile(
         r'label_replace\(.*,"http_response_status_code","none","http_response_status_code","(\^?\$?)"\)$'
@@ -663,21 +627,18 @@ def test_http_requests_by_status_code_shows_a_request_without_one_as_none() -> N
 
 # @spec TEL-058
 @pytest.mark.parametrize("title", TIME_SERIES_PERCENTILE_PANELS)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_time_series_percentile_uses_a_rolling_one_minute_window(title: str) -> None:
     assert {percentile.window for percentile in _percentiles(title)} == {"1m"}
 
 
 # @spec TEL-058
 @pytest.mark.parametrize("title", TABLE_PERCENTILE_PANELS)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_table_percentile_spans_the_selected_time_range(title: str) -> None:
     assert {percentile.window for percentile in _percentiles(title)} == {"$__range"}
 
 
 # @spec TEL-058
 @pytest.mark.parametrize("title", [*TIME_SERIES_PERCENTILE_PANELS, *TABLE_PERCENTILE_PANELS])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_percentile_sums_the_buckets_across_service_instances(title: str) -> None:
     kept_apart = {
         label for percentile in _percentiles(title) for label in percentile.grouping

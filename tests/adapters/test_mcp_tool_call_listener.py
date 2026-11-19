@@ -167,7 +167,6 @@ async def _cancelled_before_the_result(server: Server[Any]) -> bool:
 
 
 # @spec TEL-001
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_tool_call_is_heard_once_with_its_tool_and_status() -> None:
     heard = await _heard_of(_harness(), "get_state", NO_SUCH_GAME)
 
@@ -175,7 +174,6 @@ async def test_a_tool_call_is_heard_once_with_its_tool_and_status() -> None:
 
 
 # @spec TEL-001
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_tool_call_is_timed_from_receiving_it_until_answering_it() -> None:
     clock = SteppedClock()
     heard = Heard()
@@ -188,7 +186,6 @@ async def test_a_tool_call_is_timed_from_receiving_it_until_answering_it() -> No
 
 
 # @spec TEL-001
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_tool_call_that_raised_is_timed_until_it_raised() -> None:
     clock = SteppedClock()
     heard = Heard()
@@ -201,7 +198,6 @@ async def test_a_tool_call_that_raised_is_timed_until_it_raised() -> None:
 
 
 # @spec TEL-001
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_cancelled_tool_call_is_timed_until_it_was_cancelled() -> None:
     heard = Heard()
 
@@ -211,7 +207,6 @@ async def test_a_cancelled_tool_call_is_timed_until_it_was_cancelled() -> None:
 
 
 # @spec TEL-001
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_http_application_tells_its_listener_of_each_tool_call() -> None:
     heard = Heard()
     app = create_app(_harness().service, on_tool_call=heard)
@@ -232,7 +227,6 @@ def test_the_http_application_tells_its_listener_of_each_tool_call() -> None:
 
 
 # @spec TEL-059
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_listener_is_called_on_the_thread_answering_the_call() -> None:
     heard = await _heard_of(_harness(), "get_state", NO_SUCH_GAME)
 
@@ -240,7 +234,6 @@ async def test_the_listener_is_called_on_the_thread_answering_the_call() -> None
 
 
 # @spec TEL-059
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_the_listener_has_been_called_when_the_call_handler_returns() -> None:
     heard = Heard()
 
@@ -262,7 +255,6 @@ async def test_a_synchronous_listener_is_called_without_any_failure_logged(
 
 
 # @spec TEL-002
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_ok_answer_is_heard_as_ok() -> None:
     harness = _harness()
     game_id = _in_main_step_with_forests(harness)
@@ -273,7 +265,6 @@ async def test_an_ok_answer_is_heard_as_ok() -> None:
 
 
 # @spec TEL-002
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_rejected_answer_is_heard_as_rejected() -> None:
     harness = _harness()
     game_id = _in_main_step_with_forests(harness)
@@ -288,7 +279,6 @@ async def test_a_rejected_answer_is_heard_as_rejected() -> None:
 
 
 # @spec TEL-002
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_choice_answer_is_heard_as_choice() -> None:
     harness = _harness()
     game_id = _in_main_step_with_forests(harness)
@@ -302,7 +292,6 @@ async def test_a_choice_answer_is_heard_as_choice() -> None:
 
 
 # @spec TEL-002
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_error_answer_is_heard_as_error() -> None:
     heard = await _heard_of(_harness(), "get_state", NO_SUCH_GAME)
 
@@ -310,7 +299,6 @@ async def test_an_error_answer_is_heard_as_error() -> None:
 
 
 # @spec TEL-002
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_call_with_arguments_of_the_wrong_shape_is_heard_as_error() -> None:
     harness = _harness()
     game_id = _in_main_step_with_forests(harness)
@@ -321,7 +309,6 @@ async def test_a_call_with_arguments_of_the_wrong_shape_is_heard_as_error() -> N
 
 
 # @spec TEL-002, TEL-008
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_an_answer_that_opens_with_a_digest_is_heard_with_its_status_word() -> None:
     harness = _harness()
     game_id = harness.started_contested_game(opposing=1)
@@ -336,7 +323,6 @@ async def test_an_answer_that_opens_with_a_digest_is_heard_with_its_status_word(
 
 
 # @spec TEL-003
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_call_naming_a_tool_that_does_not_exist_is_heard_as_an_unknown_protocol_error() -> (
     None
 ):
@@ -361,7 +347,6 @@ async def test_a_call_naming_a_tool_that_does_not_exist_is_answered_as_without_a
 
 
 # @spec TEL-004
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_tool_that_raised_is_heard_as_a_defect() -> None:
     heard = Heard()
     harness = a_service(renderer=BrokenRenderer())
@@ -387,7 +372,6 @@ async def test_a_tool_s_exception_goes_on_to_the_sdk_as_the_same_exception() -> 
 
 
 # @spec TEL-005
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_call_cancelled_before_its_result_is_heard_as_cancelled() -> None:
     heard = Heard()
 
@@ -402,7 +386,6 @@ async def test_a_cancellation_before_the_result_goes_on() -> None:
 
 
 # @spec TEL-005
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_call_cancelled_after_its_result_is_heard_with_its_status_word() -> None:
     heard = Heard()
     with anyio.CancelScope() as cancel_scope:
@@ -450,7 +433,6 @@ async def test_a_cancellation_goes_on_when_the_listener_raises() -> None:
 
 
 # @spec TEL-006
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 async def test_a_listener_that_raises_is_logged(caplog: pytest.LogCaptureFixture) -> None:
     listener = FailingListener()
 

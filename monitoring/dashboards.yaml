@@ -1,0 +1,9 @@
+# Grafana provisioning: loads the MTG Goldfishing dashboard from the folder compose.yaml mounts.
+apiVersion: 1
+
+providers:
+  - name: "MTG Goldfishing"
+    type: file
+    options:
+      path: /otel-lgtm/mtg-goldfishing-dashboards
+      foldersFromFilesStructure: false

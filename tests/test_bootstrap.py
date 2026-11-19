@@ -264,7 +264,6 @@ def _served_and_measured(
 
 
 # @spec TEL-024
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_served_application_reports_each_tool_call_to_the_service_metrics(
     tmp_path: Path,
 ) -> None:
@@ -278,7 +277,6 @@ def test_the_served_application_reports_each_tool_call_to_the_service_metrics(
 
 
 # @spec TEL-024
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_served_application_measures_http_requests_by_mcp_health_and_other(
     tmp_path: Path,
 ) -> None:
@@ -298,7 +296,6 @@ def test_the_served_application_measures_http_requests_by_mcp_health_and_other(
 
 # @spec TEL-024, TEL-025
 @pytest.mark.usefixtures("_no_otel_variables_in_the_process")
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_serving_with_export_on_pushes_what_was_measured_when_it_stops(tmp_path: Path) -> None:
     def run(app: FastAPI, host: str, port: int) -> None:
         with TestClient(app, base_url=LOCAL) as client:
@@ -358,7 +355,6 @@ def _served_and_stopped(tmp_path: Path, provider: WatchedMeterProvider, events: 
 
 
 # @spec TEL-025
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_meter_provider_is_shut_down_after_the_application_and_before_the_stores(
     tmp_path: Path,
 ) -> None:
@@ -370,7 +366,6 @@ def test_the_meter_provider_is_shut_down_after_the_application_and_before_the_st
 
 
 # @spec TEL-025
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_meter_provider_is_given_at_most_five_seconds_to_shut_down(tmp_path: Path) -> None:
     events: list[str] = []
     provider = WatchedMeterProvider(events)
@@ -423,7 +418,6 @@ REFUSED_TELEMETRY = [
 # @spec TEL-035, TEL-036, TEL-037, TEL-038
 @pytest.mark.usefixtures("_never_served")
 @pytest.mark.parametrize(("telemetry", "variable"), REFUSED_TELEMETRY)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_start_up_with_unusable_telemetry_settings_exits_with_status_2(
     tmp_path: Path, telemetry: dict[str, str], variable: str
 ) -> None:
@@ -435,7 +429,6 @@ def test_start_up_with_unusable_telemetry_settings_exits_with_status_2(
 # @spec TEL-035, TEL-036, TEL-037, TEL-038
 @pytest.mark.usefixtures("_never_served")
 @pytest.mark.parametrize(("telemetry", "variable"), REFUSED_TELEMETRY)
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_start_up_with_unusable_telemetry_settings_says_which_variable(
     tmp_path: Path, telemetry: dict[str, str], variable: str, capsys: pytest.CaptureFixture[str]
 ) -> None:

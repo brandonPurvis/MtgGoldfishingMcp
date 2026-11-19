@@ -68,19 +68,16 @@ def _pushed_once(settings: TelemetrySettings) -> None:
 
 
 # @spec TEL-026
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_with_no_endpoint_export_is_off() -> None:
     assert _settings({}).endpoint is None
 
 
 # @spec TEL-026
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_empty_endpoint_variables_count_as_unset() -> None:
     assert _settings({METRICS_ENDPOINT: "", ENDPOINT: ""}).endpoint is None
 
 
 # @spec TEL-026
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_with_export_off_nothing_is_pushed_whatever_the_process_environment_says(
     receiver: OtlpReceiver, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -97,7 +94,6 @@ def test_with_export_off_nothing_is_pushed_whatever_the_process_environment_says
     ("variable", "value"),
     [(DISABLED, "true"), (DISABLED, "TRUE"), (EXPORTER, "none"), (EXPORTER, "None")],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_telemetry_turned_off_exports_nothing_whatever_endpoint_is_set(
     variable: str, value: str
 ) -> None:
@@ -110,7 +106,6 @@ def test_telemetry_turned_off_exports_nothing_whatever_endpoint_is_set(
 @pytest.mark.parametrize(
     ("variable", "value"), [(DISABLED, "true"), (EXPORTER, "none")], ids=["disabled", "none"]
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_telemetry_turned_off_checks_neither_endpoint_protocol_nor_interval(
     variable: str, value: str
 ) -> None:
@@ -127,7 +122,6 @@ def test_telemetry_turned_off_checks_neither_endpoint_protocol_nor_interval(
 
 
 # @spec TEL-032
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_sdk_disabled_set_to_anything_but_true_leaves_telemetry_on() -> None:
     assert _settings({DISABLED: "false", ENDPOINT: COLLECTOR}).endpoint is not None
 
@@ -136,7 +130,6 @@ def test_sdk_disabled_set_to_anything_but_true_leaves_telemetry_on() -> None:
 
 
 # @spec TEL-027
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_metrics_endpoint_is_used_exactly_as_given() -> None:
     settings = _settings({METRICS_ENDPOINT: "http://collector:4318/custom/path"})
 
@@ -144,7 +137,6 @@ def test_the_metrics_endpoint_is_used_exactly_as_given() -> None:
 
 
 # @spec TEL-027
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_metrics_endpoint_wins_over_the_general_endpoint() -> None:
     settings = _settings(
         {METRICS_ENDPOINT: "http://metrics:4318/v1/metrics", ENDPOINT: "http://general:4318"}
@@ -154,7 +146,6 @@ def test_the_metrics_endpoint_wins_over_the_general_endpoint() -> None:
 
 
 # @spec TEL-027
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_empty_metrics_endpoint_gives_way_to_the_general_endpoint() -> None:
     settings = _settings({METRICS_ENDPOINT: "", ENDPOINT: "http://general:4318"})
 
@@ -162,7 +153,6 @@ def test_an_empty_metrics_endpoint_gives_way_to_the_general_endpoint() -> None:
 
 
 # @spec TEL-027
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_metrics_are_pushed_to_the_metrics_endpoint_as_given(receiver: OtlpReceiver) -> None:
     settings = _settings({METRICS_ENDPOINT: f"{receiver.base_url}/custom/path"})
 
@@ -172,7 +162,6 @@ def test_metrics_are_pushed_to_the_metrics_endpoint_as_given(receiver: OtlpRecei
 
 
 # @spec TEL-027, TEL-028
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_metrics_are_pushed_as_protobuf_over_http(receiver: OtlpReceiver) -> None:
     settings = _settings({ENDPOINT: receiver.base_url})
 
@@ -193,7 +182,6 @@ def test_metrics_are_pushed_as_protobuf_over_http(receiver: OtlpReceiver) -> Non
         ("https://collector.example/otlp/", "https://collector.example/otlp/v1/metrics"),
     ],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_general_endpoint_has_v1_metrics_appended_after_one_slash(
     general: str, endpoint: str
 ) -> None:
@@ -201,7 +189,6 @@ def test_the_general_endpoint_has_v1_metrics_appended_after_one_slash(
 
 
 # @spec TEL-028
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_metrics_are_pushed_to_v1_metrics_under_the_general_endpoint(
     receiver: OtlpReceiver,
 ) -> None:
@@ -216,25 +203,21 @@ def test_metrics_are_pushed_to_v1_metrics_under_the_general_endpoint(
 
 
 # @spec TEL-029
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_metrics_are_pushed_every_five_seconds_by_default() -> None:
     assert _settings({ENDPOINT: COLLECTOR}).interval_millis == 5000
 
 
 # @spec TEL-029
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_empty_interval_counts_as_unset() -> None:
     assert _settings({ENDPOINT: COLLECTOR, INTERVAL: ""}).interval_millis == 5000
 
 
 # @spec TEL-029
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_push_interval_comes_from_the_environment() -> None:
     assert _settings({ENDPOINT: COLLECTOR, INTERVAL: "250"}).interval_millis == 250
 
 
 # @spec TEL-029
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_metrics_are_pushed_each_interval_without_being_asked(receiver: OtlpReceiver) -> None:
     provider = meter_provider_for(_settings({ENDPOINT: receiver.base_url, INTERVAL: "50"}))
     try:
@@ -249,13 +232,11 @@ def test_metrics_are_pushed_each_interval_without_being_asked(receiver: OtlpRece
 
 
 # @spec TEL-030
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_service_is_named_mtg_goldfishing_by_default() -> None:
     assert _settings({}).resource_attributes["service.name"] == "mtg-goldfishing"
 
 
 # @spec TEL-030
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_service_name_comes_from_otel_service_name() -> None:
     settings = _settings({SERVICE_NAME: "table-one"})
 
@@ -263,7 +244,6 @@ def test_the_service_name_comes_from_otel_service_name() -> None:
 
 
 # @spec TEL-030
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_service_name_comes_from_the_resource_attributes_without_otel_service_name() -> None:
     settings = _settings({SERVICE_NAME: "", RESOURCE_ATTRIBUTES: "service.name=table-two"})
 
@@ -271,7 +251,6 @@ def test_the_service_name_comes_from_the_resource_attributes_without_otel_servic
 
 
 # @spec TEL-030
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_otel_service_name_wins_over_the_resource_attributes() -> None:
     settings = _settings({SERVICE_NAME: "table-one", RESOURCE_ATTRIBUTES: "service.name=table-two"})
 
@@ -279,7 +258,6 @@ def test_otel_service_name_wins_over_the_resource_attributes() -> None:
 
 
 # @spec TEL-031
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_instance_id_comes_from_the_resource_attributes() -> None:
     settings = _settings({RESOURCE_ATTRIBUTES: "service.instance.id=seat-runner-7"})
 
@@ -287,13 +265,11 @@ def test_the_instance_id_comes_from_the_resource_attributes() -> None:
 
 
 # @spec TEL-031
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_without_one_given_the_instance_id_is_chosen_at_start() -> None:
     assert _settings({}).resource_attributes["service.instance.id"] == "instance-1"
 
 
 # @spec TEL-031
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_instance_id_is_chosen_anew_each_time_the_service_starts() -> None:
     first = telemetry_settings_from({})
     second = telemetry_settings_from({})
@@ -308,7 +284,6 @@ def test_the_instance_id_is_chosen_anew_each_time_the_service_starts() -> None:
 
 
 # @spec TEL-033
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_other_resource_attributes_are_given_to_every_measurement() -> None:
     settings = _settings({RESOURCE_ATTRIBUTES: "deployment.environment=test,host.name=box"})
 
@@ -320,8 +295,14 @@ def test_other_resource_attributes_are_given_to_every_measurement() -> None:
     }
 
 
+# @spec TEL-033
+def test_resource_attribute_values_are_percent_decoded() -> None:
+    settings = _settings({RESOURCE_ATTRIBUTES: "team.name=deck%20builders%2Cqa"})
+
+    assert settings.resource_attributes["team.name"] == "deck builders,qa"
+
+
 # @spec TEL-030, TEL-031, TEL-033
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_resource_attributes_are_pushed_with_the_metrics(receiver: OtlpReceiver) -> None:
     settings = _settings(
         {
@@ -349,7 +330,6 @@ def test_the_resource_attributes_are_pushed_with_the_metrics(receiver: OtlpRecei
 
 
 # @spec TEL-034
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_push_headers_and_timeout_are_not_checked() -> None:
     environ = {
         ENDPOINT: COLLECTOR,
@@ -363,7 +343,6 @@ def test_push_headers_and_timeout_are_not_checked() -> None:
 
 
 # @spec TEL-034
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_push_headers_are_applied_by_the_otlp_exporter(
     receiver: OtlpReceiver, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -382,7 +361,6 @@ def test_push_headers_are_applied_by_the_otlp_exporter(
     "value", ["collector:4318", "localhost", "ftp://collector:4318", "http://", "http:///v1"]
 )
 @pytest.mark.parametrize("variable", [ENDPOINT, METRICS_ENDPOINT])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_endpoint_that_is_not_an_http_url_with_a_host_is_a_problem_naming_its_variable(
     variable: str, value: str
 ) -> None:
@@ -390,7 +368,6 @@ def test_an_endpoint_that_is_not_an_http_url_with_a_host_is_a_problem_naming_its
 
 
 # @spec TEL-035
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_general_endpoint_is_not_checked_when_the_metrics_endpoint_is_in_effect() -> None:
     settings = _settings({METRICS_ENDPOINT: "http://metrics:4318/v1/metrics", ENDPOINT: "nonsense"})
 
@@ -399,13 +376,11 @@ def test_the_general_endpoint_is_not_checked_when_the_metrics_endpoint_is_in_eff
 
 # @spec TEL-036
 @pytest.mark.parametrize("value", ["0", "-5", "1.5", "five", "1e3"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_an_interval_that_is_not_a_whole_number_above_zero_is_a_problem(value: str) -> None:
     assert INTERVAL in _problem({ENDPOINT: COLLECTOR, INTERVAL: value}).message
 
 
 # @spec TEL-036
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_interval_is_not_checked_with_export_off() -> None:
     assert isinstance(telemetry_settings_from({INTERVAL: "five"}), TelemetrySettings)
 
@@ -415,7 +390,6 @@ def test_the_interval_is_not_checked_with_export_off() -> None:
     ("variable", "value"),
     [(PROTOCOL, "grpc"), (PROTOCOL, "http/json"), (METRICS_PROTOCOL, "grpc")],
 )
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_protocol_other_than_http_protobuf_is_a_problem_naming_its_variable(
     variable: str, value: str
 ) -> None:
@@ -424,13 +398,11 @@ def test_a_protocol_other_than_http_protobuf_is_a_problem_naming_its_variable(
 
 # @spec TEL-037
 @pytest.mark.parametrize("value", ["http/protobuf", "HTTP/Protobuf", ""])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_http_protobuf_in_any_case_or_no_protocol_is_accepted(value: str) -> None:
     assert _settings({ENDPOINT: COLLECTOR, PROTOCOL: value}).endpoint is not None
 
 
 # @spec TEL-037
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_metrics_protocol_wins_over_the_general_protocol() -> None:
     settings = _settings({ENDPOINT: COLLECTOR, METRICS_PROTOCOL: "http/protobuf", PROTOCOL: "grpc"})
 
@@ -438,20 +410,22 @@ def test_the_metrics_protocol_wins_over_the_general_protocol() -> None:
 
 
 # @spec TEL-037
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_protocol_is_not_checked_with_export_off() -> None:
     assert isinstance(telemetry_settings_from({PROTOCOL: "grpc"}), TelemetrySettings)
 
 
 # @spec TEL-038
 @pytest.mark.parametrize("value", ["prometheus", "console", "otlp,console"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_a_metrics_exporter_other_than_otlp_or_none_is_a_problem(value: str) -> None:
     assert EXPORTER in _problem({EXPORTER: value}).message
 
 
 # @spec TEL-038
+def test_a_metrics_exporter_other_than_otlp_or_none_is_a_problem_even_when_disabled() -> None:
+    assert EXPORTER in _problem({EXPORTER: "prometheus", DISABLED: "true"}).message
+
+
+# @spec TEL-038
 @pytest.mark.parametrize("value", ["otlp", "OTLP"])
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_otlp_metrics_exporter_is_accepted(value: str) -> None:
     assert _settings({EXPORTER: value, ENDPOINT: COLLECTOR}).endpoint is not None

@@ -3,8 +3,8 @@
 This is the one module that imports adapters from more than one ring of the outside: the
 SQLite stores, the Scryfall card catalog over the SQLite card cache, in-process game locks
 and game change announcements,
-the system's randomness and clock, the text renderer, and the MCP adapter that serves it
-all over HTTP.
+the system's randomness and clock, the text renderer, the MCP adapter that serves it
+all over HTTP, and the telemetry that measures each tool call and HTTP request.
 
     uv run mtg-goldfishing
 
@@ -13,10 +13,14 @@ all over HTTP.
 | Address to listen on | MTG_GOLDFISHING_HOST   | 127.0.0.1                      |
 | Port                 | MTG_GOLDFISHING_PORT   | 8000                           |
 | Database file        | MTG_GOLDFISHING_DB     | data/mtg-goldfishing.sqlite3   |
+
+Telemetry is configured with OpenTelemetry's standard `OTEL_` variables; see
+`mtg_goldfishing.adapters.telemetry.settings`.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from collections.abc import Callable, Mapping
@@ -27,7 +31,7 @@ import uvicorn
 from fastapi import FastAPI
 from opentelemetry.sdk.metrics import MeterProvider
 
-from mtg_goldfishing.adapters.mcp.app import create_app
+from mtg_goldfishing.adapters.mcp.app import HEALTH_PATH, MCP_PATH, create_app
 from mtg_goldfishing.adapters.mcp.rendering import TextRenderer
 from mtg_goldfishing.adapters.scryfall import ScryfallCatalog
 from mtg_goldfishing.adapters.sqlite import SchemaTooNew, SqliteStores
@@ -37,7 +41,14 @@ from mtg_goldfishing.adapters.system import (
     RandomIdSource,
     SystemClock,
 )
-from mtg_goldfishing.adapters.telemetry import TelemetrySettings
+from mtg_goldfishing.adapters.telemetry import (
+    HttpMeasurement,
+    ServiceMetrics,
+    TelemetryProblem,
+    TelemetrySettings,
+    meter_provider_for,
+    telemetry_settings_from,
+)
 from mtg_goldfishing.application.ports import CardCatalog, GameChanges
 from mtg_goldfishing.application.service import Service
 
@@ -45,6 +56,11 @@ HOST_VARIABLE = "MTG_GOLDFISHING_HOST"
 PORT_VARIABLE = "MTG_GOLDFISHING_PORT"
 DATABASE_VARIABLE = "MTG_GOLDFISHING_DB"
 HIGHEST_PORT = 65535
+METER_SHUTDOWN_MILLIS = 5000
+"""How long the meter provider is given to push what was measured when the service stops."""
+EXPORT_OFF = TelemetrySettings(endpoint=None, interval_millis=5000, resource_attributes={})
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -131,7 +147,7 @@ def run_with_uvicorn(app: FastAPI, host: str, port: int) -> None:
     uvicorn.run(app, host=host, port=port)
 
 
-# @spec TOOL-001, STOR-014
+# @spec TOOL-001, STOR-014, TEL-024, TEL-025, TEL-039, TEL-040
 def serve(
     settings: Settings,
     *,
@@ -143,28 +159,55 @@ def serve(
     """Serve until stopped; the process's exit status.
 
     A database with a newer schema ends start-up with its message and a non-zero status,
-    before anything is changed.
+    before anything is changed. Each tool call and HTTP request is measured over
+    `meter_provider` when given, else over one built from `telemetry` (export off when
+    `None`); once the server has stopped, the meter provider is shut down, and then the
+    stores and card catalog are closed whether or not that shutdown succeeded.
     """
     try:
         composition = compose(settings, catalog=catalog)
     except SchemaTooNew as too_new:
         print(f"mtg-goldfishing: {too_new}", file=sys.stderr)
         return 1
+    provider = (
+        meter_provider
+        if meter_provider is not None
+        else meter_provider_for(telemetry if telemetry is not None else EXPORT_OFF)
+    )
     try:
-        run(create_app(composition.service, host=settings.host), settings.host, settings.port)
+        metrics = ServiceMetrics(provider)
+        app = create_app(
+            composition.service, host=settings.host, on_tool_call=metrics.record_tool_call
+        )
+        app.add_middleware(HttpMeasurement, metrics=metrics, routes={MCP_PATH, HEALTH_PATH})
+        run(app, settings.host, settings.port)
     finally:
+        _shut_down(provider)
         composition.close()
     return 0
 
 
-# @spec TOOL-005
+def _shut_down(provider: MeterProvider) -> None:
+    """Push what was measured since the last push; a failure is logged and goes no further."""
+    try:
+        provider.shutdown(timeout_millis=METER_SHUTDOWN_MILLIS)
+    except Exception:
+        _log.exception("the meter provider failed to shut down")
+
+
+# @spec TOOL-005, TEL-035, TEL-036, TEL-037, TEL-038
 def main(environ: Mapping[str, str] | None = None) -> int:
     """The `mtg-goldfishing` command: serve with the settings in the environment."""
-    settings = settings_from(os.environ if environ is None else environ)
+    environment = os.environ if environ is None else environ
+    settings = settings_from(environment)
     if isinstance(settings, SettingsProblem):
         print(f"mtg-goldfishing: {settings.message}", file=sys.stderr)
         return 2
-    return serve(settings)
+    telemetry = telemetry_settings_from(environment)
+    if isinstance(telemetry, TelemetryProblem):
+        print(f"mtg-goldfishing: {telemetry.message}", file=sys.stderr)
+        return 2
+    return serve(settings, telemetry=telemetry)
 
 
 if __name__ == "__main__":

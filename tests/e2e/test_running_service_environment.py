@@ -8,7 +8,6 @@ from tests.e2e.running_service import _environment
 
 
 # @spec TEL-041
-@pytest.mark.xfail(strict=True, reason="Written before the telemetry code (TEL)")
 def test_the_harness_starts_the_service_with_every_otel_variable_removed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
