@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import pytest
 
@@ -21,6 +21,7 @@ from mtg_goldfishing.adapters.sqlite.codec import CodecError, decode, encode, fr
 from mtg_goldfishing.domain.cards import Card
 from mtg_goldfishing.domain.deck.model import DeckEntry, LoadedDeck
 from mtg_goldfishing.domain.game.model import Game
+from mtg_goldfishing.domain.mana import ManaString
 from mtg_goldfishing.domain.records.model import CallRecord, LogEntry, TurnSnapshot
 from mtg_goldfishing.domain.steps import Step
 from tests.support.card_data import recorded_card
@@ -225,3 +226,44 @@ def test_data_a_value_object_rejects_cannot_be_read() -> None:
 
     with pytest.raises(CodecError):
         from_data(data, Card)
+
+
+# ------------------------------------------------------------------ unions and type aliases
+
+type _Tree = tuple[_Tree, ...]
+type _Number = int | _Text
+type _Text = str | _Number
+
+
+# @spec STOR-049
+def test_a_union_reads_as_its_first_accepting_member_in_its_own_declared_order() -> None:
+    first = from_data("{G}", str | ManaString)
+    second = from_data("{G}", ManaString | str)
+
+    assert (type(first), type(second)) == (str, ManaString)
+
+
+# @spec STOR-047
+def test_a_union_writes_with_its_first_matching_member_in_its_own_declared_order() -> None:
+    first = to_data((1,), object | tuple[int, ...])
+    second = to_data((1,), tuple[int, ...] | object)
+
+    assert (first, second) == ({"__tuple__": [1]}, [1])
+
+
+# @spec STOR-047, STOR-049
+def test_a_type_alias_that_refers_to_itself_is_written_and_read() -> None:
+    tree = ((), ((),))
+
+    assert from_data(to_data(tree, _Tree), _Tree) == tree
+
+
+# @spec STOR-047
+def test_aliases_that_refer_to_each_other_through_unions_are_written() -> None:
+    assert (to_data(1, _Number), to_data("x", _Number)) == (1, "x")
+
+
+# @spec STOR-050
+def test_a_declared_type_the_codec_cannot_key_still_raises_a_codec_error() -> None:
+    with pytest.raises(CodecError):
+        to_data(1, Annotated[int, {"unhashable": []}])

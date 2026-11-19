@@ -50,6 +50,7 @@ class DeckCard:
     reading: CardReading
 
 
+# @spec STOR-060
 @dataclass(frozen=True)
 class LoadedDeck:
     deck_id: str

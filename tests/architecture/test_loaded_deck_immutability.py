@@ -12,7 +12,10 @@ from typing import Any
 import mtg_goldfishing.domain
 from mtg_goldfishing.domain.deck.model import LoadedDeck
 
-MUTABLE = (list, dict, set)
+MUTABLE = (list, dict, set, bytearray)
+IMMUTABLE_GENERICS = (tuple, frozenset, typing.Union, types.UnionType, typing.Literal)
+"""The only generic types a field under a loaded deck may be declared with; any other, such
+as `list[...]` or `Sequence[...]`, can hold a value that is changed after the deck is built."""
 
 
 def _import_the_domain() -> None:
@@ -37,8 +40,8 @@ def _problems_of(kind: object, where: str, seen: set[type]) -> list[str]:
     if kind is object or kind is Any:
         return [f"{where} admits a value of any type"]
     origin = typing.get_origin(kind)
-    if kind in MUTABLE or origin in MUTABLE:
-        return [f"{where} is declared as {kind!r}"]
+    if kind in MUTABLE or (origin is not None and origin not in IMMUTABLE_GENERICS):
+        return [f"{where} is declared as {kind!r}, which can hold a changeable value"]
     problems: list[str] = []
     if origin in (typing.Union, types.UnionType, tuple, frozenset):
         for argument in typing.get_args(kind):

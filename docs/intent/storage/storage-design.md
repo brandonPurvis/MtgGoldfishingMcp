@@ -43,7 +43,7 @@ The format:
 
 - A dataclass becomes an object whose first key is `__type__`, holding the bare name of the value's own class, which may be a subclass of the declared type. Every field follows in declaration order, including fields equal to their default and fields not set by the constructor; values cached on an instance after construction are not fields and are not written.
 - An enum becomes its value, a time its ISO text, and a mana string its text.
-- Tuples and lists become arrays. Frozensets and sets become arrays sorted by each item's JSON text with its keys sorted, so that equal sets are written alike. Dicts with string keys become objects.
+- Tuples and lists become arrays. Frozensets and sets become arrays sorted by each item's text as the standard library's `json.dumps` writes it with sorted keys and otherwise its default settings (a space after each separator, non-ASCII characters escaped), so that equal sets are written alike. Dicts with string keys become objects.
 - `bool` is never accepted where `int` or `float` is declared. An `int` where `float` is declared is written, and read back, as an int.
 - A value of a union type is written as the first member, in declared order, that it is an instance of.
 - Where a value is declared only as `object` (a call's arguments as received), it is written so that it describes itself: tuples, enums, times, and dicts that would be mistaken for one of these are wrapped in a tagged object, and a dataclass or enum in it must have a class name no other storable domain class has.
