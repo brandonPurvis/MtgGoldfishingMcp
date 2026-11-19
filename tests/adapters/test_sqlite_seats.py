@@ -182,9 +182,10 @@ def test_saving_a_game_leaves_its_seats_rows_as_they_were_written(
     game = _a_game_of_two_seats()
     stores.games.add(game)
     written = _query(path, SEAT_COLUMNS + " ORDER BY seat_number")
-    game.seat(SeatNumber(2)).deck_id = "dchanged"
-    game.seat(SeatNumber(2)).eliminated = True
-    stores.games.save(game, version=1)
+    changed = game.copy()
+    changed.seat(SeatNumber(2)).deck_id = "dchanged"
+    changed.seat(SeatNumber(2)).eliminated = True
+    stores.games.save(changed, version=1)
 
     assert _query(path, SEAT_COLUMNS + " ORDER BY seat_number") == written
 
