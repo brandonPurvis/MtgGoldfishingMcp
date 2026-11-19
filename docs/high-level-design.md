@@ -152,7 +152,7 @@ The domain is not injected: it performs no I/O, so the application calls it dire
 
 A use case returns a structured **outcome** — a status, a list of typed events (cost paid, cards drawn, reminder issued, notice raised), and the facts for the status line. Response text and log entries are both produced from that one outcome, so what the agent is told and what is recorded cannot disagree. A seat's digest is built from the same events, filtered by the domain to what that seat may see.
 
-Domain operations never half-apply. An operation takes a game and returns either a changed game with its events or a refusal; a refused operation leaves the original untouched.
+Domain operations never half-apply, and never change the game they are given. An operation takes a game and returns either a changed copy of it with its events, or a refusal; either way the game it was given is left untouched, so a game loaded once can be shared by every reader without being copied.
 
 Every accepted change to a game increases that game's **change number**, which every response shows. A changing call may state the change number it follows; a call resent after a lost response is then recognised against the sending seat's most recent change and answered with the original response instead of being applied twice.
 
