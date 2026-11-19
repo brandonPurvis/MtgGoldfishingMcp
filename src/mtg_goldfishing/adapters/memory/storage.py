@@ -1,7 +1,10 @@
 """The persistence ports in memory: games, loaded decks and records in dictionaries.
 
-Every store keeps deep copies, taken on the way in and on the way out, so nothing a caller
-holds is shared with what is stored.
+The game repository shares the games it keeps, as the SQLite repository does: it returns
+the kept object itself and keeps the object it is given. Since no caller may change such a
+game, it holds a private copy of each kept game and raises when a kept game no longer
+equals it. The deck and record stores keep deep copies, taken on the way in and on the way
+out, so nothing a caller holds is shared with what they store.
 """
 
 from __future__ import annotations
@@ -34,18 +37,52 @@ class _Checkpointed(Protocol):
     def restore(self, checkpoint: object) -> None: ...
 
 
-# @spec APP-013, APP-045
+class KeptGameChanged(Exception):
+    """A game the in-memory game repository keeps was changed after it was kept.
+
+    No caller may change a game the repository returned or was handed to add or save, so
+    this is a defect in the caller, never a refusal.
+    """
+
+    def __init__(self, game_id: str) -> None:
+        super().__init__(
+            f"the game {game_id} was changed after the in-memory game repository kept it"
+        )
+        self.game_id = game_id
+
+
+@dataclass(frozen=True)
+class _KeptGame:
+    """A kept game at its version, beside a private copy taken when it was kept."""
+
+    stored: StoredGame
+    copy: Game
+
+    @classmethod
+    def of(cls, game: Game, version: int) -> _KeptGame:
+        return cls(StoredGame(game, version), game.copy())
+
+    def changed(self) -> bool:
+        return self.stored.game != self.copy
+
+
+# @spec APP-013, APP-045, APP-100, APP-101, APP-104
 class InMemoryGameRepository(GameRepository):
     """Games by id, each with the version counter it was stored at, and the game and seat
-    number each seat id names, written when the game is added and never changed."""
+    number each seat id names, written when the game is added and never changed.
+
+    The game object given to `add` or `save` is the one kept and returned. Beside it is a
+    private copy taken when it was kept, against which the kept game is checked whenever it
+    is asked for or saved over; a rolled-back unit of work restores each game with its copy.
+    """
 
     def __init__(self) -> None:
-        self._games: dict[str, StoredGame] = {}
+        self._games: dict[str, _KeptGame] = {}
         self._seats: dict[SeatId, SeatOfGame] = {}
 
     def get(self, game_id: str) -> StoredGame | None:
-        stored = self._games.get(game_id)
-        return None if stored is None else StoredGame(stored.game.copy(), stored.version)
+        kept = self._unchanged(game_id)
+        return None if kept is None else kept.stored
 
     def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
         return self._seats.get(seat_id)
@@ -53,16 +90,20 @@ class InMemoryGameRepository(GameRepository):
     def add(self, game: Game) -> None:
         if game.game_id in self._games:
             raise ValueError(f"a game is already stored under {game.game_id}")
-        self._games[game.game_id] = StoredGame(game.copy(), 1)
+        self._games[game.game_id] = _KeptGame.of(game, 1)
         for seat in game.seats:
             self._seats[seat.seat_id] = SeatOfGame(game.game_id, seat.number)
 
     def save(self, game: Game, *, version: int) -> bool:
-        stored = self._games.get(game.game_id)
-        if stored is None or stored.version != version:
+        kept = self._unchanged(game.game_id)
+        if kept is None or kept.stored.version != version:
             return False
-        self._games[game.game_id] = StoredGame(game.copy(), version + 1)
+        self._games[game.game_id] = _KeptGame.of(game, version + 1)
         return True
+
+    def changed_games(self) -> tuple[str, ...]:
+        """The id of every kept game that no longer equals its private copy."""
+        return tuple(game_id for game_id, kept in self._games.items() if kept.changed())
 
     def checkpoint(self) -> object:
         return dict(self._games), dict(self._seats)
@@ -72,6 +113,13 @@ class InMemoryGameRepository(GameRepository):
         games, seats = checkpoint
         self._games = dict(games)
         self._seats = dict(seats)
+
+    def _unchanged(self, game_id: str) -> _KeptGame | None:
+        """The game kept under this id, if any, raising if it was changed since kept."""
+        kept = self._games.get(game_id)
+        if kept is not None and kept.changed():
+            raise KeptGameChanged(game_id)
+        return kept
 
 
 # @spec APP-013

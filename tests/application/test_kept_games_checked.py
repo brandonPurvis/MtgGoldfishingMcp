@@ -16,10 +16,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 CASE = Path(__file__).with_name("kept_game_changed_case.py")
 
-not_yet_checked = pytest.mark.xfail(
-    strict=True, reason="no test checks the games the in-memory repository keeps when it ends yet"
-)
-
 FEATURE = """\
 Feature: A scenario that changes a kept game
   Scenario: The scenario changes a game the agent's service keeps
@@ -64,7 +60,6 @@ def run(*arguments: str) -> subprocess.CompletedProcess[str]:
 
 
 # @spec APP-102, APP-098, APP-103
-@not_yet_checked
 def test_an_application_test_that_changes_a_kept_game_fails_when_it_ends() -> None:
     finished = run("pytest", str(CASE), "-p", "no:cacheprovider")
 
@@ -72,7 +67,6 @@ def test_an_application_test_that_changes_a_kept_game_fails_when_it_ends() -> No
 
 
 # @spec APP-102, APP-098, APP-103
-@not_yet_checked
 def test_an_in_process_feature_scenario_that_changes_a_kept_game_fails(tmp_path: Path) -> None:
     features = tmp_path / "features"
     (features / "steps").mkdir(parents=True)

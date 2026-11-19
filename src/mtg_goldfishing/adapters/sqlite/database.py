@@ -10,13 +10,21 @@ then goes ahead; nothing in this module holds a lock for longer than one transac
 
 A single shared connection behind a lock would be simpler, but it would make every call,
 reads included, wait for any other game's open unit of work.
+
+Transactions. Every transaction on a connection begins and ends here, through `begin`,
+`commit` and `rollback`, whether it is a unit of work or a single write made through
+`writing` outside one. A write may leave work for its transaction's commit (`on_commit`):
+it runs once SQLite reports the commit succeeded, before `commit` returns. Work left by a
+transaction that ends any other way — rolled back, a commit that raises, or ended by SQLite
+itself after an error — never runs: it is discarded on rollback, on a failed commit, and
+when the next transaction on the connection begins.
 """
 
 from __future__ import annotations
 
 import sqlite3
 import threading
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -24,6 +32,9 @@ from mtg_goldfishing.adapters.sqlite.schema import MIGRATIONS, Migration, sqlite
 
 DEFAULT_BUSY_TIMEOUT = 5.0
 """Seconds a write waits for another connection's transaction before failing."""
+
+CommitWork = Callable[[], None]
+"""Work a write leaves for its transaction's commit, run only once that commit succeeds."""
 
 
 class SchemaTooNew(Exception):
@@ -44,7 +55,7 @@ class SchemaTooNew(Exception):
         self.supported = supported
 
 
-# @spec STOR-002, STOR-003, STOR-013, STOR-014, STOR-034, STOR-035
+# @spec STOR-002, STOR-003, STOR-013, STOR-014, STOR-034, STOR-035, STOR-071
 class SqliteDatabase:
     """One SQLite database file, created if missing and migrated to the current layout."""
 
@@ -96,20 +107,69 @@ class SqliteDatabase:
         """A connection to write through, atomically.
 
         Inside an open unit of work the writes join it, and its commit or rollback decides
-        their fate. Otherwise they are committed together on leaving the block, or rolled
-        back if it raises.
+        their fate. Otherwise they are a transaction of their own, committed on leaving the
+        block — running the work they left for it — or rolled back if it raises.
         """
         connection = self.connection()
         if connection.in_transaction:
             yield connection
             return
-        connection.execute("BEGIN IMMEDIATE")
+        self.begin()
         try:
             yield connection
         except BaseException:
-            connection.execute("ROLLBACK")
+            self.rollback()
             raise
-        connection.execute("COMMIT")
+        self.commit()
+
+    def begin(self) -> None:
+        """Begin a transaction on the calling thread's connection, taking the write lock.
+
+        Work an earlier transaction on this connection left for a commit that never came is
+        discarded first, so this transaction cannot commit it.
+        """
+        connection = self.connection()
+        self._pending().clear()
+        connection.execute("BEGIN IMMEDIATE")
+
+    def commit(self) -> None:
+        """Commit the calling thread's transaction, then run the work its writes left.
+
+        If the commit raises, that work is discarded and never runs.
+        """
+        connection = self.connection()
+        pending = self._pending()
+        try:
+            connection.execute("COMMIT")
+        except BaseException:
+            pending.clear()
+            raise
+        work = list(pending)
+        pending.clear()
+        for done in work:
+            done()
+
+    def rollback(self) -> None:
+        """Roll back the calling thread's transaction, discarding the work its writes left.
+
+        A transaction SQLite has already ended on its own leaves nothing to roll back.
+        """
+        connection = self.connection()
+        self._pending().clear()
+        if connection.in_transaction:
+            connection.execute("ROLLBACK")
+
+    def on_commit(self, work: CommitWork) -> None:
+        """Leave work for the commit of the calling thread's open transaction."""
+        self._pending().append(work)
+
+    def _pending(self) -> list[CommitWork]:
+        """The work the calling thread's connection holds for its transaction's commit."""
+        pending: list[CommitWork] | None = getattr(self._local, "pending", None)
+        if pending is None:
+            pending = []
+            self._local.pending = pending
+        return pending
 
     def close(self) -> None:
         with self._guard:
@@ -129,7 +189,7 @@ class SqliteDatabase:
     def _migrate(self, connection: sqlite3.Connection) -> None:
         """Apply each missing migration in its own transaction, recording the version reached."""
         for version, migration in enumerate(self._migrations, start=1):
-            connection.execute("BEGIN IMMEDIATE")
+            self.begin()
             try:
                 if _stored_version(connection) < version:
                     if isinstance(migration, str):
@@ -142,9 +202,9 @@ class SqliteDatabase:
                         "INSERT INTO schema_version (version) VALUES (?)", (version,)
                     )
             except BaseException:
-                connection.execute("ROLLBACK")
+                self.rollback()
                 raise
-            connection.execute("COMMIT")
+            self.commit()
 
 
 def _stored_version(connection: sqlite3.Connection) -> int:

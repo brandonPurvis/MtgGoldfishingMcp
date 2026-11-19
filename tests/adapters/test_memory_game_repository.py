@@ -8,16 +8,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-import pytest
-
 from mtg_goldfishing.adapters.memory import InMemoryStores
 from mtg_goldfishing.domain.game.model import Game
 from tests.support.builders import a_game
-
-not_yet_shared = pytest.mark.xfail(
-    strict=True,
-    reason="the in-memory game repository copies games and keeps no private copy to check yet",
-)
 
 
 def a_stored_game(stores: InMemoryStores) -> Game:
@@ -46,7 +39,6 @@ def raises(call: Callable[[], object]) -> bool:
 
 
 # @spec APP-100
-@not_yet_shared
 def test_the_game_returned_is_the_game_object_added() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -58,7 +50,6 @@ def test_the_game_returned_is_the_game_object_added() -> None:
 
 
 # @spec APP-100
-@not_yet_shared
 def test_the_game_returned_is_the_game_object_last_saved() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -72,7 +63,6 @@ def test_the_game_returned_is_the_game_object_last_saved() -> None:
 
 
 # @spec APP-100
-@not_yet_shared
 def test_every_call_is_returned_the_same_kept_game() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -88,7 +78,6 @@ def test_every_call_is_returned_the_same_kept_game() -> None:
 
 
 # @spec APP-101, APP-098, APP-103
-@not_yet_shared
 def test_asking_for_a_game_changed_after_it_was_added_raises() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -98,7 +87,6 @@ def test_asking_for_a_game_changed_after_it_was_added_raises() -> None:
 
 
 # @spec APP-101, APP-098, APP-103
-@not_yet_shared
 def test_asking_for_a_game_changed_after_it_was_returned_raises() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -110,7 +98,6 @@ def test_asking_for_a_game_changed_after_it_was_returned_raises() -> None:
 
 
 # @spec APP-101, APP-098, APP-103
-@not_yet_shared
 def test_asking_for_a_game_changed_after_it_was_saved_raises() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -122,7 +109,6 @@ def test_asking_for_a_game_changed_after_it_was_saved_raises() -> None:
 
 
 # @spec APP-101, APP-098, APP-103
-@not_yet_shared
 def test_saving_over_a_kept_game_that_was_changed_raises() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)
@@ -144,7 +130,6 @@ def test_asking_for_a_kept_game_nobody_changed_does_not_raise() -> None:
 
 
 # @spec APP-104
-@not_yet_shared
 def test_a_rolled_back_unit_of_work_restores_each_game_with_its_own_copy() -> None:
     stores = InMemoryStores()
     game = a_stored_game(stores)

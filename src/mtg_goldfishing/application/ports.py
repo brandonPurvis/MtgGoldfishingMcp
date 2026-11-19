@@ -48,11 +48,17 @@ class GameRecords:
     calls: tuple[CallRecord, ...]
 
 
-# @spec APP-030, APP-045
+# @spec APP-030, APP-045, APP-098, APP-103
 class GameRepository(ABC):
     """Loads and saves games, and finds the game a seat id names.
 
     A seat is saved and loaded only as part of its game.
+
+    A game returned equals the game last added or saved under its id, at its version, and
+    may be the very object the repository keeps and returns to other calls; so may a game
+    handed to `add` or `save` become. Nothing given either — a use case, a domain function,
+    the renderer, an adapter — changes it: a game is changed only through a domain
+    operation, which makes its changes on a copy.
     """
 
     @abstractmethod

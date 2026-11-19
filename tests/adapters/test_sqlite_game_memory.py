@@ -28,10 +28,6 @@ from tests.support.builders import a_game
 
 LIMIT = 64
 
-not_yet_kept = pytest.mark.xfail(
-    strict=True, reason="the game repository does not keep games in memory yet"
-)
-
 DOCUMENT_READ = re.compile(
     r"\s*SELECT\b(?P<columns>.*?)\bFROM\s+games\b", re.IGNORECASE | re.DOTALL
 )
@@ -147,7 +143,6 @@ def test_a_game_one_repository_keeps_is_not_shared_with_another(stores: SqliteSt
 
 
 # @spec STOR-067
-@not_yet_kept
 def test_a_game_added_in_a_unit_of_work_is_kept_when_it_commits(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     stores.unit_of_work.begin()
@@ -161,7 +156,6 @@ def test_a_game_added_in_a_unit_of_work_is_kept_when_it_commits(stores: SqliteSt
 
 
 # @spec STOR-067
-@not_yet_kept
 def test_a_game_saved_in_a_unit_of_work_is_kept_at_the_version_the_save_wrote(
     stores: SqliteStores,
 ) -> None:
@@ -179,7 +173,6 @@ def test_a_game_saved_in_a_unit_of_work_is_kept_at_the_version_the_save_wrote(
 
 
 # @spec STOR-067
-@not_yet_kept
 def test_the_last_write_of_a_game_in_a_unit_of_work_is_the_one_kept(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     first, second = changed(game, 1), changed(game, 2)
@@ -196,7 +189,6 @@ def test_the_last_write_of_a_game_in_a_unit_of_work_is_the_one_kept(stores: Sqli
 
 
 # @spec STOR-067, STOR-069
-@not_yet_kept
 def test_a_failed_save_after_a_successful_one_leaves_the_successful_one_kept(
     stores: SqliteStores,
 ) -> None:
@@ -215,7 +207,6 @@ def test_a_failed_save_after_a_successful_one_leaves_the_successful_one_kept(
 
 
 # @spec STOR-067
-@not_yet_kept
 def test_a_game_written_becomes_the_most_recently_asked_for(stores: SqliteStores) -> None:
     ids = stored_elsewhere(stores, [a_numbered_game(n) for n in range(LIMIT + 1)])
     read_all(stores, ids[:LIMIT])
@@ -231,7 +222,6 @@ def test_a_game_written_becomes_the_most_recently_asked_for(stores: SqliteStores
 
 
 # @spec STOR-082
-@not_yet_kept
 def test_a_game_added_outside_a_unit_of_work_is_kept_once_the_add_returns(
     stores: SqliteStores,
 ) -> None:
@@ -245,7 +235,6 @@ def test_a_game_added_outside_a_unit_of_work_is_kept_once_the_add_returns(
 
 
 # @spec STOR-082
-@not_yet_kept
 def test_a_game_saved_outside_a_unit_of_work_is_kept_once_the_save_returns(
     stores: SqliteStores,
 ) -> None:
@@ -261,7 +250,6 @@ def test_a_game_saved_outside_a_unit_of_work_is_kept_once_the_save_returns(
 
 
 # @spec STOR-072
-@not_yet_kept
 def test_a_written_game_is_kept_by_the_time_its_commit_returns(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     stores.unit_of_work.begin()
@@ -304,7 +292,6 @@ def test_a_game_added_in_a_unit_of_work_that_is_rolled_back_is_not_found(
 
 
 # @spec STOR-070
-@not_yet_kept
 def test_a_rolled_back_save_leaves_the_game_kept_before_it(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     stores.games.add(game)
@@ -319,7 +306,6 @@ def test_a_rolled_back_save_leaves_the_game_kept_before_it(stores: SqliteStores)
 
 
 # @spec STOR-070
-@not_yet_kept
 def test_a_save_whose_commit_fails_leaves_the_game_kept_before_it(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     stores.games.add(game)
@@ -352,7 +338,6 @@ def _ended_by_sqlite(stores: SqliteStores, game_id: str) -> None:
 
 
 # @spec STOR-070
-@not_yet_kept
 def test_a_save_in_a_transaction_sqlite_ends_on_its_own_leaves_the_game_kept_before_it(
     stores: SqliteStores,
 ) -> None:
@@ -388,7 +373,6 @@ def test_a_later_commit_does_not_keep_a_write_whose_transaction_sqlite_ended(
 
 
 # @spec STOR-073
-@not_yet_kept
 def test_a_kept_game_is_answered_without_reading_its_document(stores: SqliteStores) -> None:
     game = a_numbered_game(1)
     stores.games.add(game)
@@ -400,7 +384,6 @@ def test_a_kept_game_is_answered_without_reading_its_document(stores: SqliteStor
 
 
 # @spec STOR-073
-@not_yet_kept
 def test_a_kept_game_is_answered_without_reading_its_document_inside_a_unit_of_work(
     stores: SqliteStores,
 ) -> None:
@@ -416,7 +399,6 @@ def test_a_kept_game_is_answered_without_reading_its_document_inside_a_unit_of_w
 
 
 # @spec STOR-073
-@not_yet_kept
 def test_a_kept_game_is_returned_itself_to_every_call_that_asks_for_it(
     stores: SqliteStores,
 ) -> None:
@@ -431,7 +413,6 @@ def test_a_kept_game_is_returned_itself_to_every_call_that_asks_for_it(
 
 
 # @spec STOR-073
-@not_yet_kept
 def test_a_kept_game_is_answered_while_its_stored_version_is_unchanged(
     stores: SqliteStores,
 ) -> None:
@@ -468,7 +449,6 @@ def test_a_kept_game_whose_stored_version_moved_on_is_read_again(
 
 
 # @spec STOR-075
-@not_yet_kept
 def test_a_game_read_while_no_transaction_is_open_is_kept(stores: SqliteStores) -> None:
     (game_id,) = stored_elsewhere(stores, [a_numbered_game(1)])
     stores.games.get(game_id)
@@ -480,7 +460,6 @@ def test_a_game_read_while_no_transaction_is_open_is_kept(stores: SqliteStores) 
 
 
 # @spec STOR-075
-@not_yet_kept
 def test_a_game_read_again_after_its_version_moved_on_is_kept_at_the_version_read(
     stores: SqliteStores, elsewhere: SqliteStores
 ) -> None:
@@ -496,7 +475,6 @@ def test_a_game_read_again_after_its_version_moved_on_is_kept_at_the_version_rea
 
 
 # @spec STOR-075
-@not_yet_kept
 def test_a_game_just_read_is_the_most_recently_asked_for(stores: SqliteStores) -> None:
     ids = stored_elsewhere(stores, [a_numbered_game(n) for n in range(LIMIT + 1)])
     read_all(stores, ids)
@@ -540,7 +518,6 @@ def test_an_uncommitted_save_read_back_in_its_unit_of_work_is_not_kept(
 
 
 # @spec STOR-077
-@not_yet_kept
 def test_a_kept_game_returned_becomes_the_most_recently_asked_for(stores: SqliteStores) -> None:
     ids = stored_elsewhere(stores, [a_numbered_game(n) for n in range(LIMIT + 1)])
     read_all(stores, ids[:LIMIT])
@@ -567,7 +544,6 @@ def test_keeping_one_game_past_the_limit_forgets_the_least_recently_asked_for(
 
 
 # @spec STOR-078
-@not_yet_kept
 def test_the_other_games_stay_kept_when_one_is_forgotten(stores: SqliteStores) -> None:
     ids = stored_elsewhere(stores, [a_numbered_game(n) for n in range(LIMIT + 1)])
     read_all(stores, ids)
@@ -634,7 +610,6 @@ def test_a_closed_database_raises_for_a_game_not_kept(stores: SqliteStores) -> N
 
 
 # @spec STOR-083
-@not_yet_kept
 def test_a_read_of_an_earlier_version_does_not_replace_the_game_kept(
     stores: SqliteStores,
 ) -> None:
@@ -655,7 +630,6 @@ def test_a_read_of_an_earlier_version_does_not_replace_the_game_kept(
 
 
 # @spec STOR-083
-@not_yet_kept
 def test_a_commit_of_an_earlier_version_does_not_replace_the_game_kept(
     stores: SqliteStores,
 ) -> None:

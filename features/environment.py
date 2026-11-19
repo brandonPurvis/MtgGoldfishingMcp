@@ -4,7 +4,7 @@ the service with in-memory adapters and recorded card data, and reads the text t
 Nothing here opens a database file, reaches the network or starts a server.
 """
 
-# @spec APP-024, APP-025
+# @spec APP-024, APP-025, APP-102
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tests.support.kept_games import check_kept_games  # noqa: E402
 from tests.support.responses import headline  # noqa: E402
 from tests.support.service import a_service  # noqa: E402  (needs the repository root on the path)
 
@@ -168,3 +169,8 @@ def before_all(context: Any) -> None:
 
 def before_scenario(context: Any, scenario: Any) -> None:
     context.agent = Agent()
+
+
+def after_scenario(context: Any, scenario: Any) -> None:
+    # A scenario that changed a game the agent's service keeps fails here.
+    check_kept_games()

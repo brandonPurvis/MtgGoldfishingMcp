@@ -37,6 +37,7 @@ from mtg_goldfishing.domain.records.model import CallRecord
 from tests.support.builders import Situation
 from tests.support.card_data import recorded_cards
 from tests.support.decks import ATRAXA, OMNATH, a_deck_list, an_opposing_deck_list
+from tests.support.kept_games import watched
 from tests.support.rendering import PlainRenderer
 
 GAME_ID = "gtest000001"
@@ -127,7 +128,7 @@ class ServiceHarness:
         raise KeyError(number)
 
 
-# @spec APP-051
+# @spec APP-051, APP-102
 def a_service(
     *,
     games: Callable[[InMemoryGameRepository], GameRepository] | None = None,
@@ -144,9 +145,11 @@ def a_service(
 
     `games` and `records` wrap the in-memory stores, for tests that need a store to
     misbehave; the unit of work still spans the stores underneath. Waiting seats are woken
-    by the in-process game changes unless `changes` is given.
+    by the in-process game changes unless `changes` is given. The game repository is
+    checked when the test ends (see `kept_games`).
     """
     stores = InMemoryStores()
+    watched(stores.games)
     catalog = InMemoryCardCatalog(recorded_cards() if cards is None else cards, unavailable)
     held = locks or InProcessGameLocks()
     announced = changes or InProcessGameChanges()
