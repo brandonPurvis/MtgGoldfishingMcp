@@ -67,24 +67,24 @@ Design: `storage-design.md`. Prefix: `STOR`.
 
 ## Live games in memory
 
-- [ ] **STOR-066**: Each SQLite game repository shall keep its own games in memory, starting with none, and share them with no other repository.
-- [ ] **STOR-067**: When a transaction in which the SQLite game repository added or saved a game commits, the repository shall keep the game object given to that transaction's last successful `add` or `save` of that game, at the version that write wrote, as the game most recently asked for.
-- [ ] **STOR-069**: When a save fails because the game's stored version counter differs from the version given, the SQLite game repository shall keep nothing from that save.
-- [ ] **STOR-070**: When a transaction in which the SQLite game repository added or saved a game ends in any way other than a successful commit — rolled back, a commit that fails, or ended by SQLite after an error — the repository shall keep nothing from that transaction's writes and shall leave the game object and version it kept for each such game id, if any, as they were.
-- [ ] **STOR-071**: When a transaction begins on a connection, the SQLite database shall discard any work that an earlier transaction on that connection left for its commit and that has not run.
-- [ ] **STOR-072**: When a transaction in which the SQLite game repository added or saved a game commits, the repository shall keep the written game after SQLite reports that the commit succeeded and before the commit returns to its caller.
-- [ ] **STOR-073**: When asked for a game it keeps, whether or not a transaction is open on the reading connection, the SQLite game repository shall read that game's stored version counter and, when it equals the version kept, return the kept game object itself at that version without reading the game's stored document.
-- [ ] **STOR-074**: When asked for a game it does not keep, or one whose stored version counter differs from the version kept, the SQLite game repository shall read the game's stored document and version counter in one statement and return the game that document stands for at that version.
-- [ ] **STOR-075**: When the SQLite game repository reads a game's stored document while no transaction is open on the reading connection, it shall keep the game read, at the version read, as the game most recently asked for, unless it keeps that game at the same or a later version.
-- [ ] **STOR-076**: When the SQLite game repository reads a game's stored document while a transaction is open on the reading connection, it shall not keep the game read.
-- [ ] **STOR-077**: When the SQLite game repository returns a game it keeps, it shall make that game the most recently asked for.
-- [ ] **STOR-078**: When keeping a game id it does not already keep would make the SQLite game repository keep more than 64 games, it shall first forget the game it keeps that was least recently asked for.
-- [ ] **STOR-079**: If asked for a game id it keeps whose stored row no longer exists, then the SQLite game repository shall report that it has no such game.
-- [ ] **STOR-081**: If asked for a game id it keeps whose stored row no longer exists, then the SQLite game repository shall forget that game.
-- [ ] **STOR-080**: If its database has been closed, then the SQLite game repository shall raise the error the database raises when asked for any game, including one it keeps.
-- [ ] **STOR-082**: When the SQLite game repository adds or saves a game while no unit of work is open on the writing connection, it shall treat that write as a transaction of its own, which commits when the write ends.
-- [ ] **STOR-083**: The SQLite game repository shall not replace a game it keeps with an earlier version of that game, whether the earlier version comes from a read or from a commit.
-- [ ] **STOR-084**: The SQLite game repository shall keep, forget and look up a kept game each as one step that no other thread's keeping, forgetting or looking up interleaves with.
+- [x] **STOR-066**: Each SQLite game repository shall keep its own games in memory, starting with none, and share them with no other repository.
+- [x] **STOR-067**: When a transaction in which the SQLite game repository added or saved a game commits, the repository shall keep the game object given to that transaction's last successful `add` or `save` of that game, at the version that write wrote, as the game most recently asked for.
+- [x] **STOR-069**: When a save fails because the game's stored version counter differs from the version given, the SQLite game repository shall keep nothing from that save.
+- [x] **STOR-070**: When a transaction in which the SQLite game repository added or saved a game ends in any way other than a successful commit — rolled back, a commit that fails, or ended by SQLite after an error — the repository shall keep nothing from that transaction's writes and shall leave the game object and version it kept for each such game id, if any, as they were.
+- [x] **STOR-071**: When a transaction begins on a connection, the SQLite database shall discard any work that an earlier transaction on that connection left for its commit and that has not run.
+- [x] **STOR-072**: When a transaction in which the SQLite game repository added or saved a game commits, the repository shall keep the written game after SQLite reports that the commit succeeded and before the commit returns to its caller.
+- [x] **STOR-073**: When asked for a game it keeps, whether or not a transaction is open on the reading connection, the SQLite game repository shall read that game's stored version counter and, when it equals the version kept, return the kept game object itself at that version without reading the game's stored document.
+- [x] **STOR-074**: When asked for a game it does not keep, or one whose stored version counter differs from the version kept, the SQLite game repository shall read the game's stored document and version counter in one statement and return the game that document stands for at that version.
+- [x] **STOR-075**: When the SQLite game repository reads a game's stored document while no transaction is open on the reading connection, it shall keep the game read, at the version read, as the game most recently asked for, unless it keeps that game at the same or a later version.
+- [x] **STOR-076**: When the SQLite game repository reads a game's stored document while a transaction is open on the reading connection, it shall not keep the game read.
+- [x] **STOR-077**: When the SQLite game repository returns a game it keeps, it shall make that game the most recently asked for.
+- [x] **STOR-078**: When keeping a game id it does not already keep would make the SQLite game repository keep more than 64 games, it shall first forget the game it keeps that was least recently asked for.
+- [x] **STOR-079**: If asked for a game id it keeps whose stored row no longer exists, then the SQLite game repository shall report that it has no such game.
+- [x] **STOR-081**: If asked for a game id it keeps whose stored row no longer exists, then the SQLite game repository shall forget that game.
+- [x] **STOR-080**: If its database has been closed, then the SQLite game repository shall raise the error the database raises when asked for any game, including one it keeps.
+- [x] **STOR-082**: When the SQLite game repository adds or saves a game while no unit of work is open on the writing connection, it shall treat that write as a transaction of its own, which commits when the write ends.
+- [x] **STOR-083**: The SQLite game repository shall not replace a game it keeps with an earlier version of that game, whether the earlier version comes from a read or from a commit.
+- [x] **STOR-084**: The SQLite game repository shall keep, forget and look up a kept game each as one step that no other thread's keeping, forgetting or looking up interleaves with.
 
 ## Schema
 

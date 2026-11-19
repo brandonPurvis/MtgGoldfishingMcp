@@ -36,29 +36,58 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+GAMES_KEPT = 64
+"""How many games a game repository keeps in memory: about 17 MB of four-seat games."""
+
+
 # @spec STOR-001, STOR-004, STOR-005, STOR-008, STOR-016, STOR-017, STOR-018, STOR-019
-# @spec STOR-020, STOR-015
+# @spec STOR-020, STOR-015, STOR-066, STOR-078, STOR-083, STOR-084
 class SqliteGameRepository(GameRepository):
     """Each game is one row: its state as one JSON document and a version counter.
 
     Each seat of a game is one `seats` row, written with the game and never changed, by
     which a seat id finds its game without reading any game's document.
+
+    The games most recently read or written are also kept in memory, up to `GAMES_KEPT`,
+    each at the version it was committed at, and answered from there while that version is
+    still the stored one. A written game is kept when its transaction commits; a game read
+    is kept only by a read that can see nothing uncommitted. A kept game is never replaced
+    by an earlier version of it. The game returned is the kept object itself, shared with
+    every caller, which the `GameRepository` port forbids changing.
     """
 
     def __init__(self, database: SqliteDatabase, *, now: Now = utc_now) -> None:
         self._database = database
         self._now = now
+        self._kept: OrderedDict[str, StoredGame] = OrderedDict()
+        self._guard = threading.Lock()
 
+    # @spec STOR-073, STOR-074, STOR-075, STOR-076, STOR-077, STOR-079, STOR-080, STOR-081
     def get(self, game_id: str) -> StoredGame | None:
-        row = (
-            self._database.connection()
-            .execute("SELECT state, version FROM games WHERE game_id = ?", (game_id,))
-            .fetchone()
-        )
+        connection = self._database.connection()
+        with self._guard:
+            kept = self._kept.get(game_id)
+        if kept is not None:
+            row = connection.execute(
+                "SELECT version FROM games WHERE game_id = ?", (game_id,)
+            ).fetchone()
+            if row is None:
+                self._forget(game_id, kept)
+                return None
+            if int(row[0]) == kept.version:
+                self._mark_asked_for(game_id)
+                return kept
+        committed_only = not connection.in_transaction
+        row = connection.execute(
+            "SELECT state, version FROM games WHERE game_id = ?", (game_id,)
+        ).fetchone()
         if row is None:
             return None
         state, version = row
-        return StoredGame(decode(state, Game), int(version))
+        read = StoredGame(decode(state, Game), int(version))
+        if committed_only:
+            self._keep(read, replacing_same_version=False)
+        return read
 
     def find_seat(self, seat_id: SeatId) -> SeatOfGame | None:
         row = (
@@ -71,6 +100,7 @@ class SqliteGameRepository(GameRepository):
         game_id, number = row
         return SeatOfGame(str(game_id), SeatNumber(int(number)))
 
+    # @spec STOR-067, STOR-070, STOR-072, STOR-082
     def add(self, game: Game) -> None:
         now = self._now().isoformat()
         with self._database.writing() as connection:
@@ -87,7 +117,9 @@ class SqliteGameRepository(GameRepository):
                     for seat in game.seats
                 ],
             )
+            self._keep_on_commit(StoredGame(game, 1))
 
+    # @spec STOR-067, STOR-069, STOR-070, STOR-072, STOR-082
     def save(self, game: Game, *, version: int) -> bool:
         """Save only if the stored version is still `version`, in one compare-and-set write."""
         game_id, deck_id, seed, status, result, state = _copied_columns(game)
@@ -97,7 +129,47 @@ class SqliteGameRepository(GameRepository):
                 " version = version + 1, updated_at = ? WHERE game_id = ? AND version = ?",
                 (deck_id, seed, status, result, state, self._now().isoformat(), game_id, version),
             )
-            return cursor.rowcount == 1
+            saved = cursor.rowcount == 1
+            if saved:
+                self._keep_on_commit(StoredGame(game, version + 1))
+            return saved
+
+    def _keep_on_commit(self, written: StoredGame) -> None:
+        """Keep a written game once its transaction commits, and never if it does not.
+
+        Work runs in the order it was left, so the transaction's last write is kept.
+        """
+        self._database.on_commit(lambda: self._keep(written, replacing_same_version=True))
+
+    def _keep(self, stored: StoredGame, *, replacing_same_version: bool) -> None:
+        """Keep a game as the most recently asked for, forgetting the least recent if full.
+
+        A game kept at a later version stays; one kept at the same version stays unless
+        `replacing_same_version`, which a commit asks for and a read does not.
+        """
+        game_id = stored.game.game_id
+        with self._guard:
+            kept = self._kept.get(game_id)
+            if kept is not None and (
+                kept.version > stored.version
+                or (kept.version == stored.version and not replacing_same_version)
+            ):
+                return
+            self._kept[game_id] = stored
+            self._kept.move_to_end(game_id)
+            while len(self._kept) > GAMES_KEPT:
+                self._kept.popitem(last=False)
+
+    def _mark_asked_for(self, game_id: str) -> None:
+        with self._guard:
+            if game_id in self._kept:
+                self._kept.move_to_end(game_id)
+
+    def _forget(self, game_id: str, kept: StoredGame) -> None:
+        """Forget a kept game, unless another thread has kept a different one since."""
+        with self._guard:
+            if self._kept.get(game_id) is kept:
+                del self._kept[game_id]
 
 
 def _copied_columns(game: Game) -> tuple[str, str, int, str, str | None, str]:
@@ -290,13 +362,12 @@ class SqliteUnitOfWork(UnitOfWork):
         self._database = database
 
     def begin(self) -> None:
-        connection = self._database.connection()
-        if connection.in_transaction:
+        if self._database.connection().in_transaction:
             raise RuntimeError("a unit of work is already open on this thread")
-        connection.execute("BEGIN IMMEDIATE")
+        self._database.begin()
 
     def commit(self) -> None:
-        self._database.connection().execute("COMMIT")
+        self._database.commit()
 
     def rollback(self) -> None:
-        self._database.connection().execute("ROLLBACK")
+        self._database.rollback()

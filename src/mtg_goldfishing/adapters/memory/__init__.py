@@ -9,6 +9,7 @@ from mtg_goldfishing.adapters.memory.storage import (
     InMemoryRecordStore,
     InMemoryStores,
     InMemoryUnitOfWork,
+    KeptGameChanged,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "InMemoryRecordStore",
     "InMemoryStores",
     "InMemoryUnitOfWork",
+    "KeptGameChanged",
 ]
